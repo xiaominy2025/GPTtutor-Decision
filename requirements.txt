@@ -1,6 +1,7 @@
 streamlit
-openai
+openai>=1.0.0
 sentence-transformers
 faiss-cpu
 PyMuPDF
 python-dotenv
+numpy
