@@ -595,8 +595,11 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
     current_section = None
     for line in answer_raw.split("\n"):
         line = line.strip()
+        # Check for both bold and non-bold section headers
         if line in response_sections:
             current_section = line
+        elif line.replace("**", "") in response_sections:
+            current_section = line.replace("**", "")
         elif current_section:
             response_sections[current_section] += line + " "
 
