@@ -4,7 +4,7 @@ GPTutor Decision Coach - Enhanced Query Engine
 
 This engine uses an enhanced GPT prompt that generates structured answers with:
 1. Strategy/Explanation - varied writing styles, no repetitive openings
-2. Story or Analogy - engaging narrative examples
+2. Story in Action - engaging narrative examples
 3. Reflection Prompts - 3 concise thinking prompts
 4. Concept/Tool References - clean tooltip-ready list
 
@@ -573,7 +573,7 @@ def apply_grammar_and_clarity_filters(answer: str) -> Tuple[str, Dict[str, List[
 
 def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: dict) -> str:
     """
-    Enhanced response generator that enforces structure and injects tooltips
+    Enhanced response generator with improved tooltip coverage, creativity, and formatting
     
     Args:
         answer_raw: Raw response from GPT
@@ -581,12 +581,12 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         frameworks_gpt: Dictionary of GPT-polished frameworks
     
     Returns:
-        Processed answer with enforced structure and tooltips
+        Processed answer with enforced structure, enhanced tooltips, and improved formatting
     """
     # Section headers expected in the answer
     response_sections = {
         "Strategy or Explanation": "",
-        "Story or Analogy": "",
+        "Story in Action": "",
         "Reflection Prompts": "",
         "Concept/Tool References": ""
     }
@@ -603,6 +603,242 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         elif current_section:
             response_sections[current_section] += line + " "
 
+    # Enhanced tooltip injection with comprehensive coverage
+    def inject_comprehensive_tooltips(content: str) -> str:
+        """Inject tooltips for all relevant concepts found in content"""
+        enhanced_content = content
+        
+        # Priority tooltips that should always be included if mentioned
+        priority_concepts = [
+            "framing bias", "endowment effect", "swot analysis", "decision tree",
+            "cost-benefit analysis", "expected utility", "prospect theory",
+            "anchoring bias", "confirmation bias", "status quo bias",
+            "sunk cost fallacy", "escalation of commitment", "bounded rationality",
+            "ooda loop", "utility theory", "satisficing"
+        ]
+        
+        # Check for priority concepts and inject tooltips
+        found_tooltips = []
+        for concept in priority_concepts:
+            if concept.lower() in content.lower():
+                # Look for tooltip in prebuilt_tooltips first
+                tooltip = prebuilt_tooltips.get(concept.lower())
+                if tooltip:
+                    found_tooltips.append((concept, tooltip))
+                # Also check frameworks_gpt
+                elif concept.lower() in frameworks_gpt:
+                    found_tooltips.append((concept, frameworks_gpt[concept.lower()]))
+        
+        # Add tooltips to content if not already present and no existing tooltip section
+        if found_tooltips and "**Concept/Tool References**" not in content and "**Concepts/Tools/Practice Reference:**" not in content:
+            tooltip_section = "\n\n**Concept/Tool References**\n"
+            for concept, tooltip in found_tooltips:
+                concept_title = " ".join(word.capitalize() for word in concept.split())
+                tooltip_section += f"- **{concept_title}**: {tooltip}\n"
+            enhanced_content += tooltip_section
+        
+        return enhanced_content
+
+    # Enhanced story creativity with vivid analogies
+    def enhance_story_creativity(content: str) -> str:
+        """Replace overused analogies with more vivid alternatives"""
+        creativity_replacements = {
+            r'\bat a crossroads\b': [
+                "like an astronaut preparing for launch",
+                "like a chef balancing complex flavors",
+                "like a chess player calculating moves",
+                "like a conductor leading an orchestra",
+                "like a pilot navigating through turbulence"
+            ],
+            r'\bsteering a ship\b': [
+                "piloting a spacecraft through asteroid fields",
+                "conducting a symphony in a thunderstorm",
+                "playing chess against a grandmaster",
+                "sculpting marble with precision tools",
+                "orchestrating a complex dance performance"
+            ],
+            r'\bweathering the storm\b': [
+                "navigating through uncharted territory",
+                "balancing on a tightrope over a canyon",
+                "solving a complex puzzle with time pressure",
+                "building a bridge while crossing it",
+                "dancing on the edge of possibility"
+            ]
+        }
+        
+        enhanced_content = content
+        import random
+        
+        for pattern, alternatives in creativity_replacements.items():
+            if re.search(pattern, enhanced_content, re.IGNORECASE):
+                replacement = random.choice(alternatives)
+                enhanced_content = re.sub(pattern, replacement, enhanced_content, flags=re.IGNORECASE)
+        
+        return enhanced_content
+
+    # Enhanced decision framework fallback
+    def add_framework_fallback(content: str) -> str:
+        """Add relevant framework suggestion if none mentioned"""
+        # Check for existing frameworks
+        framework_indicators = [
+            "decision tree", "grow model", "swot analysis", "premortem",
+            "weighted scoring", "eisenhower grid", "decision matrix",
+            "cost-benefit analysis", "expected utility", "prospect theory",
+            "ethical decision-making framework"
+        ]
+        
+        has_framework = any(indicator in content.lower() for indicator in framework_indicators)
+        
+        if not has_framework:
+            # Context-sensitive framework recommendations
+            context_keywords = {
+                "ethical": ["Ethical Decision-Making Framework", "Values-Based Decision Matrix"],
+                "business": ["SWOT Analysis", "Decision Matrix"],
+                "personal": ["GROW Model", "Eisenhower Grid"],
+                "complex": ["Decision Tree", "Weighted Scoring Matrix"],
+                "uncertainty": ["Expected Utility", "Prospect Theory"],
+                "time": ["OODA Loop", "Bounded Rationality"]
+            }
+            
+            # Determine context and recommend appropriate framework
+            recommended_framework = "Decision Tree"  # Default
+            for keyword, frameworks in context_keywords.items():
+                if keyword in content.lower():
+                    recommended_framework = frameworks[0]
+                    break
+            
+            # Add framework suggestion only if not already present
+            if "Pro Tip:" not in content:
+                framework_suggestion = f"\n\n🧠 *Pro Tip: Consider using the **{recommended_framework}** to structure your decision-making process.*"
+                content += framework_suggestion
+        
+        return content
+
+    # Enhanced formatting and clarity
+    def improve_formatting(content: str) -> str:
+        """Ensure proper formatting and remove duplicates"""
+        # Bold all tool names consistently
+        tool_names = [
+            "Decision Tree", "SWOT Analysis", "GROW Model", "Premortem Analysis",
+            "Weighted Scoring Matrix", "Cost-Benefit Analysis", "Expected Utility",
+            "Prospect Theory", "OODA Loop", "Bounded Rationality", "Utility Theory",
+            "Framing Bias", "Endowment Effect", "Anchoring Bias", "Confirmation Bias",
+            "Status Quo Bias", "Sunk Cost Fallacy", "Escalation of Commitment"
+        ]
+        
+        for tool in tool_names:
+            # Replace non-bold instances with bold
+            pattern = rf'\b{re.escape(tool)}\b'
+            if re.search(pattern, content, re.IGNORECASE):
+                content = re.sub(pattern, f"**{tool}**", content, flags=re.IGNORECASE)
+        
+        # Remove duplicate tooltips in Concept/Tool References section
+        if "**Concept/Tool References**" in content:
+            lines = content.split('\n')
+            tooltip_lines = []
+            other_lines = []
+            in_tooltip_section = False
+            
+            for line in lines:
+                if "**Concept/Tool References**" in line:
+                    in_tooltip_section = True
+                    other_lines.append(line)
+                elif in_tooltip_section and line.strip().startswith('- **'):
+                    tooltip_lines.append(line.strip())
+                elif in_tooltip_section and not line.strip():
+                    continue
+                else:
+                    in_tooltip_section = False
+                    other_lines.append(line)
+            
+            # Deduplicate tooltips
+            unique_tooltips = {}
+            for line in tooltip_lines:
+                match = re.search(r'- \*\*(.*?)\*\*:?\s*(.*)', line)
+                if match:
+                    name = match.group(1).strip()
+                    definition = match.group(2).strip()
+                    if name not in unique_tooltips:
+                        unique_tooltips[name] = definition
+            
+            # Rebuild content with deduplicated tooltips
+            if unique_tooltips:
+                other_lines.append("**Concept/Tool References**")
+                for name, definition in sorted(unique_tooltips.items()):
+                    other_lines.append(f"- **{name}**: {definition}")
+                content = '\n'.join(other_lines)
+        
+        return content
+
+    # Enhanced repetition avoidance
+    def avoid_repetition(content: str) -> str:
+        """Replace repetitive phrases with varied alternatives"""
+        repetition_replacements = {
+            r'\bpause and reflect\b': [
+                "take a moment to consider",
+                "step back and evaluate",
+                "give yourself space to think",
+                "allow time for contemplation",
+                "create mental distance"
+            ],
+            r'\balign with values\b': [
+                "resonate with your principles",
+                "match your core beliefs",
+                "reflect your fundamental values",
+                "honor your guiding principles",
+                "stay true to your convictions"
+            ],
+            r'\bwhen faced with\b': [
+                "when you encounter",
+                "when you're dealing with",
+                "when you're navigating",
+                "when you're working through",
+                "when you're addressing"
+            ],
+            r'\bwhen you\'re working through\b': [
+                "when you encounter",
+                "when you're dealing with",
+                "when you're navigating",
+                "when you're addressing",
+                "when you're managing"
+            ],
+            r'\bconsider the implications\b': [
+                "think through the consequences",
+                "weigh the potential outcomes",
+                "evaluate the ripple effects",
+                "assess the broader impact",
+                "examine the downstream effects"
+            ],
+            r'\btake a moment to reflect\b': [
+                "step back and evaluate",
+                "give yourself space to think",
+                "allow time for contemplation",
+                "create mental distance",
+                "pause to consider"
+            ]
+        }
+        
+        enhanced_content = content
+        import random
+        
+        for pattern, alternatives in repetition_replacements.items():
+            if re.search(pattern, enhanced_content, re.IGNORECASE):
+                replacement = random.choice(alternatives)
+                enhanced_content = re.sub(pattern, replacement, enhanced_content, flags=re.IGNORECASE)
+        
+        return enhanced_content
+
+    # Process each section with enhancements
+    for section, content in response_sections.items():
+        if content.strip() and not content.strip().startswith("_[This section"):
+            # Apply all enhancements
+            enhanced_content = inject_comprehensive_tooltips(content)
+            enhanced_content = enhance_story_creativity(enhanced_content)
+            enhanced_content = add_framework_fallback(enhanced_content)
+            enhanced_content = improve_formatting(enhanced_content)
+            enhanced_content = avoid_repetition(enhanced_content)
+            response_sections[section] = enhanced_content
+
     # Ensure all sections are present with fallback placeholders
     for section in response_sections:
         if not response_sections[section].strip():
@@ -611,19 +847,14 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
     # Combine all sections into final answer
     final_answer = ""
     for section, content in response_sections.items():
+        # Skip empty Concept/Tool References section to avoid duplication
+        if section == "Concept/Tool References" and not content.strip():
+            continue
         final_answer += f"**{section}**\n{content.strip()}\n\n"
 
-    # Inject tooltips if keywords appear
-    for term, definition in prebuilt_tooltips.items():
-        if term.lower() in final_answer.lower() and definition not in final_answer:
-            final_answer += f"- **{term.title()}**: {definition}\n"
-
-    # Fallback: add framework suggestion if none found
-    named_tools = ["Decision Tree", "GROW", "SWOT", "Premortem", "Weighted Scoring"]
-    found_tools = [tool for tool in named_tools if tool.lower() in final_answer.lower()]
-    
-    if not found_tools:
-        final_answer += "\n🧠 *Tip: This decision may benefit from using a Decision Tree or the GROW coaching model to evaluate options.*\n"
+    # Final formatting pass
+    final_answer = improve_formatting(final_answer)
+    final_answer = avoid_repetition(final_answer)
 
     return final_answer.strip()
 
@@ -839,7 +1070,7 @@ def validate_answer_quality(answer: str) -> tuple[bool, str]:
     # Check for required sections (updated for new 4-section structure with exact formatting)
     required_sections = [
         ("**Strategy or Explanation**", "Strategy or Explanation"),
-        ("**Story or Analogy**", "Story or Analogy"), 
+        ("**Story in Action**", "Story in Action"), 
         ("**Reflection Prompts**", "Reflection Prompts"),
         ("**Concept/Tool References**", "Concept/Tool References")
     ]
@@ -1204,7 +1435,7 @@ try:
             "🧱 REQUIRED STRUCTURE (ENFORCED FORMATTING):\n"
             "Format every answer with these FOUR bold-labeled sections (no exceptions):\n"
             "1. **Strategy or Explanation** (well-structured, not formulaic)\n"
-            "2. **Story or Analogy** (1 paragraph or short narrative)\n"
+            "2. **Story in Action** (1 paragraph or short narrative)\n"
             "3. **Reflection Prompts** (3 concise bullets)\n"
             "4. **Concept/Tool References** (clean tooltip-ready list)\n\n"
             "Use double asterisks (Markdown-style) for all section headers exactly as written above. If any section is missing or unlabeled, the answer is incomplete.\n\n"
