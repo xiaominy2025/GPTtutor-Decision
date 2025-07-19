@@ -586,7 +586,7 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
     # Section headers expected in the answer
     response_sections = {
         "Strategy or Explanation": "",
-        "Story or Analogy": "",
+        "Story in Action": "",
         "Reflection Prompts": "",
         "Concept/Tool References": ""
     }
@@ -603,8 +603,8 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             current_section = line
         elif line.replace("**", "") in response_sections:
             current_section = line.replace("**", "")
-        elif line == "**Story or Analogy**":
-            current_section = "Story or Analogy"
+        elif line == "**Story in Action**":
+            current_section = "Story in Action"
         elif line == "**Reflection Prompts**":
             current_section = "Reflection Prompts"
         elif line == "**Concept/Tool References**":
@@ -697,56 +697,7 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         return enhanced_content
 
     # Enhanced Pro Tip generation with strict rules
-    def add_pro_tip(content: str) -> str:
-        """Add exactly one Pro Tip with varied phrasing"""
-        # Check for existing Pro Tips
-        if "Pro Tip:" in content or "💡" in content or "🧠" in content:
-            return content
-        
-        # Context-sensitive framework recommendations
-        context_keywords = {
-            "ethical": ["Ethical Decision-Making Framework", "Values-Based Decision Matrix"],
-            "business": ["SWOT Analysis", "Decision Matrix"],
-            "personal": ["GROW Model", "Eisenhower Grid"],
-            "complex": ["Decision Tree", "Weighted Scoring Matrix"],
-            "uncertainty": ["Expected Utility", "Prospect Theory"],
-            "time": ["OODA Loop", "Bounded Rationality"]
-        }
-        
-        # Determine context and recommend appropriate framework
-        recommended_framework = "Decision Tree"  # Default
-        for keyword, frameworks in context_keywords.items():
-            if keyword in content.lower():
-                recommended_framework = frameworks[0]
-                break
-        
-        # Varied Pro Tip phrasing (exactly one sentence)
-        pro_tip_phrases = [
-            f"Sketch a quick **{recommended_framework}** to explore both paths before deciding.",
-            f"Try a **{recommended_framework}** to balance risk and opportunity.",
-            f"Use the **{recommended_framework}** to organize your thoughts systematically.",
-            f"Apply the **{recommended_framework}** to weigh your options objectively.",
-            f"Consider the **{recommended_framework}** for a structured approach to this decision."
-        ]
-        
-        import random
-        pro_tip = random.choice(pro_tip_phrases)
-        
-        # Add Pro Tip after Story section
-        if "**Story or Analogy**" in content:
-            # Insert after Story section
-            story_end = content.find("**Reflection Prompts**")
-            if story_end != -1:
-                pro_tip_section = f"\n\n💡 **Pro Tip**: {pro_tip}\n"
-                content = content[:story_end] + pro_tip_section + content[story_end:]
-            else:
-                # Fallback: add at the end
-                content += f"\n\n💡 **Pro Tip**: {pro_tip}\n"
-        else:
-            # Fallback: add at the end
-            content += f"\n\n💡 **Pro Tip**: {pro_tip}\n"
-        
-        return content
+
 
     # Enhanced formatting and clarity with comprehensive fixes
     def improve_formatting(content: str) -> str:
@@ -914,6 +865,12 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         # Remove duplicate section headers
         sections = ["**Strategy or Explanation**", "**Story in Action**", "**Reflection Prompts**", "**Concept/Tool References**"]
         
+        # Ensure proper formatting for Concept/Tool References
+        if "**Concept/Tool References**" in content:
+            # Format tool references properly
+            content = re.sub(r'- \*\*([^*]+)\*\*:?\s*(.*)', r'- **\1**: \2', content)
+            content = re.sub(r'- \*\*([^*]+)\*\*\s*$', r'- **\1**: Brief explanation.', content)
+        
         for section in sections:
             # Count occurrences of each section header
             count = content.count(section)
@@ -924,22 +881,11 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
                     # Rebuild with only first occurrence
                     content = parts[0] + section + ''.join(parts[1:]).replace(section, '')
         
-        # Remove duplicate Pro Tips (both 💡 and 🧠)
-        pro_tip_count = content.count("💡") + content.count("🧠")
-        if pro_tip_count > 1:
-            # Keep only the first Pro Tip
-            if "💡" in content:
-                parts = content.split("💡")
-                if len(parts) > 1:
-                    first_pro_tip = parts[1].split("\n\n")[0] if "\n\n" in parts[1] else parts[1]
-                    remaining_content = "".join(parts[2:]) if len(parts) > 2 else ""
-                    content = parts[0] + "💡" + first_pro_tip + "\n\n" + remaining_content
-            elif "🧠" in content:
-                parts = content.split("🧠")
-                if len(parts) > 1:
-                    first_pro_tip = parts[1].split("\n\n")[0] if "\n\n" in parts[1] else parts[1]
-                    remaining_content = "".join(parts[2:]) if len(parts) > 2 else ""
-                    content = parts[0] + "🧠" + first_pro_tip + "\n\n" + remaining_content
+        # Remove all Pro Tip lines completely
+        content = re.sub(r'💡\s*\*\*Pro Tip\*\*.*?\n', '', content, flags=re.DOTALL)
+        content = re.sub(r'🧠\s*\*Pro Tip.*?\n', '', content, flags=re.DOTALL)
+        content = re.sub(r'\*\*Pro Tip\*\*.*?\n', '', content, flags=re.DOTALL)
+        content = re.sub(r'Pro Tip.*?\n', '', content, flags=re.DOTALL)
         
         # Clean up malformed tool references
         content = re.sub(r'\*\*\*\*([^*]+)\*\*\*\*', r'**\1**', content)
@@ -954,10 +900,9 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
     # Process each section with enhancements
     for section, content in response_sections.items():
         if content.strip() and not content.strip().startswith("_[This section"):
-            # Apply all enhancements
+            # Apply all enhancements (except Pro Tip)
             enhanced_content = inject_comprehensive_tooltips(content)
             enhanced_content = enhance_story_creativity(enhanced_content)
-            enhanced_content = add_pro_tip(enhanced_content)
             enhanced_content = improve_formatting(enhanced_content)
             enhanced_content = avoid_repetition(enhanced_content)
             response_sections[section] = enhanced_content
@@ -967,8 +912,12 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         if not response_sections[section].strip():
             if section == "Reflection Prompts":
                 response_sections[section] = "1. What are the key factors influencing this decision?\n2. How might this choice impact your long-term goals?\n3. What would success look like in this situation?"
-            elif section == "Story or Analogy":
+            elif section == "Story in Action":
                 response_sections[section] = "Consider a scenario where a professional faces a similar challenge. Through careful analysis and thoughtful consideration, they navigate the complexity to reach a well-informed decision."
+            elif section == "Strategy or Explanation":
+                response_sections[section] = "Begin by clearly defining your decision criteria and evaluating all available options systematically."
+            elif section == "Concept/Tool References":
+                response_sections[section] = "- **Decision Tree**: A visual tool that maps out different options and their potential outcomes.\n- **SWOT Analysis**: A framework that helps identify strengths, weaknesses, opportunities, and threats."
             else:
                 response_sections[section] = "_[This section was not generated — please revise your prompt or add logic to fill this in.]_"
 
@@ -980,26 +929,11 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             continue
         final_answer += f"**{section}**\n{content.strip()}\n\n"
     
-    # Add Pro Tip after Story section if not already present
-    if "💡" not in final_answer and "🧠" not in final_answer:
-        final_answer = add_pro_tip(final_answer)
-    
-    # Ensure exactly one Pro Tip
-    pro_tip_count = final_answer.count("💡") + final_answer.count("🧠")
-    if pro_tip_count > 1:
-        # Keep only the first Pro Tip
-        if "💡" in final_answer:
-            parts = final_answer.split("💡")
-            if len(parts) > 1:
-                first_pro_tip = parts[1].split("\n\n")[0] if "\n\n" in parts[1] else parts[1]
-                remaining_content = "".join(parts[2:]) if len(parts) > 2 else ""
-                final_answer = parts[0] + "💡" + first_pro_tip + "\n\n" + remaining_content
-        elif "🧠" in final_answer:
-            parts = final_answer.split("🧠")
-            if len(parts) > 1:
-                first_pro_tip = parts[1].split("\n\n")[0] if "\n\n" in parts[1] else parts[1]
-                remaining_content = "".join(parts[2:]) if len(parts) > 2 else ""
-                final_answer = parts[0] + "🧠" + first_pro_tip + "\n\n" + remaining_content
+    # Remove all Pro Tip lines completely
+    final_answer = re.sub(r'💡\s*\*\*Pro Tip\*\*.*?\n', '', final_answer, flags=re.DOTALL)
+    final_answer = re.sub(r'🧠\s*\*Pro Tip.*?\n', '', final_answer, flags=re.DOTALL)
+    final_answer = re.sub(r'\*\*Pro Tip\*\*.*?\n', '', final_answer, flags=re.DOTALL)
+    final_answer = re.sub(r'Pro Tip.*?\n', '', final_answer, flags=re.DOTALL)
 
     # Final formatting pass with structure cleanup
     final_answer = improve_formatting(final_answer)
