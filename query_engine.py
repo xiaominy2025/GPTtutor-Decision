@@ -676,9 +676,9 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         
         return enhanced_content
 
-    # Enhanced decision framework fallback
+    # Enhanced decision framework fallback with varied phrasing
     def add_framework_fallback(content: str) -> str:
-        """Add relevant framework suggestion if none mentioned"""
+        """Add relevant framework suggestion with varied phrasing"""
         # Check for existing frameworks
         framework_indicators = [
             "decision tree", "grow model", "swot analysis", "premortem",
@@ -689,7 +689,8 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         
         has_framework = any(indicator in content.lower() for indicator in framework_indicators)
         
-        if not has_framework:
+        # Only add Pro Tip if no framework mentioned and no Pro Tip already present
+        if not has_framework and "Pro Tip:" not in content and "🧠" not in content:
             # Context-sensitive framework recommendations
             context_keywords = {
                 "ethical": ["Ethical Decision-Making Framework", "Values-Based Decision Matrix"],
@@ -707,16 +708,30 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
                     recommended_framework = frameworks[0]
                     break
             
-            # Add framework suggestion only if not already present
-            if "Pro Tip:" not in content:
-                framework_suggestion = f"\n\n🧠 *Pro Tip: Consider using the **{recommended_framework}** to structure your decision-making process.*"
-                content += framework_suggestion
+            # Varied Pro Tip phrasing
+            pro_tip_phrases = [
+                f"Try mapping this with the **{recommended_framework}**...",
+                f"The **{recommended_framework}** may help you compare both options...",
+                f"A tool like the **{recommended_framework}** could guide a productive conversation...",
+                f"You might find the **{recommended_framework}** useful for organizing your thoughts...",
+                f"Consider how the **{recommended_framework}** could clarify your options..."
+            ]
+            
+            import random
+            framework_suggestion = f"\n\n🧠 *Pro Tip: {random.choice(pro_tip_phrases)}*"
+            content += framework_suggestion
         
         return content
 
-    # Enhanced formatting and clarity
+    # Enhanced formatting and clarity with comprehensive fixes
     def improve_formatting(content: str) -> str:
-        """Ensure proper formatting and remove duplicates"""
+        """Ensure proper formatting, remove duplicates, and fix broken Markdown"""
+        # Fix broken bold/italic combinations
+        content = re.sub(r'\*{3,}', '**', content)  # Fix excessive asterisks
+        content = re.sub(r'\*{2,}([^*]+)\*{2,}', r'**\1**', content)  # Fix broken bold
+        content = re.sub(r'\*{4,}([^*]+)\*{4,}', r'**\1**', content)  # Fix excessive bold
+        content = re.sub(r'\*\*\*\*([^*]+)\*\*\*\*', r'**\1**', content)  # Fix quadruple asterisks
+        
         # Bold all tool names consistently
         tool_names = [
             "Decision Tree", "SWOT Analysis", "GROW Model", "Premortem Analysis",
@@ -731,6 +746,19 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             pattern = rf'\b{re.escape(tool)}\b'
             if re.search(pattern, content, re.IGNORECASE):
                 content = re.sub(pattern, f"**{tool}**", content, flags=re.IGNORECASE)
+        
+        # Replace placeholder words with role-appropriate alternatives
+        placeholder_replacements = {
+            r'\bindividual\b': ["a product manager", "a founder", "a student", "a professional", "the decision maker"],
+            r'\bperson\b': ["a leader", "a manager", "someone in your shoes", "a professional"],
+            r'\bteam member\b': ["a colleague", "a team member", "a coworker", "a professional"]
+        }
+        
+        import random
+        for pattern, alternatives in placeholder_replacements.items():
+            if re.search(pattern, content, re.IGNORECASE):
+                replacement = random.choice(alternatives)
+                content = re.sub(pattern, replacement, content, flags=re.IGNORECASE)
         
         # Remove duplicate tooltips in Concept/Tool References section
         if "**Concept/Tool References**" in content:
@@ -770,9 +798,9 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
         
         return content
 
-    # Enhanced repetition avoidance
+    # Enhanced repetition avoidance with tone variety
     def avoid_repetition(content: str) -> str:
-        """Replace repetitive phrases with varied alternatives"""
+        """Replace repetitive phrases with varied alternatives and add tone variety"""
         repetition_replacements = {
             r'\bpause and reflect\b': [
                 "take a moment to consider",
@@ -818,16 +846,72 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             ]
         }
         
+        # Add varied openers for different sections
+        opener_replacements = {
+            r'\bOne way to think about this\b': [
+                "This situation calls for",
+                "It might help to first clarify",
+                "A useful approach here is",
+                "The key is to",
+                "What matters most is"
+            ],
+            r'\bImagine you\'re\b': [
+                "Picture this scenario:",
+                "It's like being",
+                "A real-world example might be",
+                "Think of it as",
+                "Consider this situation:"
+            ]
+        }
+        
         enhanced_content = content
         import random
         
+        # Apply repetition replacements
         for pattern, alternatives in repetition_replacements.items():
+            if re.search(pattern, enhanced_content, re.IGNORECASE):
+                replacement = random.choice(alternatives)
+                enhanced_content = re.sub(pattern, replacement, enhanced_content, flags=re.IGNORECASE)
+        
+        # Apply opener replacements
+        for pattern, alternatives in opener_replacements.items():
             if re.search(pattern, enhanced_content, re.IGNORECASE):
                 replacement = random.choice(alternatives)
                 enhanced_content = re.sub(pattern, replacement, enhanced_content, flags=re.IGNORECASE)
         
         return enhanced_content
 
+    # Ensure proper section structure and prevent duplicates
+    def ensure_clean_structure(content: str) -> str:
+        """Ensure clean section structure with no duplicates"""
+        # Remove duplicate section headers
+        sections = ["**Strategy or Explanation**", "**Story in Action**", "**Reflection Prompts**", "**Concept/Tool References**"]
+        
+        for section in sections:
+            # Count occurrences of each section header
+            count = content.count(section)
+            if count > 1:
+                # Keep only the first occurrence
+                parts = content.split(section)
+                if len(parts) > 1:
+                    # Rebuild with only first occurrence
+                    content = parts[0] + section + ''.join(parts[1:]).replace(section, '')
+        
+        # Remove duplicate Pro Tips
+        pro_tip_count = content.count("🧠")
+        if pro_tip_count > 1:
+            # Keep only the first Pro Tip
+            parts = content.split("🧠")
+            if len(parts) > 1:
+                first_pro_tip = parts[1].split("\n\n")[0] if "\n\n" in parts[1] else parts[1]
+                remaining_content = "".join(parts[2:]) if len(parts) > 2 else ""
+                content = parts[0] + "🧠" + first_pro_tip + "\n\n" + remaining_content
+        
+        # Ensure proper spacing between sections
+        content = re.sub(r'\*\*([^*]+)\*\*\n\*\*', r'**\1**\n\n**', content)
+        
+        return content
+    
     # Process each section with enhancements
     for section, content in response_sections.items():
         if content.strip() and not content.strip().startswith("_[This section"):
@@ -852,9 +936,10 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             continue
         final_answer += f"**{section}**\n{content.strip()}\n\n"
 
-    # Final formatting pass
+    # Final formatting pass with structure cleanup
     final_answer = improve_formatting(final_answer)
     final_answer = avoid_repetition(final_answer)
+    final_answer = ensure_clean_structure(final_answer)
 
     return final_answer.strip()
 
