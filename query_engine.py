@@ -609,6 +609,10 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             current_section = "Reflection Prompts"
         elif line == "**Concept/Tool References**":
             current_section = "Concept/Tool References"
+        elif line == "**Concepts/Tools/Practice Reference**":
+            current_section = "Concept/Tool References"
+        elif line == "**Concepts/Tools/Practice Reference:**":
+            current_section = "Concept/Tool References"
         elif line == "**Strategy or Explanation**":
             current_section = "Strategy or Explanation"
         elif current_section and line:
@@ -661,7 +665,7 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
 
     # Enhanced story creativity with vivid analogies
     def enhance_story_creativity(content: str) -> str:
-        """Replace overused analogies with more vivid alternatives"""
+        """Replace overused analogies with more vivid alternatives and add named characters"""
         creativity_replacements = {
             r'\bat a crossroads\b': [
                 "like an astronaut preparing for launch",
@@ -693,6 +697,19 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             if re.search(pattern, enhanced_content, re.IGNORECASE):
                 replacement = random.choice(alternatives)
                 enhanced_content = re.sub(pattern, replacement, enhanced_content, flags=re.IGNORECASE)
+        
+        # Add named characters to stories if not present
+        if "**Story in Action**" in enhanced_content:
+            # Check if story already has a named character
+            named_characters = ["Jordan", "Sam", "Taylor", "Alex", "Casey", "Morgan", "Riley"]
+            has_named_character = any(char in enhanced_content for char in named_characters)
+            
+            if not has_named_character:
+                # Replace "individual" or "person" with a named character
+                import random
+                character = random.choice(named_characters)
+                enhanced_content = re.sub(r'\bindividual\b', character, enhanced_content, flags=re.IGNORECASE)
+                enhanced_content = re.sub(r'\bperson\b', character, enhanced_content, flags=re.IGNORECASE)
         
         return enhanced_content
 
@@ -863,10 +880,10 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
     def ensure_clean_structure(content: str) -> str:
         """Ensure clean section structure with no duplicates"""
         # Remove duplicate section headers
-        sections = ["**Strategy or Explanation**", "**Story in Action**", "**Reflection Prompts**", "**Concept/Tool References**"]
+        sections = ["**Strategy or Explanation**", "**Story in Action**", "**Reflection Prompts**", "**Concept/Tool References**", "**Concepts/Tools/Practice Reference**", "**Concepts/Tools/Practice Reference:**"]
         
         # Ensure proper formatting for Concept/Tool References
-        if "**Concept/Tool References**" in content:
+        if "**Concept/Tool References**" in content or "**Concepts/Tools/Practice Reference**" in content:
             # Format tool references properly
             content = re.sub(r'- \*\*([^*]+)\*\*:?\s*(.*)', r'- **\1**: \2', content)
             content = re.sub(r'- \*\*([^*]+)\*\*\s*$', r'- **\1**: Brief explanation.', content)
@@ -913,9 +930,9 @@ def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: 
             if section == "Reflection Prompts":
                 response_sections[section] = "1. What are the key factors influencing this decision?\n2. How might this choice impact your long-term goals?\n3. What would success look like in this situation?"
             elif section == "Story in Action":
-                response_sections[section] = "Consider a scenario where a professional faces a similar challenge. Through careful analysis and thoughtful consideration, they navigate the complexity to reach a well-informed decision."
+                response_sections[section] = "Consider Jordan, a professional facing a similar challenge. Through careful analysis and thoughtful consideration, Jordan navigates the complexity to reach a well-informed decision that aligns with their values and goals."
             elif section == "Strategy or Explanation":
-                response_sections[section] = "Begin by clearly defining your decision criteria and evaluating all available options systematically."
+                response_sections[section] = "Begin by clearly defining your decision criteria and evaluating all available options systematically. Use relevant decision frameworks to structure your thinking and ensure a comprehensive evaluation."
             elif section == "Concept/Tool References":
                 response_sections[section] = "- **Decision Tree**: A visual tool that maps out different options and their potential outcomes.\n- **SWOT Analysis**: A framework that helps identify strengths, weaknesses, opportunities, and threats."
             else:
@@ -1432,27 +1449,66 @@ TOOLS_AND_THEORIES = {
 }
 
 def insert_model_reference(answer: str, query: str, combined_context: str):
-    all_concepts = set(FRAMEWORKS.keys()) | set(TOOLS_AND_THEORIES.keys())
-    found = []
+    """Create a properly formatted Concepts/Tools/Practice Reference section"""
+    
+    # Define relevant concepts for different types of decisions
+    ethical_concepts = {
+        "ethical decision-making framework": "A structured approach to evaluate options based on moral principles and values.",
+        "values clarification": "A process to identify and prioritize your core beliefs and principles.",
+        "stakeholder analysis": "A method to identify and consider the impact on all parties affected by your decision.",
+        "cost-benefit analysis": "A systematic approach to compare the pros and cons of different options.",
+        "decision tree": "A visual tool that maps out different options and their potential outcomes."
+    }
+    
+    business_concepts = {
+        "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats.",
+        "decision matrix": "A tool for comparing options against multiple criteria with weighted scoring.",
+        "risk assessment": "A systematic process to identify and evaluate potential risks and their impact.",
+        "cost-benefit analysis": "A systematic approach to compare the pros and cons of different options.",
+        "premortem analysis": "A technique to imagine potential failures and plan preventive measures."
+    }
+    
+    personal_concepts = {
+        "grow model": "A framework for setting goals, understanding reality, exploring options, and planning the way forward.",
+        "eisenhower grid": "A tool to prioritize tasks based on urgency and importance.",
+        "decision tree": "A visual tool that maps out different options and their potential outcomes.",
+        "prospect theory": "Shows how people often value avoiding losses more than achieving gains.",
+        "anchoring bias": "The tendency to rely too heavily on the first piece of information when making decisions."
+    }
+    
+    # Determine the type of decision based on keywords in the query
+    query_lower = query.lower()
+    if any(word in query_lower for word in ["ethical", "moral", "values", "integrity", "right", "wrong"]):
+        relevant_concepts = ethical_concepts
+    elif any(word in query_lower for word in ["business", "company", "organization", "profit", "market"]):
+        relevant_concepts = business_concepts
+    else:
+        relevant_concepts = personal_concepts
+    
+    # Select 3-5 most relevant concepts
+    selected_concepts = list(relevant_concepts.items())[:4]  # Limit to 4 concepts
+    
+    # Create the properly formatted section
+    reference_section = "\n\n**Concepts/Tools/Practice Reference:**"
+    for concept_name, definition in selected_concepts:
+        # Format concept name properly (title case)
+        display_name = " ".join(word.capitalize() for word in concept_name.split())
+        reference_section += f"\n- **{display_name}**: {definition}"
+    
+    # Remove any existing Concepts/Tools/Practice Reference section
+    answer = re.sub(r'\*\*Concepts/Tools/Practice Reference:\*\*.*?(?=\*\*|$)', '', answer, flags=re.DOTALL)
+    answer = re.sub(r'\*\*Concept/Tool References\*\*.*?(?=\*\*|$)', '', answer, flags=re.DOTALL)
+    
+    # Add the new properly formatted section
+    answer += reference_section
+    
+    # Create tooltip metadata for UI
     tooltip_metadata = {}
-    text_to_search = f"{query}\n{combined_context}"
-    for concept in all_concepts:
-        pattern = re.compile(rf'\b{re.escape(concept)}\b', re.IGNORECASE)
-        if pattern.search(text_to_search):
-            display_name = " ".join([w.capitalize() for w in concept.split()])
-            found.append((concept, display_name))
-    reference_section = ""
-    if found:
-        reference_section = "\n\n**Concepts/Tools/Practice Reference:**"
-        for concept, display_name in sorted(found, key=lambda x: x[1]):
-            # Use hybrid tooltip manager for optimal token usage
-            tooltip_text, is_prebuilt, source_type = tooltip_manager.get_tooltip(concept, combined_context)
-            reference_section += f"\n- **{display_name}**"
-            if tooltip_text:
-                reference_section += f": {tooltip_text}"
-            # Store in metadata for UI tooltips
-            tooltip_metadata[display_name] = tooltip_text
-    return answer + reference_section, tooltip_metadata
+    for concept_name, definition in selected_concepts:
+        display_name = " ".join(word.capitalize() for word in concept_name.split())
+        tooltip_metadata[display_name] = definition
+    
+    return answer, tooltip_metadata
 
 
 print("\n✅ Query engine is ready!")
@@ -1517,40 +1573,32 @@ try:
             "You are an expert decision coach helping learners explore complex questions using practical tools, relatable stories, and behavioral insights.\n\n"
             "Your task is to generate thoughtful, engaging, and grammatically polished answers to user queries. Each answer must follow these EXACT guidelines:\n\n"
             "🧱 REQUIRED STRUCTURE (ENFORCED FORMATTING):\n"
-            "Format every answer with these FOUR bold-labeled sections (no exceptions):\n"
-            "1. **Strategy or Explanation** (well-structured, not formulaic)\n"
-            "2. **Story in Action** (1 paragraph or short narrative)\n"
-            "3. **Reflection Prompts** (3 concise bullets)\n"
-            "4. **Concept/Tool References** (clean tooltip-ready list)\n\n"
-            "Use double asterisks (Markdown-style) for all section headers exactly as written above. If any section is missing or unlabeled, the answer is incomplete.\n\n"
-            "🎭 STYLE & VARIETY REQUIREMENTS:\n"
-            "AVOID repetitive openings like 'When faced with...' or 'Imagine you're at a crossroads.'\n"
-            "Rotate among different tones and formats:\n"
-            "• Rhetorical questions: 'What should you do when both options seem great?'\n"
-            "• Metaphors (only reuse if 4+ responses apart): 'Think of this like steering a ship in fog...'\n"
-            "• Coaching voice: 'Let's map this out together...'\n"
-            "• Bulleted strategies: 'Three things matter here...'\n"
-            "• First-person coaching: 'Let's break this down together...'\n"
-            "• Bold conversational hooks: 'Here's the real question...'\n\n"
-            "🧠 CONTENT & TOOL DEPTH:\n"
-            "INCLUDE at least one named decision tool or framework, such as:\n"
-            "• Decision Tree\n"
-            "• GROW Model\n"
-            "• Premortem Analysis\n"
-            "• Weighted Scoring Matrix\n"
-            "• SWOT Analysis\n"
-            "• Risk Assessment Matrix\n\n"
-            "Make sure tools are contextually relevant (e.g., don't suggest numeric tools for personal/family decisions).\n\n"
-            "🧰 TOOLTIP INTEGRATION:\n"
-            "Use the provided tooltip dictionary to insert relevant decision-making or cognitive bias concepts in the final section.\n"
-            "Ensure the tooltip text is clean and human-readable — no duplicate entries, inconsistent tone, or incomplete definitions.\n\n"
-            "🧪 FINAL OUTPUT QUALITY CHECK:\n"
-            "Each response must:\n"
-            "• Include all 4 sections with bold headers\n"
-            "• Be grammatically correct and easy to follow\n"
-            "• Mention 1 or more decision tools or frameworks\n"
-            "• Have varied opening tone (no repetitive phrases)\n"
-            "• Include contextually appropriate tooltips\n\n"
+            "Format every answer with these FOUR sections in EXACT order:\n\n"
+            "**Strategy or Explanation**\n"
+            "[Paragraph explaining the reasoning, with 1–2 relevant tools or frameworks applied in context.]\n\n"
+            "**Story in Action**\n"
+            "[A short, realistic story featuring a named person (e.g., Alex, Jordan, Sam) facing a similar decision.]\n\n"
+            "**Reflection Prompts**\n"
+            "1. [Prompt 1]\n"
+            "2. [Prompt 2]\n"
+            "3. [Prompt 3]\n\n"
+            "**Concepts/Tools/Practice Reference**\n"
+            "- **[Tool Name]**: [Brief, clear definition]\n"
+            "- **[Tool Name]**: [Definition...]\n\n"
+            "🎭 STORY REQUIREMENTS:\n"
+            "• Use named characters (Jordan, Sam, Taylor, Alex, Casey)\n"
+            "• Keep it emotionally relatable and relevant to the question\n"
+            "• Make it short and readable (2–4 sentences)\n"
+            "• Show the character's thought process and decision-making\n\n"
+            "🧠 TOOL APPLICATION REQUIREMENTS:\n"
+            "When referencing decision tools, apply them clearly and in context:\n"
+            "✅ GOOD: 'Use the GROW Model by clarifying your Goal, assessing the Reality, exploring Options, and establishing a Way forward.'\n"
+            "❌ AVOID: Just naming tools without explaining how to use them\n\n"
+            "🎯 CONTENT QUALITY:\n"
+            "• Include 1–2 relevant tools or frameworks in the Strategy section\n"
+            "• Make tools contextually relevant to the user's specific situation\n"
+            "• Ensure each section stands alone cleanly\n"
+            "• No 'Pro Tip' lines, repeated framework names, or extraneous markdown\n\n"
             "This will be used in a classroom-facing decision tutor, so make every response engaging, personalized, and structurally sound.\n\n"
             f"Your role: {user_profile['role']}. Tone: {user_profile['tone']}. Thinking style: {user_profile['thinking_style']}."
         )
