@@ -1,3 +1,16 @@
+"""
+GPTutor Decision Coach - Enhanced Query Engine
+=============================================
+
+This engine uses an enhanced GPT prompt that generates structured answers with:
+1. Strategy/Explanation - varied writing styles, no repetitive openings
+2. Story or Analogy - engaging narrative examples
+3. Reflection Prompts - 3 concise thinking prompts
+4. Concept/Tool References - clean tooltip-ready list
+
+The system prioritizes user materials but supplements with GPT knowledge when needed.
+"""
+
 import json
 import faiss
 from openai import OpenAI
@@ -10,6 +23,10 @@ import traceback
 import re
 import spacy
 from frameworks import FRAMEWORKS
+
+# Add grammar and clarity filtering imports
+import re
+from typing import List, Tuple, Dict
 
 # Global variables - will be initialized safely
 FRAMEWORKS_GPT = {}
@@ -257,6 +274,356 @@ FRAMEWORKS.update({
     "OODA loop": "The OODA loop (Observe, Orient, Decide, Act) is a decision cycle used for rapid and effective decision-making, especially in dynamic environments."
 })
 
+def add_readability_breaks(answer: str) -> str:
+    """Add natural breaks for long answers to improve readability"""
+    
+    word_count = len(answer.split())
+    if word_count <= 500:
+        return answer
+    
+    # Find the Strategy or Explanation section (usually the longest)
+    strategy_pattern = r'(\*\*Strategy or Explanation\*\*.*?)(\*\*Story|\*\*Reflection|\*\*Concept|$)'
+    match = re.search(strategy_pattern, answer, re.DOTALL | re.IGNORECASE)
+    
+    if not match:
+        return answer
+    
+    strategy_section = match.group(1)
+    rest_of_answer = answer[match.end():]
+    
+    # Split the strategy section into sentences
+    sentences = re.split(r'(?<=[.!?]) +', strategy_section)
+    
+    # If strategy section is very long, add a break
+    if len(strategy_section) > 300:
+        # Find a good breaking point (around the middle)
+        mid_point = len(sentences) // 2
+        if mid_point > 0:
+            # Insert a natural break
+            break_text = "\n\n---\n\n"
+            strategy_section = " ".join(sentences[:mid_point]) + break_text + " ".join(sentences[mid_point:])
+    
+    return strategy_section + rest_of_answer
+
+def clean_and_deduplicate_tooltips(answer: str) -> str:
+    """Clean and deduplicate tooltips in the Concept/Tool References section"""
+    
+    # Find the Concept/Tool References section
+    tooltip_pattern = r'(\*\*Concept/Tool References\*\*.*?)(?=\*\*|$)'
+    match = re.search(tooltip_pattern, answer, re.DOTALL | re.IGNORECASE)
+    
+    if not match:
+        return answer
+    
+    tooltip_section = match.group(1)
+    rest_of_answer = answer[:match.start()] + answer[match.end():]
+    
+    # Extract tooltip lines
+    lines = tooltip_section.split('\n')
+    tooltip_lines = []
+    header_line = ""
+    
+    for line in lines:
+        if line.strip().startswith('**Concept/Tool References**'):
+            header_line = line
+        elif line.strip().startswith('- **'):
+            tooltip_lines.append(line.strip())
+    
+    # Deduplicate and clean tooltips
+    unique_tooltips = {}
+    for line in tooltip_lines:
+        # Extract tooltip name and definition
+        name_match = re.search(r'- \*\*(.*?)\*\*:?\s*(.*)', line)
+        if name_match:
+            name = name_match.group(1).strip()
+            definition = name_match.group(2).strip()
+            
+            # Clean the definition
+            definition = re.sub(r'\.$', '', definition)  # Remove trailing period
+            definition = definition.strip()
+            
+            # Normalize the name (title case)
+            normalized_name = " ".join(word.capitalize() for word in name.split())
+            
+            # Only keep if not already present or if this definition is better
+            if normalized_name not in unique_tooltips or len(definition) > len(unique_tooltips[normalized_name]):
+                unique_tooltips[normalized_name] = definition
+    
+    # Rebuild the tooltip section
+    cleaned_section = header_line + "\n"
+    for name, definition in sorted(unique_tooltips.items()):
+        if definition:
+            cleaned_section += f"- **{name}**: {definition}\n"
+        else:
+            cleaned_section += f"- **{name}**\n"
+    
+    return rest_of_answer + cleaned_section
+
+# --- Grammar and Clarity Filtering Functions ---
+
+def detect_repetitive_patterns(text: str) -> List[Tuple[str, str]]:
+    """Detect and return repetitive opening patterns that should be varied"""
+    repetitive_patterns = [
+        (r'\bWhen considering\b', "When considering"),
+        (r'\bIt\'s essential to\b', "It's essential to"),
+        (r'\bIt is important to\b', "It is important to"),
+        (r'\bIn order to\b', "In order to"),
+        (r'\bTo properly\b', "To properly"),
+        (r'\bWhen making\b', "When making"),
+        (r'\bWhen faced with\b', "When faced with"),
+        (r'\bWhen dealing with\b', "When dealing with"),
+        (r'\bWhen evaluating\b', "When evaluating"),
+        (r'\bWhen analyzing\b', "When analyzing"),
+        (r'\bImagine you\'re at a crossroads\b', "Imagine you're at a crossroads"),
+        (r'\bPicture yourself\b', "Picture yourself"),
+        (r'\bConsider this scenario\b', "Consider this scenario"),
+        (r'\bThink about\b', "Think about"),
+        (r'\bLet\'s imagine\b', "Let's imagine")
+    ]
+    
+    found_patterns = []
+    for pattern, description in repetitive_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            found_patterns.append((pattern, description))
+    
+    return found_patterns
+
+def detect_grammar_fragments(text: str) -> List[Tuple[str, str]]:
+    """Detect common grammar fragments and awkward phrasing"""
+    fragment_patterns = [
+        (r'\bindividual, a professional\b', "individual, a professional"),
+        (r'\bindividual, an expert\b', "individual, an expert"),
+        (r'\bperson, a manager\b', "person, a manager"),
+        (r'\bindividual, a decision-maker\b', "individual, a decision-maker"),
+        (r'\bindividual, a leader\b', "individual, a leader"),
+        (r'\bindividual, a student\b', "individual, a student"),
+        (r'\bindividual, a business\b', "individual, a business"),
+        (r'\bindividual, a company\b', "individual, a company"),
+        (r'\bindividual, an organization\b', "individual, an organization"),
+        (r'\bindividual, a team\b', "individual, a team"),
+        # Add more fragment patterns
+        (r'\bdecision, a choice\b', "decision, a choice"),
+        (r'\boption, a possibility\b', "option, a possibility"),
+        (r'\bstrategy, a plan\b', "strategy, a plan"),
+        (r'\bapproach, a method\b', "approach, a method"),
+        (r'\bprocess, a procedure\b', "process, a procedure")
+    ]
+    
+    found_fragments = []
+    for pattern, description in fragment_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            found_fragments.append((pattern, description))
+    
+    return found_fragments
+
+def detect_awkward_phrasing(text: str) -> List[Tuple[str, str]]:
+    """Detect awkward or robotic phrasing patterns"""
+    awkward_patterns = [
+        (r'\bIt is worth noting that\b', "It is worth noting that"),
+        (r'\bIt should be mentioned that\b', "It should be mentioned that"),
+        (r'\bIt is important to note that\b', "It is important to note that"),
+        (r'\bIt is crucial to understand that\b', "It is crucial to understand that"),
+        (r'\bIt is necessary to consider that\b', "It is necessary to consider that"),
+        (r'\bIt is essential to recognize that\b', "It is essential to recognize that"),
+        (r'\bIt is vital to acknowledge that\b', "It is vital to acknowledge that"),
+        (r'\bIt is imperative to realize that\b', "It is imperative to realize that"),
+        (r'\bIt is critical to understand that\b', "It is critical to understand that"),
+        (r'\bIt is fundamental to consider that\b', "It is fundamental to consider that"),
+        # Robotic patterns
+        (r'\bIn conclusion\b', "In conclusion"),
+        (r'\bTo summarize\b', "To summarize"),
+        (r'\bAs previously mentioned\b', "As previously mentioned"),
+        (r'\bAs stated earlier\b', "As stated earlier"),
+        (r'\bAs mentioned before\b', "As mentioned before"),
+        (r'\bAs discussed above\b', "As discussed above"),
+        (r'\bAs outlined previously\b', "As outlined previously"),
+        (r'\bAs indicated earlier\b', "As indicated earlier"),
+        (r'\bAs noted before\b', "As noted before"),
+        (r'\bAs described above\b', "As described above")
+    ]
+    
+    found_awkward = []
+    for pattern, description in awkward_patterns:
+        if re.search(pattern, text, re.IGNORECASE):
+            found_awkward.append((pattern, description))
+    
+    return found_awkward
+
+def suggest_style_variations() -> List[str]:
+    """Provide alternative writing styles to replace repetitive patterns"""
+    return [
+        "What should you do when",
+        "Let's map this out together.",
+        "Think of this like",
+        "Here's a practical approach:",
+        "Consider this scenario:",
+        "Picture yourself in this situation:",
+        "Imagine you're faced with",
+        "Let's break this down:",
+        "Here's how to approach this:",
+        "The key question is:",
+        "Your challenge is to",
+        "The real issue here is",
+        "What matters most is",
+        "The core decision is",
+        "Your goal should be to",
+        "Three things matter here:",
+        "Let's map this out together:",
+        "Here's the real question:",
+        "Your challenge is to",
+        "The key insight is:"
+    ]
+
+def fix_grammar_fragments(text: str) -> str:
+    """Automatically fix common grammar fragments"""
+    # Fix "individual, a professional" patterns
+    text = re.sub(r'\bindividual, a professional\b', "a professional", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, an expert\b', "an expert", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bperson, a manager\b', "a manager", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a decision-maker\b', "a decision-maker", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a leader\b', "a leader", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a student\b', "a student", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a business\b', "a business", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a company\b', "a company", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, an organization\b', "an organization", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bindividual, a team\b', "a team", text, flags=re.IGNORECASE)
+    
+    # Fix other fragment patterns
+    text = re.sub(r'\bdecision, a choice\b', "a choice", text, flags=re.IGNORECASE)
+    text = re.sub(r'\boption, a possibility\b', "a possibility", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bstrategy, a plan\b', "a plan", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bapproach, a method\b', "a method", text, flags=re.IGNORECASE)
+    text = re.sub(r'\bprocess, a procedure\b', "a procedure", text, flags=re.IGNORECASE)
+    
+    return text
+
+def improve_repetitive_openings(text: str) -> str:
+    """Replace repetitive opening patterns with varied alternatives"""
+    import random
+    
+    # Define replacement patterns
+    replacements = {
+        r'\bWhen considering\b': [
+            "What should you do when",
+            "Let's map this out together.",
+            "Think of this like",
+            "Here's a practical approach:",
+            "Consider this scenario:"
+        ],
+        r'\bIt\'s essential to\b': [
+            "The key is to",
+            "What matters most is",
+            "Your focus should be on",
+            "The real question is",
+            "Here's what you need to do:"
+        ],
+        r'\bIt is important to\b': [
+            "Keep in mind that",
+            "Remember that",
+            "The crucial point is",
+            "What you should know is",
+            "Here's what to consider:"
+        ],
+        r'\bIn order to\b': [
+            "To",
+            "So that you can",
+            "With the goal of",
+            "Aiming to",
+            "Working toward"
+        ]
+    }
+    
+    improved_text = text
+    for pattern, alternatives in replacements.items():
+        if re.search(pattern, improved_text, re.IGNORECASE):
+            replacement = random.choice(alternatives)
+            improved_text = re.sub(pattern, replacement, improved_text, flags=re.IGNORECASE)
+    
+    return improved_text
+
+def apply_grammar_and_clarity_filters(answer: str) -> Tuple[str, Dict[str, List[str]]]:
+    """Apply comprehensive grammar and clarity filtering"""
+    issues = {
+        "repetitive_patterns": [],
+        "grammar_fragments": [],
+        "awkward_phrasing": []
+    }
+    
+    # Detect issues
+    repetitive = detect_repetitive_patterns(answer)
+    fragments = detect_grammar_fragments(answer)
+    awkward = detect_awkward_phrasing(answer)
+    
+    # Record issues
+    for pattern, description in repetitive:
+        issues["repetitive_patterns"].append(description)
+    
+    for pattern, description in fragments:
+        issues["grammar_fragments"].append(description)
+    
+    for pattern, description in awkward:
+        issues["awkward_phrasing"].append(description)
+    
+    # Apply fixes
+    improved_answer = answer
+    improved_answer = fix_grammar_fragments(improved_answer)
+    improved_answer = improve_repetitive_openings(improved_answer)
+    
+    return improved_answer, issues
+
+def generate_response(answer_raw: str, prebuilt_tooltips: dict, frameworks_gpt: dict) -> str:
+    """
+    Enhanced response generator that enforces structure and injects tooltips
+    
+    Args:
+        answer_raw: Raw response from GPT
+        prebuilt_tooltips: Dictionary of tooltip definitions
+        frameworks_gpt: Dictionary of GPT-polished frameworks
+    
+    Returns:
+        Processed answer with enforced structure and tooltips
+    """
+    # Section headers expected in the answer
+    response_sections = {
+        "Strategy or Explanation": "",
+        "Story or Analogy": "",
+        "Reflection Prompts": "",
+        "Concept/Tool References": ""
+    }
+
+    # Parse sections from raw answer
+    current_section = None
+    for line in answer_raw.split("\n"):
+        line = line.strip()
+        if line in response_sections:
+            current_section = line
+        elif current_section:
+            response_sections[current_section] += line + " "
+
+    # Ensure all sections are present with fallback placeholders
+    for section in response_sections:
+        if not response_sections[section].strip():
+            response_sections[section] = "_[This section was not generated — please revise your prompt or add logic to fill this in.]_"
+
+    # Combine all sections into final answer
+    final_answer = ""
+    for section, content in response_sections.items():
+        final_answer += f"**{section}**\n{content.strip()}\n\n"
+
+    # Inject tooltips if keywords appear
+    for term, definition in prebuilt_tooltips.items():
+        if term.lower() in final_answer.lower() and definition not in final_answer:
+            final_answer += f"- **{term.title()}**: {definition}\n"
+
+    # Fallback: add framework suggestion if none found
+    named_tools = ["Decision Tree", "GROW", "SWOT", "Premortem", "Weighted Scoring"]
+    found_tools = [tool for tool in named_tools if tool.lower() in final_answer.lower()]
+    
+    if not found_tools:
+        final_answer += "\n🧠 *Tip: This decision may benefit from using a Decision Tree or the GROW coaching model to evaluate options.*\n"
+
+    return final_answer.strip()
+
 # --- Name anonymization ---
 def remove_names(text):
     # Protect the label from anonymization - handle all variations
@@ -324,24 +691,24 @@ def insert_model_references(how_to_think: str, context: str) -> str:
             return how_to_think + phrase
     return how_to_think
 
-def enhance_how_to_think_section(how_to_think: str) -> str:
+def enhance_strategy_section(strategy_section: str) -> str:
     # Ensure the section naturally reflects the universal decision-making approach
     # 1. Goal setting
-    if not re.search(r'goal|objective|success|aim|purpose', how_to_think, re.IGNORECASE):
-        how_to_think = "Start by clarifying what success looks like in this decision. " + how_to_think
+    if not re.search(r'goal|objective|success|aim|purpose', strategy_section, re.IGNORECASE):
+        strategy_section = "Start by clarifying what success looks like in this decision. " + strategy_section
     # 2. Analytical evaluation
-    if not re.search(r'analytical|framework|tool|matrix|compare|evaluate|weigh|analysis|quantitative|option', how_to_think, re.IGNORECASE):
-        how_to_think += " You can use a cost-benefit matrix or sensitivity analysis to weigh your options."
+    if not re.search(r'analytical|framework|tool|matrix|compare|evaluate|weigh|analysis|quantitative|option', strategy_section, re.IGNORECASE):
+        strategy_section += " You can use a cost-benefit matrix or sensitivity analysis to weigh your options."
     # 3. Cognitive bias awareness
-    if not re.search(r'bias|cognitive|heuristic|anchoring|status quo|groupthink|overconfidence|intuition|emotion|urge|pressure', how_to_think, re.IGNORECASE):
-        how_to_think += " Be mindful of how urgency or pressure might trigger cognitive biases such as anchoring or status quo bias."
-    return how_to_think
+    if not re.search(r'bias|cognitive|heuristic|anchoring|status quo|groupthink|overconfidence|intuition|emotion|urge|pressure', strategy_section, re.IGNORECASE):
+        strategy_section += " Be mindful of how urgency or pressure might trigger cognitive biases such as anchoring or status quo bias."
+    return strategy_section
 
 def improve_strategic_thinking_flow(answer: str) -> str:
-    """Improve the flow of the Strategic Thinking Lens section by reframing tool-focused openings"""
+    """Improve the flow of the Strategy/Explanation section by reframing tool-focused openings"""
     
-    # Find the Strategic Thinking Lens section
-    strategic_pattern = r'(\*\*🧠 Strategic Thinking Lens.*?\*\*.*?)(\*\*📘|\*\*💬|$)'
+    # Find the Strategy/Explanation section
+    strategic_pattern = r'(\*\*Strategy/Explanation.*?\*\*.*?)(\*\*Story|\*\*Reflection|\*\*Concept|$)'
     match = re.search(strategic_pattern, answer, re.DOTALL | re.IGNORECASE)
     
     if not match:
@@ -466,16 +833,17 @@ def validate_answer_quality(answer: str) -> tuple[bool, str]:
     """Check if answer meets quality standards and return issues if any"""
     issues = []
     
-    # Check for required sections
+    # Check for required sections (updated for new 4-section structure with exact formatting)
     required_sections = [
-        ("🧠 Strategic Thinking Lens", "Strategic Thinking Lens"),
-        ("📘 Story in Action", "Story in Action"), 
-        ("💬 Want to Go Deeper", "Want to Go Deeper")
+        ("**Strategy or Explanation**", "Strategy or Explanation"),
+        ("**Story or Analogy**", "Story or Analogy"), 
+        ("**Reflection Prompts**", "Reflection Prompts"),
+        ("**Concept/Tool References**", "Concept/Tool References")
     ]
     
-    for emoji_section, text_section in required_sections:
-        if emoji_section not in answer and text_section not in answer:
-            issues.append(f"Missing {text_section} section")
+    for section_name, text_section in required_sections:
+        if section_name not in answer:
+            issues.append(f"Missing {text_section} section with proper bold formatting")
     
     # Check for reasonable length (not too short, not too long)
     word_count = len(answer.split())
@@ -488,6 +856,74 @@ def validate_answer_quality(answer: str) -> tuple[bool, str]:
     framework_mentions = sum(1 for fw in FRAMEWORKS.keys() if fw.lower() in answer.lower())
     if framework_mentions == 0:
         issues.append("No decision frameworks mentioned")
+    
+    # Enhanced check for varied writing style indicators
+    style_indicators = [
+        "What should you do",
+        "Let's break this down",
+        "Think of this like",
+        "Here's the real question",
+        "Three things matter",
+        "Let's map this out",
+        "Picture yourself",
+        "Imagine you're",
+        "Let's map this out together",
+        "Here's how to approach this"
+    ]
+    style_variety = sum(1 for indicator in style_indicators if indicator.lower() in answer.lower())
+    if style_variety == 0:
+        issues.append("No varied writing styles detected")
+    
+    # Check for repetitive opening patterns (CRITICAL)
+    repetitive_patterns = detect_repetitive_patterns(answer)
+    if repetitive_patterns:
+        issues.append(f"Repetitive patterns detected: {', '.join([desc for _, desc in repetitive_patterns])}")
+    
+    # Check for named decision tools/frameworks (REQUIRED)
+    named_tools = [
+        "decision tree", "grow model", "premortem analysis", "weighted scoring matrix",
+        "swot analysis", "risk assessment matrix", "cost-benefit analysis", "expected utility",
+        "ooda loop", "bounded rationality", "prospect theory", "utility theory"
+    ]
+    tool_mentions = sum(1 for tool in named_tools if tool.lower() in answer.lower())
+    if tool_mentions == 0:
+        issues.append("No named decision tools or frameworks mentioned")
+    
+    # Check for grammar and clarity issues
+    grammar_fragments = detect_grammar_fragments(answer)
+    awkward_phrasing = detect_awkward_phrasing(answer)
+    
+    if grammar_fragments:
+        issues.append(f"Grammar fragments detected: {', '.join([desc for _, desc in grammar_fragments])}")
+    
+    if awkward_phrasing:
+        issues.append(f"Awkward phrasing detected: {', '.join([desc for _, desc in awkward_phrasing])}")
+    
+    # Check for tooltip sanity (deduplication and formatting)
+    tooltip_section = re.search(r'\*\*Concept/Tool References\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
+    if tooltip_section:
+        tooltip_text = tooltip_section.group(0)
+        # Check for duplicate tooltips
+        tooltip_lines = [line.strip() for line in tooltip_text.split('\n') if line.strip().startswith('- **')]
+        unique_tooltips = set()
+        duplicates = []
+        for line in tooltip_lines:
+            tooltip_name = re.search(r'- \*\*(.*?)\*\*', line)
+            if tooltip_name:
+                name = tooltip_name.group(1).lower()
+                if name in unique_tooltips:
+                    duplicates.append(name)
+                else:
+                    unique_tooltips.add(name)
+        
+        if duplicates:
+            issues.append(f"Duplicate tooltips detected: {', '.join(duplicates)}")
+    
+    # Check for readability breaks for long answers
+    if word_count > 500:
+        # Look for natural breaks or summary lines
+        if not re.search(r'---|___|###|Summary|In summary|To summarize', answer, re.IGNORECASE):
+            issues.append("Long answer (>500 words) without readability breaks")
     
     is_valid = len(issues) == 0
     return is_valid, "; ".join(issues) if issues else "Quality check passed"
@@ -758,26 +1194,47 @@ try:
         combined_context = smart_context_truncation(relevant_docs, max_chars=8000)
         if len(combined_context) > 8000:
             print(f"⚠️ Context was smart-truncated to fit token limits.")
-        # New structured prompt for answer format
+        # Enhanced GPT prompt for decision coach with comprehensive quality guidelines
         personalized_instruction = (
-            "You are a course-specific AI designed to help students deeply understand decision-making concepts in practice. "
-            "Structure every answer in three parts as follows:\n\n"
-            "**🧠 Strategic Thinking Lens (~50%)**\n"
-            "Coach introduces a way of thinking about the decision that reflects the student’s context. "
-            "This should selectively incorporate the relevant parts of the core framework: "
-            "• Goal clarity (e.g., 'what does success look like?')\n"
-            "• Analytical tools (e.g., 'you might compare tradeoffs using...')\n"
-            "• Human dynamics and bias (e.g., 'watch for status quo bias…')\n"
-            "Do NOT force all three components into every answer. Instead, analyze the question and only include the ones that naturally apply. "
-            "Phrase this part warmly and conversationally. Use variations like: 'Here’s one way to frame your thinking…', 'Let’s think it through…', 'Coach’s take…'\n"
-            "IMPORTANT: When introducing tools or frameworks, frame them in terms of the student's situation first, then explain how the tool helps. "
-            "For example, instead of 'Decision trees are best used when...', say 'When you're faced with multiple options and uncertainty, decision trees help you visualize possible outcomes and make more confident choices.'\n\n"
-            "**📘 Story in Action (~35%)**\n"
-            "Include a brief, vivid example — real or realistic — showing how someone navigated a similar issue using this strategy.\n\n"
-            "**💬 Want to Go Deeper? (~15%)**\n"
-            "Add 2–3 reflection prompts for further thinking. These should help the student challenge assumptions, explore consequences, or reconsider perspective.\n\n"
-            f"Your role: {user_profile['role']}. Tone: {user_profile['tone']}. Thinking style: {user_profile['thinking_style']}. "
-            "Always use this structure and do not skip any part."
+            "You are an expert decision coach helping learners explore complex questions using practical tools, relatable stories, and behavioral insights.\n\n"
+            "Your task is to generate thoughtful, engaging, and grammatically polished answers to user queries. Each answer must follow these EXACT guidelines:\n\n"
+            "🧱 REQUIRED STRUCTURE (ENFORCED FORMATTING):\n"
+            "Format every answer with these FOUR bold-labeled sections (no exceptions):\n"
+            "1. **Strategy or Explanation** (well-structured, not formulaic)\n"
+            "2. **Story or Analogy** (1 paragraph or short narrative)\n"
+            "3. **Reflection Prompts** (3 concise bullets)\n"
+            "4. **Concept/Tool References** (clean tooltip-ready list)\n\n"
+            "Use double asterisks (Markdown-style) for all section headers exactly as written above. If any section is missing or unlabeled, the answer is incomplete.\n\n"
+            "🎭 STYLE & VARIETY REQUIREMENTS:\n"
+            "AVOID repetitive openings like 'When faced with...' or 'Imagine you're at a crossroads.'\n"
+            "Rotate among different tones and formats:\n"
+            "• Rhetorical questions: 'What should you do when both options seem great?'\n"
+            "• Metaphors (only reuse if 4+ responses apart): 'Think of this like steering a ship in fog...'\n"
+            "• Coaching voice: 'Let's map this out together...'\n"
+            "• Bulleted strategies: 'Three things matter here...'\n"
+            "• First-person coaching: 'Let's break this down together...'\n"
+            "• Bold conversational hooks: 'Here's the real question...'\n\n"
+            "🧠 CONTENT & TOOL DEPTH:\n"
+            "INCLUDE at least one named decision tool or framework, such as:\n"
+            "• Decision Tree\n"
+            "• GROW Model\n"
+            "• Premortem Analysis\n"
+            "• Weighted Scoring Matrix\n"
+            "• SWOT Analysis\n"
+            "• Risk Assessment Matrix\n\n"
+            "Make sure tools are contextually relevant (e.g., don't suggest numeric tools for personal/family decisions).\n\n"
+            "🧰 TOOLTIP INTEGRATION:\n"
+            "Use the provided tooltip dictionary to insert relevant decision-making or cognitive bias concepts in the final section.\n"
+            "Ensure the tooltip text is clean and human-readable — no duplicate entries, inconsistent tone, or incomplete definitions.\n\n"
+            "🧪 FINAL OUTPUT QUALITY CHECK:\n"
+            "Each response must:\n"
+            "• Include all 4 sections with bold headers\n"
+            "• Be grammatically correct and easy to follow\n"
+            "• Mention 1 or more decision tools or frameworks\n"
+            "• Have varied opening tone (no repetitive phrases)\n"
+            "• Include contextually appropriate tooltips\n\n"
+            "This will be used in a classroom-facing decision tutor, so make every response engaging, personalized, and structurally sound.\n\n"
+            f"Your role: {user_profile['role']}. Tone: {user_profile['tone']}. Thinking style: {user_profile['thinking_style']}."
         )
         prompt = f"""{personalized_instruction}\n\nDocument excerpts:\n{combined_context}\n\nQuestion: {query}\n\nSynthesized Answer (use the required structure):"""
         
@@ -800,24 +1257,37 @@ try:
                 continue
                 
             content = response.choices[0].message.content
-            answer = content.strip() if content is not None else ""
+            answer_raw = content.strip() if content is not None else ""
             
             # Calculate response metrics
             response_time = time.time() - start_time
-            estimated_tokens = len(prompt.split()) + len(answer.split())  # Rough estimate
+            estimated_tokens = len(prompt.split()) + len(answer_raw.split())  # Rough estimate
+            
+            # Apply enhanced response generation with structure enforcement
+            answer = generate_response(answer_raw, PREBUILT_TOOLTIPS, FRAMEWORKS_GPT)
+            
+            # Apply grammar and clarity filters
+            answer, grammar_issues = apply_grammar_and_clarity_filters(answer)
+            
+            # Clean and deduplicate tooltips
+            answer = clean_and_deduplicate_tooltips(answer)
+            
+            # Add readability breaks for long answers
+            answer = add_readability_breaks(answer)
+            
             answer = remove_names(answer)
             answer = highlight_frameworks(answer)
-            # Insert model reference in the 'How to think about it' section if present
-            how_to_think_match = re.search(r'(\*\*How to think about it\*\*.*?)(\*\*|$)', answer, re.DOTALL|re.IGNORECASE)
-            if how_to_think_match:
-                how_to_think = how_to_think_match.group(1)
-                rest = answer.replace(how_to_think, '', 1)
-                how_to_think = insert_model_references(how_to_think, combined_context)
-                how_to_think = enhance_how_to_think_section(how_to_think)
-                answer = how_to_think + rest
+            # Insert model reference in the 'Strategy/Explanation' section if present
+            strategy_match = re.search(r'(\*\*Strategy/Explanation.*?\*\*.*?)(\*\*Story|\*\*Reflection|\*\*Concept|$)', answer, re.DOTALL|re.IGNORECASE)
+            if strategy_match:
+                strategy_section = strategy_match.group(1)
+                rest = answer.replace(strategy_section, '', 1)
+                strategy_section = insert_model_references(strategy_section, combined_context)
+                strategy_section = enhance_strategy_section(strategy_section)
+                answer = strategy_section + rest
             # Add Concepts/Tools/Practice Reference section at the end, and collect tooltips
             answer, tooltips = insert_model_reference(answer, query, combined_context)
-            # Improve Strategic Thinking Lens flow
+            # Improve Strategy/Explanation flow
             answer = improve_strategic_thinking_flow(answer)
             # Process tooltips for final output
             final_tooltips = process_tooltips_for_output(tooltips)
@@ -833,6 +1303,15 @@ try:
             print(f"\n📊 Sources: {len(top_indices)} documents synthesized")
             print(f"⏱️ Response time: {response_time:.2f}s")
             print(f"📈 Quality check: {quality_issues}")
+            
+            # Report grammar and clarity improvements
+            if any(grammar_issues.values()):
+                print(f"\n🔧 Grammar & Clarity Improvements Applied:")
+                for issue_type, issues in grammar_issues.items():
+                    if issues:
+                        print(f"   • {issue_type.replace('_', ' ').title()}: {', '.join(issues)}")
+            else:
+                print(f"\n✅ No grammar or clarity issues detected")
             
             # Show hybrid tooltip efficiency stats
             stats = tooltip_manager.get_usage_stats()
