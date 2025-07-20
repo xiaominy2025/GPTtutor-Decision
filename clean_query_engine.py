@@ -104,41 +104,8 @@ def robust_api_call(client, prompt: str, max_tokens: int = 0, max_retries: int =
     
     return None, "Max retries exceeded"
 
-def extract_tools_from_section(content: str) -> dict:
-    """Extract tools and their definitions from the Concepts/Tools/Practice Reference section"""
-    tooltips_metadata = {}
-    
-    # Find the Concepts/Tools/Practice Reference section
-    # Look for the section header and capture everything after it
-    section_match = re.search(r'\*\*Concepts/Tools/Practice Reference\*\*', content, re.IGNORECASE)
-    if not section_match:
-        return tooltips_metadata
-    
-    # Get the position after the section header
-    start_pos = section_match.end()
-    
-    # Extract everything from the start position to the end
-    tool_section = content[start_pos:].strip()
-    
-    # Extract tool lines with the correct pattern for the actual format
-    # The format is: - **Tool Name**: Definition
-    tool_lines = re.findall(r'- \*\*([^*]+)\*\*: ([^\n]+)', tool_section)
-    
-    for tool_name, definition in tool_lines:
-        # Clean up the tool name and definition
-        tool_name = tool_name.strip()
-        definition = definition.strip()
-        
-        # Remove trailing periods and clean up
-        definition = re.sub(r'\.$', '', definition)
-        
-        if tool_name and definition and len(tool_name) > 2:  # Avoid very short tool names
-            tooltips_metadata[tool_name] = definition
-    
-    return tooltips_metadata
-
-def generate_clean_response(answer_raw: str) -> tuple[str, dict]:
-    """Generate clean response with proper formatting and extract tooltips metadata"""
+def generate_clean_response(answer_raw: str) -> str:
+    """Generate clean response with proper formatting"""
     
     # Ensure all four sections are present
     required_sections = ["How to Strategize Your Decision", "Story in Action", "Reflection Prompts", "Concepts/Tools/Practice Reference"]
@@ -178,13 +145,10 @@ def generate_clean_response(answer_raw: str) -> tuple[str, dict]:
     answer = re.sub(r'\*{4,}', '**', answer)
     answer = re.sub(r'\*\*{3,}', '**', answer)
     
-    # Extract tooltips metadata
-    tooltips_metadata = extract_tools_from_section(answer)
-    
-    return answer.strip(), tooltips_metadata
+    return answer.strip()
 
 def process_query(query: str) -> str:
-    """Process a single query and return clean output with tooltips metadata"""
+    """Process a single query and return clean output"""
     
     try:
         # Embed query
@@ -237,7 +201,6 @@ Format every answer with these FOUR sections in EXACT order:
 • Do NOT skip any sections or combine them
 • Do NOT add any additional sections
 • Do NOT include Pro Tips or other content outside these four sections
-• Include 2-4 relevant decision tools in the Concepts/Tools/Practice Reference section
 
 Document excerpts:
 {combined_context}
@@ -261,17 +224,10 @@ Synthesized Answer (use the required structure):"""
         content = response.choices[0].message.content
         answer_raw = content.strip() if content is not None else ""
         
-        # Generate clean response and extract tooltips metadata
-        answer, tooltips_metadata = generate_clean_response(answer_raw)
+        # Generate clean response
+        answer = generate_clean_response(answer_raw)
         
-        # Construct final output
-        final_output = answer
-        
-        # Add tooltips metadata if tools are present
-        if tooltips_metadata:
-            final_output += f"\n\n[TOOLTIPS METADATA FOR UI]:\n{json.dumps(tooltips_metadata, ensure_ascii=False, indent=2)}"
-        
-        return final_output
+        return answer
         
     except Exception as e:
         return f"I encountered an error processing your question. Please try again."
