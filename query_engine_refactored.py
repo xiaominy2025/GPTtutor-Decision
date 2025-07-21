@@ -260,6 +260,24 @@ class QueryEngine:
         # Improve flow
         answer = self._improve_strategic_thinking_flow(answer)
         
+        # Apply final formatting to ensure consistency with reference file
+        answer = self._format_final_output(answer)
+        
+        return answer
+    
+    def _format_final_output(self, answer: str) -> str:
+        """Ensure the final output matches the reference file format exactly."""
+        import re
+        
+        # Remove colons from section headers only (not from tool definitions)
+        answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools \(When Appropriate\)|Reflection Prompts|Concepts/Tools/Practice Reference)\*\*:', r'**\1**', answer)
+        
+        # Convert numbered reflection prompts to bullet points
+        answer = re.sub(r'^\d+\.\s*', '- ', answer, flags=re.MULTILINE)
+        
+        # Ensure proper spacing between sections
+        answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools \(When Appropriate\)|Reflection Prompts|Concepts/Tools/Practice Reference)\*\*\n', r'**\1**\n\n', answer)
+        
         return answer
     
     def _remove_names(self, text: str) -> str:

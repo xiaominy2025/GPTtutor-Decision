@@ -11,10 +11,10 @@ app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
 # Initialize query engine
-print("🚀 Initializing GPTTutor API Server...")
+print("\U0001F680 Initializing GPTTutor API Server...")
 try:
     engine = QueryEngine()
-    print("✅ Query engine initialized successfully")
+    print("\u2705 Query engine initialized successfully")
 except Exception as e:
     print(f"❌ Failed to initialize query engine: {e}")
     engine = None
@@ -37,24 +37,32 @@ def process_query():
             "success": False,
             "error": "Query engine not initialized"
         }), 500
-    
+
     try:
         data = request.get_json()
+        print("\u26a1 [BACKEND] Received POST /query")
+        print("    Content-Type:", request.content_type)
+        print("    Payload received:", data)
+
         if not data or 'query' not in data:
+            print("❌ Missing 'query' field in request data.")
             return jsonify({
                 "success": False,
                 "error": "Query is required"
             }), 400
-        
+
         query = data['query']
         user_id = data.get('user_id')
-        
+
         # Process query
         response = engine.process_query(query, user_id)
-        
+
+        print("✅ Query processed successfully.")
+        print("📦 Sending response to frontend:", response.to_json())
         return jsonify(response.to_json())
-        
+
     except Exception as e:
+        traceback.print_exc()
         return jsonify({
             "success": False,
             "error": f"Internal server error: {str(e)}"
@@ -69,7 +77,7 @@ def get_stats():
             "success": False,
             "error": "Query engine not initialized"
         }), 500
-    
+
     try:
         stats = engine.get_usage_summary()
         return jsonify({
@@ -91,7 +99,7 @@ def user_profile():
             "success": False,
             "error": "Query engine not initialized"
         }), 500
-    
+
     try:
         if request.method == 'GET':
             profile = engine.config.user_profile
@@ -107,13 +115,13 @@ def user_profile():
                     "success": False,
                     "error": "Profile data is required"
                 }), 400
-            
+
             engine.config.update_user_profile(data)
             return jsonify({
                 "success": True,
                 "message": "Profile updated successfully"
             })
-            
+
     except Exception as e:
         return jsonify({
             "success": False,
@@ -123,12 +131,12 @@ def user_profile():
 
 if __name__ == '__main__':
     print("🌐 Starting GPTTutor API Server...")
-    print("📡 Server will be available at http://localhost:5000")
+    print("📱 Server will be available at http://localhost:5000")
     print("📋 Available endpoints:")
     print("   GET  /health    - Health check")
     print("   POST /query     - Process query")
     print("   GET  /stats     - Get usage statistics")
     print("   GET  /profile   - Get user profile")
     print("   PUT  /profile   - Update user profile")
-    
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+
+    app.run(debug=True, host='0.0.0.0', port=5000)

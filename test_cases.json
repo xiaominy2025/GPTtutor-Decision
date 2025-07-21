@@ -1,0 +1,18 @@
+[
+  {
+    "question": "What is the Endowment Effect and how does it impact decision making?",
+    "expected_tooltips": ["Endowment Effect"]
+  },
+  {
+    "question": "How do I use Profitability Analysis in business decisions?",
+    "expected_tooltips": ["Profitability Analysis"]
+  },
+  {
+    "question": "What is Escalation of Commitment and how can I avoid it?",
+    "expected_tooltips": ["Escalation of Commitment"]
+  },
+  {
+    "question": "What is a Term Sheet and why is it important in negotiations?",
+    "expected_tooltips": ["Term Sheet"]
+  }
+]
