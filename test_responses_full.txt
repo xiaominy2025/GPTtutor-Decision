@@ -1,0 +1,268 @@
+V1.6 ThinkPal Decision Coach - Full Test Responses
+================================================================================
+
+Test Case 1
+----------------------------------------
+Description: Strategic mindset + Analytical tools + Human behavior - task prioritization under pressure
+Expected Lenses: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+Expected Tooltips: ['Eisenhower Matrix', 'Critical Path Analysis']
+
+Input Query:
+  How should I prioritize tasks when under tight deadlines?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+In prioritizing tasks under tight deadlines, it's crucial to adopt a strategic mindset by clearly defining the goals, understanding the trade-offs involved, and focusing on the long-term perspective. Utilizing analytical tools like prioritization matrices, <span class="tooltip" data-tooltip="The process of organizing and planning how to divide time between specific activities.">time management</span> techniques, or project management methods can help optimize decision-making under pressure. It's also essential to be aware of human behavior aspects such as stress management, cognitive bias, and adaptability to keep a rational and efficient approach.
+
+**Story in Action**
+
+
+During a critical project deadline, Sarah, a project manager, analyzes the tasks at hand using a matrix highlighting urgency and impact. Recognizing the limited time available, she applies the <span class="tooltip" data-tooltip="A time management tool that categorizes tasks by urgency and importance.">Eisenhower Matrix</span> to distinguish between urgent and important tasks, ensuring that her team focuses on high-priority activities first. Despite the pressure, Sarah remains calm, guiding her team efficiently through the deadline, showcasing strategic prioritization under tight timelines.
+
+**Reflection Prompts**
+
+
+- What are the consequences of not prioritizing effectively under tight deadlines in terms of project success and team morale?
+- How do you manage stress and maintain focus when facing multiple tasks with looming deadlines?
+- Are there specific <span class="tooltip" data-tooltip="The process of organizing and planning how to divide time between specific activities.">time management</span> techniques or tools that have worked well for you in past high-pressure situations?
+
+**Concepts/Tools/Practice Reference**
+
+
+- Prioritization Matrices
+- <span class="tooltip" data-tooltip="The process of organizing and planning how to divide time between specific activities.">Time Management</span> Techniques
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: ['Prioritization Matrices', '<span class="tooltip" data-tooltip="The process of organizing and planning how to divide time between specific activities.">Time Management</span> Techniques']
+  Tooltip Injection: 4 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 2
+----------------------------------------
+Description: Strategic mindset + Analytical tools - equipment financing decision
+Expected Lenses: ['strategic_mindset', 'analytical_tools']
+Expected Tooltips: ['Sensitivity Analysis']
+
+Input Query:
+  What tools can help me evaluate whether to lease or buy equipment?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+When evaluating whether to lease or buy equipment, consider analyzing the decision through a strategic mindset, using relevant analytical tools, and understanding human behavior. Start by aligning the choice with your long-term goals and financial strategy. Conduct a thorough <span class="tooltip" data-tooltip="A systematic approach to compare the pros and cons of different options.">cost-benefit analysis</span> to compare the total costs, tax implications, and future flexibility between leasing and buying. Also, factor in your risk tolerance and any emotional bias towards owning equipment.
+
+**Story in Action**
+
+
+Sarah, a small business owner, needs to decide whether to lease or buy a new production machine. She applies a strategic mindset by considering her long-term growth goals. Sarah then uses an analytical tool, a <span class="tooltip" data-tooltip="A systematic approach to compare the pros and cons of different options.">cost-benefit analysis</span>, comparing the total costs over the equipment's useful life for leasing versus buying. Understanding her inclination towards ownership due to a preference for control, Sarah reflects on how emotional biases might affect her decision.
+
+**Reflection Prompts**
+
+
+- What are your long-term business objectives, and how does the choice between leasing and buying align with these goals?
+- Have you thoroughly analyzed all costs associated with leasing and buying, including hidden expenses or tax implications?
+- How do your emotions or bias towards ownership influence your decision-making process, and how can you mitigate any potential drawbacks?
+
+**Concepts/Tools/Practice Reference**
+
+
+- **<span class="tooltip" data-tooltip="A systematic approach to compare the pros and cons of different options.">Cost-Benefit Analysis</span>**
+- **Strategic Mindset**
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: []
+  Tooltip Injection: 3 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 3
+----------------------------------------
+Description: Human behavior only - team communication dynamics
+Expected Lenses: ['human_behavior']
+Expected Tooltips: ['Group Dynamics', 'Communication']
+
+Input Query:
+  How can I encourage my team to speak up during meetings?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+Encouraging team members to speak up during meetings can significantly enhance collaboration, problem-solving, and overall team performance. Utilizing the principles of *effective <span class="tooltip" data-tooltip="The exchange of information, ideas, and feelings between people.">communication</span>*, *leadership encouragement*, and *psychological safety* can create an environment conducive to active participation from all team members.
+
+**Story in Action**
+
+
+Samantha, a team leader at a marketing firm, noticed that some team members were hesitant to share their ideas during meetings. To tackle this issue, she started implementing various strategies. During meetings, she actively listened to all team members, encouraging them to speak up and valuing their contributions. Samantha also provided positive feedback whenever someone shared an idea, creating a supportive and inclusive atmosphere where everyone felt their voice was heard. Over time, this led to increased participation and innovation within the team.
+
+**Reflection Prompts**
+
+- What specific barriers might be preventing team members from speaking up in meetings?
+- How can you tailor your <span class="tooltip" data-tooltip="The exchange of information, ideas, and feelings between people.">communication</span> style to match the preferences and comfort levels of different team members?
+- What role does fostering a sense of belonging and inclusivity play in encouraging team members to contribute their ideas?
+
+**Concepts/Tools/Practice Reference**
+
+- Effective <span class="tooltip" data-tooltip="The exchange of information, ideas, and feelings between people.">Communication</span>
+- Psychological Safety
+
+Analysis:
+  Lenses Detected: ['analytical_tools', 'human_behavior']
+  Concepts Detected: ['Effective <span class="tooltip" data-tooltip="The exchange of information, ideas, and feelings between people.">Communication</span>', 'Psychological Safety']
+  Tooltip Injection: 3 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 4
+----------------------------------------
+Description: Strategic mindset + Analytical tools + Human behavior - complex negotiation
+Expected Lenses: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+Expected Tooltips: ['BATNA', 'Negotiation Strategy']
+
+Input Query:
+  How do I approach negotiating for a new BMW X4?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+To approach negotiating for a new BMW X4 effectively, you can benefit from considering the strategic mindset, analytical tools, and human behavior awareness elements mentioned in the negotiation document excerpts.
+
+**Story in Action**
+
+
+Ashley, before heading to the BMW dealership to negotiate for a new X4, took the time to understand the negotiation strategies she had learned. She knew that debiasing her judgments, conducting thorough research on BMW X4 prices, assessing her <span class="tooltip" data-tooltip="Best Alternative to a Negotiated Agreement; your fallback if negotiations fail.">BATNA</span> (Best Alternative to Negotiated Agreement) by looking at alternative dealerships, and determining her reservation point would be crucial steps in her approach.
+
+**Reflection Prompts**
+
+- What are your lowest acceptable terms (reservation point, <span class="tooltip" data-tooltip="Best Alternative to a Negotiated Agreement; your fallback if negotiations fail.">BATNA</span>) for buying the BMW X4? 
+- How can you uncover the dealership's likely reservation point and BATNA to strategize your negotiation effectively?
+- What tactics can you employ during the negotiation to create a win-win situation considering distributive negotiation principles?
+
+**Core Concepts/Tools**
+- Debiased Judgment
+- BATNA (Best Alternative to a Negotiated Agreement)
+- Zone of Possible Agreement (ZOPA)
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: []
+  Tooltip Injection: 2 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 5
+----------------------------------------
+Description: All three lenses - startup pivot decision
+Expected Lenses: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+Expected Tooltips: ['Customer Feedback', 'Strategic Analysis']
+
+Input Query:
+  Should I pivot my startup based on early customer feedback?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+This decision of pivoting a startup based on early customer feedback requires considering various factors. A strategic mindset is crucial to assess the goals of the startup, potential trade-offs in pivoting, and the long-term perspective of adapting to market dynamics. Analytical tools such as <span class="tooltip" data-tooltip="A technique to determine how different values of an input affect a particular outcome under a given set of assumptions.">sensitivity analysis</span> can help in understanding how changes based on early feedback can impact different aspects of the business, from customer acquisition to revenue generation. Human behavior awareness is essential to manage the emotions involved in shifting direction and to gauge the risk tolerance of the team and stakeholders.
+
+**Story in Action**
+
+
+James, the founder of a tech startup, received early customer feedback suggesting a market need different from his initial product idea. Reflecting on these insights, he strategized using his long-term goal of providing value to customers. James conducted a <span class="tooltip" data-tooltip="A technique to determine how different values of an input affect a particular outcome under a given set of assumptions.">sensitivity analysis</span> to simulate various pivot scenarios on revenue projections. Understanding the human element, he organized a feedback session where emotions were acknowledged, and risk tolerance was discussed openly. After comprehensive analysis and team alignment, James decided to pivot the startup direction.
+
+**Reflection Prompts**
+
+
+- What are the specific aspects of the early customer feedback that indicate the necessity for a pivot? 
+- How might pivoting based on early feedback impact your startup’s long-term goals and market positioning?
+- Have you considered the trade-offs involved in pivoting, such as potential disruptions to current operations versus the opportunity for future growth?
+
+**Concepts/Tools/Practice Reference**
+
+
+- <span class="tooltip" data-tooltip="A technique to determine how different values of an input affect a particular outcome under a given set of assumptions.">Sensitivity Analysis</span>
+- Strategic Goal Setting
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: ['<span class="tooltip" data-tooltip="A technique to determine how different values of an input affect a particular outcome under a given set of assumptions.">Sensitivity Analysis</span>', 'Strategic Goal Setting']
+  Tooltip Injection: 3 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 6
+----------------------------------------
+Description: Strategic mindset + Human behavior - investor persuasion
+Expected Lenses: ['strategic_mindset', 'human_behavior']
+Expected Tooltips: ['Risk Assessment', 'Presentation Skills']
+
+Input Query:
+  How can I convince a risk-averse investor to fund my project?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+Convincing a risk-averse investor to fund a project requires understanding their preference for certainty and aversion to risk. To appeal to such investors, you must focus on mitigating perceived risks, emphasizing stability, reliable returns, and potentially offering risk-minimizing structures like guaranteed payback mechanisms or collaterals. Additionally, showcasing thorough planning, data-driven projections, and a clear exit strategy can help build the necessary trust and confidence in the investment opportunity.
+
+**Story in Action**
+
+
+Sarah, a budding entrepreneur, aimed to secure funding for her innovative tech startup from a risk-averse investor. Knowing the investor's preference for certainty, instead of highlighting the project's high-risk, high-reward nature, she meticulously presented market research, a detailed business plan, and a solid customer acquisition strategy. By emphasizing scalability, stable revenue streams, and risk mitigation strategies, Sarah successfully convinced the risk-averse investor that her project was a prudent investment despite being in a potentially volatile industry.
+
+**Reflection Prompts**
+
+
+- What concrete steps can you take to reduce perceived risks associated with your project for risk-averse investors?
+- How can you tailor your pitch to focus more on stability, predictable returns, and risk management strategies to align with the mindset of risk-averse investors?
+
+**Concepts/Tools/Practice Reference**
+
+
+- Risk Tolerance
+- Certainty Equivalent Value
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: ['Risk Tolerance', 'Certainty Equivalent Value']
+  Tooltip Injection: 0 tooltips, ✅ No nested tooltips
+
+================================================================================
+
+Test Case 7
+----------------------------------------
+Description: All three lenses - production planning under constraints
+Expected Lenses: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+Expected Tooltips: ['Production Planning', 'Inventory Management']
+
+Input Query:
+  How should I plan production with fluctuating demand and limited storage?
+
+Full Raw Response:
+**Strategic Thinking Lens**
+
+In planning production with fluctuating demand and limited storage, considering demand forecasting, optimizing production levels, managing inventory effectively, and strategic decision-making are crucial. Analytical tools like optimization models, simulations for capacity planning, and <span class="tooltip" data-tooltip="The supervision of non-capitalized assets and stock items for optimal business operations.">inventory management</span> systems can assist in making informed decisions. Additionally, understanding human behavior related to risk aversion, adaptability to change, and teamwork is vital in successful <span class="tooltip" data-tooltip="The process of determining how to produce goods efficiently while meeting customer demand.">production planning</span>.
+
+**Story in Action**
+
+
+As a production manager facing erratic market demand and storage limitations, you analyze historical data and conduct <span class="tooltip" data-tooltip="A technique to model and analyze the behavior of a system under uncertainty.">simulations</span> to predict demand trends accurately. Using optimization models, you adjust production levels dynamically, optimizing inventory to balance fluctuations. You collaborate with the sales team to align on forecasts and engage the workforce effectively to adapt to changing production requirements efficiently.
+
+**Reflection Prompts**
+
+- How can you leverage technology such as demand forecasting software or inventory tracking systems to enhance your <span class="tooltip" data-tooltip="The process of determining how to produce goods efficiently while meeting customer demand.">production planning</span> process?
+- What trade-offs might arise when adjusting production levels to match fluctuating demand, considering factors like overtime costs, storage expenses, and customer satisfaction?
+- Have you identified key risks in your production planning, such as demand volatility, supply chain disruptions, or quality control issues, and how do you plan to mitigate them?
+
+**Concepts/Tools/Practice Reference**
+
+- Optimization Models
+- <span class="tooltip" data-tooltip="A technique to model and analyze the behavior of a system under uncertainty.">Simulation</span> for Capacity Planning
+
+Analysis:
+  Lenses Detected: ['strategic_mindset', 'analytical_tools', 'human_behavior']
+  Concepts Detected: ['Optimization Models', '<span class="tooltip" data-tooltip="A technique to model and analyze the behavior of a system under uncertainty.">Simulation</span> for Capacity Planning']
+  Tooltip Injection: 5 tooltips, ✅ No nested tooltips
+
+================================================================================

@@ -1,18 +1,44 @@
 [
   {
-    "question": "What is the Endowment Effect and how does it impact decision making?",
-    "expected_tooltips": ["Endowment Effect"]
+    "question": "How should I prioritize tasks when under tight deadlines?",
+    "expected_tooltips": ["Eisenhower Matrix", "Critical Path Analysis"],
+    "expected_lenses": ["strategic_mindset", "analytical_tools", "human_behavior"],
+    "description": "Strategic mindset + Analytical tools + Human behavior - task prioritization under pressure"
   },
   {
-    "question": "How do I use Profitability Analysis in business decisions?",
-    "expected_tooltips": ["Profitability Analysis"]
+    "question": "What tools can help me evaluate whether to lease or buy equipment?",
+    "expected_tooltips": ["Sensitivity Analysis"],
+    "expected_lenses": ["strategic_mindset", "analytical_tools"],
+    "description": "Strategic mindset + Analytical tools - equipment financing decision"
   },
   {
-    "question": "What is Escalation of Commitment and how can I avoid it?",
-    "expected_tooltips": ["Escalation of Commitment"]
+    "question": "How can I encourage my team to speak up during meetings?",
+    "expected_tooltips": ["Group Dynamics", "Communication"],
+    "expected_lenses": ["human_behavior"],
+    "description": "Human behavior only - team communication dynamics"
   },
   {
-    "question": "What is a Term Sheet and why is it important in negotiations?",
-    "expected_tooltips": ["Term Sheet"]
+    "question": "How do I approach negotiating for a new BMW X4?",
+    "expected_tooltips": ["BATNA", "Negotiation Strategy"],
+    "expected_lenses": ["strategic_mindset", "analytical_tools", "human_behavior"],
+    "description": "Strategic mindset + Analytical tools + Human behavior - complex negotiation"
+  },
+  {
+    "question": "Should I pivot my startup based on early customer feedback?",
+    "expected_tooltips": ["Customer Feedback", "Strategic Analysis"],
+    "expected_lenses": ["strategic_mindset", "analytical_tools", "human_behavior"],
+    "description": "All three lenses - startup pivot decision"
+  },
+  {
+    "question": "How can I convince a risk-averse investor to fund my project?",
+    "expected_tooltips": ["Risk Assessment", "Presentation Skills"],
+    "expected_lenses": ["strategic_mindset", "human_behavior"],
+    "description": "Strategic mindset + Human behavior - investor persuasion"
+  },
+  {
+    "question": "How should I plan production with fluctuating demand and limited storage?",
+    "expected_tooltips": ["Production Planning", "Inventory Management"],
+    "expected_lenses": ["strategic_mindset", "analytical_tools", "human_behavior"],
+    "description": "All three lenses - production planning under constraints"
   }
 ]
