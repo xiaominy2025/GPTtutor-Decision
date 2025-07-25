@@ -315,6 +315,51 @@ def extract_concepts_from_markdown(text: str) -> list:
                 concepts.append((concept, definition))
     return concepts
 
+def generate_fallback_concepts(query: str) -> List[str]:
+    """Generate fallback concepts based on query keywords when no valid concepts are extracted."""
+    query_lower = query.lower()
+    fallback_concepts = []
+    
+    # Keyword-based concept mapping
+    keyword_concepts = {
+        "risk": ["Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
+        "planning": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Scenario Analysis: Exploring different future possibilities to prepare for uncertainty"],
+        "career": ["Career Path Analysis: Evaluating long-term professional development and growth opportunities", "Personal Values Assessment: Aligning decisions with core personal and professional values"],
+        "finance": ["Cost-Benefit Analysis: Comparing the advantages and disadvantages of different financial options", "Risk Tolerance Assessment: Understanding your comfort level with financial uncertainty"],
+        "negotiation": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Value Creation: Identifying opportunities to create mutual benefits in negotiations"],
+        "uncertainty": ["Scenario Analysis: Exploring different future possibilities to prepare for uncertainty", "Risk Assessment: Systematic evaluation of potential threats and their impact"],
+        "strategy": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Competitive Analysis: Understanding your position relative to alternatives and competitors"],
+        "team": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Leadership Assessment: Evaluating leadership styles and their impact on team decisions"],
+        "supply": ["Supply Chain Risk Management: Identifying and mitigating risks in procurement and distribution", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
+        "management": ["Leadership Assessment: Evaluating leadership styles and their impact on organizational decisions", "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives"]
+    }
+    
+    # Find matching keywords and add corresponding concepts
+    for keyword, concepts in keyword_concepts.items():
+        if keyword in query_lower:
+            for concept in concepts:
+                if concept not in fallback_concepts:
+                    fallback_concepts.append(concept)
+                    if len(fallback_concepts) >= 3:
+                        break
+            if len(fallback_concepts) >= 3:
+                break
+    
+    # If no keyword matches, use general fallbacks
+    if len(fallback_concepts) < 2:
+        general_fallbacks = [
+            "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives",
+            "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced",
+            "Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes"
+        ]
+        for concept in general_fallbacks:
+            if concept not in fallback_concepts:
+                fallback_concepts.append(concept)
+                if len(fallback_concepts) >= 2:
+                    break
+    
+    return fallback_concepts[:3]  # Return max 3 concepts
+
 def extract_decision_domain(query: str) -> str:
     """Infer the decision domain/type from the query for context-aware answer generation."""
     q = query.lower()
@@ -771,6 +816,28 @@ def process_query(query: str) -> str:
         for item in concepts_tools_practice:
             if not (isinstance(item, dict) and 'term' in item and 'definition' in item):
                 print(f"🚨 Malformed concept in conceptsToolsPractice for query: {query}\nItem: {item}\nFull answer:\n{answer}")
+        
+        # Inject fallback concepts if fewer than 2 valid concepts found
+        valid_concepts = [item for item in concepts_tools_practice if isinstance(item, dict) and 'term' in item and 'definition' in item]
+        if len(valid_concepts) < 2:
+            print(f"⚠️ Only {len(valid_concepts)} valid concepts found for query: {query}. Injecting fallbacks...")
+            fallback_concepts = generate_fallback_concepts(query)
+            
+            # Find the Concepts/Tools section and inject fallbacks
+            concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
+            match = re.search(concepts_pattern, answer, re.DOTALL | re.IGNORECASE)
+            
+            if match:
+                concepts_section = match.group(1)
+                # Add fallback concepts to the section
+                for concept in fallback_concepts:
+                    if concept not in concepts_section:
+                        concepts_section += f"\n{concept}"
+                
+                # Replace the original section with the enhanced one
+                answer = answer.replace(match.group(1), concepts_section)
+                print(f"✅ Injected {len(fallback_concepts)} fallback concepts: {fallback_concepts}")
+        
         # Apply final formatting
         final_output = format_final_output(answer.strip())
         

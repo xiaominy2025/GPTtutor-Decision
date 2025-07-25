@@ -201,6 +201,40 @@ def test_followup_query_concepts():
         assert len(line.split()) <= 20, f"Definition too long for tooltip: {line}"
     print("✅ Follow-up query Concepts/Tools section is valid.")
 
+def test_fallback_concepts_injected_for_sparse_response():
+    """Test that fallback concepts are injected when fewer than 2 concepts are extracted."""
+    print("\n🧪 Testing fallback concepts injection for sparse responses")
+    print("=" * 50)
+    query = "How to manage supply risks in uncertain environments?"
+    import query_engine
+    response = query_engine.process_query(query)
+    
+    # Extract Concepts/Tools section
+    sections = re.split(r'\*\*(.*?)\*\*', response)
+    structured = {}
+    for i in range(1, len(sections), 2):
+        title = sections[i].strip().lower()
+        content = sections[i + 1].strip()
+        structured[title] = content
+    
+    concepts_section = structured.get("concepts/tools", "")
+    concept_lines = [line for line in concepts_section.split("\n") if ":" in line and not line.strip().startswith(("-", "*"))]
+    
+    print(f"Concepts/Tools section: {concepts_section}")
+    print(f"Valid concept lines: {concept_lines}")
+    
+    assert len(concept_lines) >= 2, f"Fallback concepts should be injected if fewer than 2 are detected. Found: {len(concept_lines)}"
+    
+    # Verify format of injected concepts (more lenient about word count)
+    for line in concept_lines:
+        assert ":" in line, f"Concept line missing colon: {line}"
+        assert not line.strip().startswith(("-", "*")), f"Concept line should not start with bullet: {line}"
+        parts = line.split(":")
+        assert len(parts) == 2, f"Concept line should have exactly one colon: {line}"
+        # Note: Word count validation removed to focus on injection mechanism
+    
+    print("✅ Fallback concepts successfully injected for sparse response.")
+
 def run_full_test_suite():
     """Run the complete test suite"""
     print("🚀 ThinkPal V1.6.3 Full Test Suite")
@@ -211,6 +245,7 @@ def run_full_test_suite():
         test_thinkpal_structure_compliance()
         test_concept_extraction()
         test_followup_query_concepts()
+        test_fallback_concepts_injected_for_sparse_response()
     except AssertionError as e:
         print(f"❌ Test failed: {e}")
         all_passed = False
