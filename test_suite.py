@@ -296,6 +296,83 @@ Risk Assessment: Evaluating risks in decision making
             
             print("✅ Concept deduplication working correctly.")
 
+def test_fuzzy_concept_extraction():
+    """Test that fuzzy matching can extract concepts from rephrased text in answers."""
+    print("\n🧪 Testing fuzzy concept extraction from rephrased text")
+    print("=" * 50)
+    
+    # Test query from requirements
+    query = "Under tariff uncertainty, how do I plan my production?"
+    
+    # Create a test answer that mentions concepts in rephrased ways
+    test_answer = """**Strategic Thinking Lens**
+
+When facing tariff uncertainty, strategic diversification becomes crucial for production planning. You need to consider multiple scenarios and develop contingency plans for different tariff outcomes. This involves scenario planning to prepare for various future possibilities and risk assessment to evaluate potential threats to your supply chain.
+
+**Story in Action**
+
+A manufacturing company faced similar tariff uncertainties and used strategic diversification to spread their production across multiple countries, reducing their exposure to any single market's tariff changes.
+
+**Follow-up Prompts**
+
+- How might different tariff scenarios impact your production costs and timelines?
+- What alternative suppliers or markets could you explore to diversify your risk?
+- How would you communicate these strategic changes to your stakeholders?
+
+**Concepts/Tools**
+
+Strategic Diversification: Spreading production across multiple locations
+"""
+    
+    import query_engine
+    
+    # Test fuzzy extraction directly
+    fuzzy_concepts = query_engine.extract_concepts_with_fuzzy_matching(test_answer, threshold=0.7)
+    
+    print(f"Fuzzy concepts extracted: {fuzzy_concepts}")
+    
+    # Check for expected concepts
+    concept_names = [concept[0].lower() for concept in fuzzy_concepts]
+    expected_concepts = ['scenario planning', 'risk assessment', 'stakeholder alignment']
+    
+    found_concepts = []
+    for expected in expected_concepts:
+        if expected in concept_names:
+            found_concepts.append(expected)
+    
+    print(f"Expected concepts: {expected_concepts}")
+    print(f"Found concepts: {found_concepts}")
+    
+    # Should find at least 2 of the expected concepts
+    assert len(found_concepts) >= 2, f"Expected at least 2 concepts, found: {found_concepts}"
+    
+    # Test with actual query processing
+    response = query_engine.process_query(query)
+    
+    # Extract Concepts/Tools section from response
+    sections = re.split(r'\*\*(.*?)\*\*', response)
+    structured = {}
+    for i in range(1, len(sections), 2):
+        title = sections[i].strip().lower()
+        content = sections[i + 1].strip()
+        structured[title] = content
+    
+    concepts_section = structured.get("concepts/tools", "")
+    concept_lines = [line for line in concepts_section.split("\n") if ":" in line and not line.strip().startswith(("-", "*"))]
+    
+    print(f"Concepts/Tools section: {concepts_section}")
+    print(f"Concept lines: {concept_lines}")
+    
+    # Should have at least 2 concepts in the final response
+    assert len(concept_lines) >= 2, f"Expected at least 2 concepts in response, found: {len(concept_lines)}"
+    
+    # Verify format
+    for line in concept_lines:
+        assert ":" in line, f"Concept line missing colon: {line}"
+        assert not line.strip().startswith(("-", "*")), f"Concept line should not start with bullet: {line}"
+    
+    print("✅ Fuzzy concept extraction working correctly.")
+
 def run_full_test_suite():
     """Run the complete test suite"""
     print("🚀 ThinkPal V1.6.3 Full Test Suite")
@@ -308,6 +385,7 @@ def run_full_test_suite():
         test_followup_query_concepts()
         test_fallback_concepts_injected_for_sparse_response()
         test_concept_deduplication()
+        test_fuzzy_concept_extraction()
     except AssertionError as e:
         print(f"❌ Test failed: {e}")
         all_passed = False

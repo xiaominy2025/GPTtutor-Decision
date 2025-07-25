@@ -9,6 +9,7 @@ import json
 import re
 import time
 import traceback
+import difflib
 from typing import List, Tuple, Dict
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -83,6 +84,105 @@ ANALYTICAL_TOOLS = [
     ("Leadership Assessment", "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts."),
     ("Human-Computer Integration", "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities.")
 ]
+
+# Comprehensive concept glossary for fuzzy matching
+CONCEPT_GLOSSARY = {
+    # Core decision-making concepts
+    "strategic framing": "Structuring the decision problem to clarify objectives and alternatives",
+    "stakeholder alignment": "Ensuring all parties' interests are considered and balanced",
+    "risk assessment": "Systematic evaluation of potential threats and their impact on decision outcomes",
+    "scenario planning": "Exploring different future possibilities to prepare for uncertainty",
+    "scenario analysis": "Exploring different future possibilities to prepare for uncertainty",
+    "cost-benefit analysis": "Comparing the advantages and disadvantages of different options",
+    "decision tree": "A visual tool that maps out different options and their potential outcomes",
+    "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats",
+    "monte carlo simulation": "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty",
+    "sensitivity analysis": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions",
+    "linear optimization": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints",
+    "utility functions": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis",
+    "expected value": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios",
+    "batna": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached",
+    "reservation point": "The least favorable outcome acceptable before walking away from a negotiation",
+    "zopa": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation",
+    "supply chain risk management": "Identifying and mitigating risks in procurement and distribution",
+    "leadership assessment": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts",
+    "cognitive behaviors": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias",
+    "judgment intuitive bias": "Systematic errors in thinking that affect decisions and judgments, often unconsciously",
+    "negotiation term sheet": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted",
+    "value creation": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction",
+    "risk tolerance assessment": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives",
+    "human-computer integration": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities",
+    "competitive advantage analysis": "A strategic evaluation of factors that allow an organization to outperform its competitors",
+    "value chain analysis": "A process of analyzing the activities that add value to a product or service from conception to delivery",
+    "investigative negotiation": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes",
+    "seasonal analysis": "A forecasting method that identifies and models repeating patterns or cycles in time series data",
+    "regression": "A statistical technique for estimating relationships among variables and predicting future values based on historical data",
+    "moving average": "A method that smooths time series data by averaging values over a specified number of periods to identify trends",
+    "semi-quantitative forecast": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions",
+    "profitability analysis": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses",
+    "grow model": "A structured approach to goal setting and action planning",
+    "prospect theory": "Shows how people often value avoiding losses more than achieving gains",
+    "bounded rationality": "The recognition that good decisions don't require perfect information",
+    "ooda loop": "A decision cycle (Observe, Orient, Decide, Act) for rapid decision-making",
+    "solver-based simulation": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty"
+}
+
+def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> List[Tuple[str, str]]:
+    """
+    Extract concepts from text using fuzzy string matching against the concept glossary.
+    
+    Args:
+        text: The text to search for concepts
+        threshold: Minimum similarity score (0.0 to 1.0) for fuzzy matching
+        
+    Returns:
+        List of (concept_name, definition) tuples
+    """
+    import difflib
+    
+    # Normalize text for searching
+    text_lower = text.lower()
+    text_words = re.findall(r'\b\w+\b', text_lower)
+    
+    found_concepts = []
+    used_concepts = set()
+    
+    # First, try exact matches
+    for concept_name, definition in CONCEPT_GLOSSARY.items():
+        if concept_name in text_lower and concept_name not in used_concepts:
+            found_concepts.append((concept_name.title(), definition))
+            used_concepts.add(concept_name)
+    
+    # Then try fuzzy matching for remaining concepts
+    concept_names = list(CONCEPT_GLOSSARY.keys())
+    for concept_name in concept_names:
+        if concept_name in used_concepts:
+            continue
+            
+        # Try to find similar concepts in the text
+        matches = difflib.get_close_matches(concept_name, text_words, n=1, cutoff=threshold)
+        if matches:
+            matched_word = matches[0]
+            # Check if the matched word appears in a meaningful context
+            if len(matched_word) > 3:  # Avoid very short matches
+                found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
+                used_concepts.add(concept_name)
+    
+    # Also check for multi-word concept patterns
+    for concept_name in concept_names:
+        if concept_name in used_concepts:
+            continue
+            
+        # Split multi-word concepts and check for partial matches
+        concept_words = concept_name.split()
+        if len(concept_words) > 1:
+            # Check if most words in the concept appear in the text
+            matching_words = sum(1 for word in concept_words if word in text_words)
+            if matching_words >= len(concept_words) * 0.7:  # 70% of words must match
+                found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
+                used_concepts.add(concept_name)
+    
+    return found_concepts
 
 # 1. V1.6.3 System Prompt - ThinkPal Decision Coach
 SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
@@ -855,6 +955,37 @@ def process_query(query: str) -> str:
                 
                 # Replace the original section with the enhanced one
                 answer = answer.replace(match.group(1), concepts_section)
+        
+        # Enhanced concept extraction using fuzzy matching from full answer text
+        fuzzy_concepts = extract_concepts_with_fuzzy_matching(answer, threshold=0.7)
+        
+        # Find the Concepts/Tools section and add any new concepts found
+        concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
+        match = re.search(concepts_pattern, answer, re.DOTALL | re.IGNORECASE)
+        
+        if match and fuzzy_concepts:
+            concepts_section = match.group(1)
+            header_match = re.search(r'\*\*Concepts/Tools\*\*', concepts_section, re.IGNORECASE)
+            if header_match:
+                header = concepts_section[:header_match.end()]
+                content = concepts_section[header_match.end():].strip()
+                
+                # Get existing concept names to avoid duplicates
+                existing_concepts = set()
+                for line in content.split('\n'):
+                    if ':' in line:
+                        concept_name = line.split(':', 1)[0].strip().lower()
+                        existing_concepts.add(concept_name)
+                
+                # Add new concepts found through fuzzy matching
+                for concept_name, definition in fuzzy_concepts:
+                    if concept_name.lower() not in existing_concepts:
+                        content += f"\n{concept_name}: {definition}"
+                        existing_concepts.add(concept_name.lower())
+                
+                # Reconstruct the section
+                enhanced_section = f"{header}\n{content}"
+                answer = answer.replace(match.group(1), enhanced_section)
         
         # Deduplicate concepts in the final answer
         concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
