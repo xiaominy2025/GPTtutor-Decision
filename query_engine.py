@@ -360,6 +360,38 @@ def generate_fallback_concepts(query: str) -> List[str]:
     
     return fallback_concepts[:3]  # Return max 3 concepts
 
+def deduplicate_concepts(concepts_section: str) -> str:
+    """Remove duplicate concepts (case-insensitive) from the Concepts/Tools section."""
+    if not concepts_section.strip():
+        return concepts_section
+    
+    lines = concepts_section.strip().split('\n')
+    seen_concepts = {}
+    deduplicated_lines = []
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Check if line follows "Concept: Definition" format
+        if ':' in line:
+            concept_name = line.split(':', 1)[0].strip()
+            definition = line.split(':', 1)[1].strip()
+            
+            # Normalize concept name for case-insensitive comparison
+            normalized_name = concept_name.lower().strip()
+            
+            # Keep the first occurrence of each concept
+            if normalized_name not in seen_concepts:
+                seen_concepts[normalized_name] = line
+                deduplicated_lines.append(line)
+        else:
+            # Keep non-concept lines as-is
+            deduplicated_lines.append(line)
+    
+    return '\n'.join(deduplicated_lines)
+
 def extract_decision_domain(query: str) -> str:
     """Infer the decision domain/type from the query for context-aware answer generation."""
     q = query.lower()
@@ -823,6 +855,25 @@ def process_query(query: str) -> str:
                 
                 # Replace the original section with the enhanced one
                 answer = answer.replace(match.group(1), concepts_section)
+        
+        # Deduplicate concepts in the final answer
+        concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
+        match = re.search(concepts_pattern, answer, re.DOTALL | re.IGNORECASE)
+        
+        if match:
+            concepts_section = match.group(1)
+            # Extract the content after the header
+            header_match = re.search(r'\*\*Concepts/Tools\*\*', concepts_section, re.IGNORECASE)
+            if header_match:
+                header = concepts_section[:header_match.end()]
+                content = concepts_section[header_match.end():].strip()
+                
+                # Deduplicate the content
+                deduplicated_content = deduplicate_concepts(content)
+                
+                # Reconstruct the section
+                deduplicated_section = f"{header}\n{deduplicated_content}"
+                answer = answer.replace(match.group(1), deduplicated_section)
         
         # Apply final formatting
         final_output = format_final_output(answer.strip())

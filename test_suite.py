@@ -235,6 +235,67 @@ def test_fallback_concepts_injected_for_sparse_response():
     
     print("✅ Fallback concepts successfully injected for sparse response.")
 
+def test_concept_deduplication():
+    """Test that duplicate concepts are removed from the Concepts/Tools section."""
+    print("\n🧪 Testing concept deduplication")
+    print("=" * 50)
+    
+    # Create a test response with duplicate concepts
+    test_response = """**Strategic Thinking Lens**
+Some strategic thinking content.
+
+**Story in Action**
+A story example.
+
+**Follow-up Prompts**
+- Question 1
+- Question 2
+
+**Concepts/Tools**
+Stakeholder Alignment: Ensuring all parties' interests are considered and balanced
+Risk Assessment: Systematic evaluation of potential threats and their impact
+Stakeholder Alignment: Aligning your decision with your goals
+Strategic Framing: Structuring the decision problem to clarify objectives
+Risk Assessment: Evaluating risks in decision making
+"""
+    
+    import query_engine
+    # Apply deduplication directly to the Concepts/Tools section
+    concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
+    match = re.search(concepts_pattern, test_response, re.DOTALL | re.IGNORECASE)
+    
+    if match:
+        concepts_section = match.group(1)
+        header_match = re.search(r'\*\*Concepts/Tools\*\*', concepts_section, re.IGNORECASE)
+        if header_match:
+            header = concepts_section[:header_match.end()]
+            content = concepts_section[header_match.end():].strip()
+            
+            # Apply deduplication
+            deduplicated_content = query_engine.deduplicate_concepts(content)
+            
+            # Count unique concepts
+            lines = deduplicated_content.split('\n')
+            concept_names = []
+            for line in lines:
+                if ':' in line:
+                    concept_name = line.split(':', 1)[0].strip().lower()
+                    concept_names.append(concept_name)
+            
+            print(f"Original content: {content}")
+            print(f"Deduplicated content: {deduplicated_content}")
+            print(f"Concept names found: {concept_names}")
+            
+            # Verify no duplicates
+            unique_concepts = set(concept_names)
+            assert len(concept_names) == len(unique_concepts), f"Found duplicates: {concept_names}"
+            
+            # Verify we have the expected concepts
+            expected_concepts = {'stakeholder alignment', 'risk assessment', 'strategic framing'}
+            assert unique_concepts.issuperset(expected_concepts), f"Missing expected concepts. Found: {unique_concepts}"
+            
+            print("✅ Concept deduplication working correctly.")
+
 def run_full_test_suite():
     """Run the complete test suite"""
     print("🚀 ThinkPal V1.6.3 Full Test Suite")
@@ -246,6 +307,7 @@ def run_full_test_suite():
         test_concept_extraction()
         test_followup_query_concepts()
         test_fallback_concepts_injected_for_sparse_response()
+        test_concept_deduplication()
     except AssertionError as e:
         print(f"❌ Test failed: {e}")
         all_passed = False
