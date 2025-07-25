@@ -504,34 +504,38 @@ def generate_fallback_concepts(query: str) -> List[str]:
     return fallback_concepts[:3]  # Return max 3 concepts
 
 def deduplicate_concepts(concepts_section: str) -> str:
-    """Remove duplicate concepts (case-insensitive) from the Concepts/Tools section."""
-    if not concepts_section.strip():
-        return concepts_section
+    """
+    Remove duplicate concepts (case-insensitive) and limit to maximum 5 unique concepts.
+    Preserves original order of appearance.
     
-    lines = concepts_section.strip().split('\n')
-    seen_concepts = {}
+    Args:
+        concepts_section: The Concepts/Tools section content
+        
+    Returns:
+        Deduplicated and limited concepts section
+    """
+    lines = [line.strip() for line in concepts_section.strip().split('\n') if line.strip()]
+    seen_concepts = set()
     deduplicated_lines = []
     
     for line in lines:
-        line = line.strip()
-        if not line:
+        if ':' not in line:
             continue
             
-        # Check if line follows "Concept: Definition" format
-        if ':' in line:
-            concept_name = line.split(':', 1)[0].strip()
-            definition = line.split(':', 1)[1].strip()
+        # Extract concept name (before the first colon)
+        concept_name = line.split(':', 1)[0].strip().lower()
+        
+        # Skip if we've already seen this concept (case-insensitive)
+        if concept_name in seen_concepts:
+            continue
             
-            # Normalize concept name for case-insensitive comparison
-            normalized_name = concept_name.lower().strip()
-            
-            # Keep the first occurrence of each concept
-            if normalized_name not in seen_concepts:
-                seen_concepts[normalized_name] = line
-                deduplicated_lines.append(line)
-        else:
-            # Keep non-concept lines as-is
-            deduplicated_lines.append(line)
+        # Add to seen set and keep the line
+        seen_concepts.add(concept_name)
+        deduplicated_lines.append(line)
+        
+        # Stop after 5 unique concepts
+        if len(deduplicated_lines) >= 5:
+            break
     
     return '\n'.join(deduplicated_lines)
 

@@ -460,6 +460,116 @@ to adapt production and pricing strategies. Risk models help forecast cost fluct
     
     print("✅ Tariff uncertainty fuzzy matching working correctly.")
 
+def test_concept_deduplication_and_limiting():
+    """Test enhanced concept deduplication with case-insensitive matching and 5-concept limit."""
+    print("\n🧪 Testing concept deduplication and limiting")
+    print("=" * 50)
+    
+    # Test case 1: Duplicate concepts with different cases
+    test_content_1 = """Stakeholder Alignment: Ensuring all parties' interests are considered and balanced
+Risk Assessment: Systematic evaluation of potential threats and their impact
+stakeholder alignment: Aligning your decision with your goals
+Strategic Framing: Structuring the decision problem to clarify objectives
+risk assessment: Evaluating risks in decision making
+BATNA: Best Alternative to a Negotiated Agreement
+batna: Your strongest alternative if agreement cannot be reached
+Decision Tree: A visual tool that maps out different options
+SWOT Analysis: A framework for identifying strengths and weaknesses
+swot analysis: Strategic planning tool for competitive analysis"""
+    
+    import query_engine
+    result_1 = query_engine.deduplicate_concepts(test_content_1)
+    lines_1 = [line.strip() for line in result_1.split('\n') if line.strip()]
+    
+    print(f"Test 1 - Case-insensitive duplicates:")
+    print(f"Original: {len(test_content_1.split('\n'))} lines")
+    print(f"Result: {len(lines_1)} lines")
+    print(f"Result content:\n{result_1}")
+    
+    # Validate deduplication
+    concept_names = [line.split(':', 1)[0].strip().lower() for line in lines_1 if ':' in line]
+    unique_names = set(concept_names)
+    assert len(concept_names) == len(unique_names), "Duplicate concept names found after deduplication"
+    assert len(lines_1) <= 5, f"More than 5 concepts found: {len(lines_1)}"
+    
+    # Test case 2: More than 5 unique concepts
+    test_content_2 = """Concept A: First concept definition
+Concept B: Second concept definition
+Concept C: Third concept definition
+Concept D: Fourth concept definition
+Concept E: Fifth concept definition
+Concept F: Sixth concept definition
+Concept G: Seventh concept definition"""
+    
+    result_2 = query_engine.deduplicate_concepts(test_content_2)
+    lines_2 = [line.strip() for line in result_2.split('\n') if line.strip()]
+    
+    print(f"\nTest 2 - More than 5 concepts:")
+    print(f"Original: {len(test_content_2.split('\n'))} lines")
+    print(f"Result: {len(lines_2)} lines")
+    print(f"Result content:\n{result_2}")
+    
+    # Validate 5-concept limit
+    assert len(lines_2) == 5, f"Expected exactly 5 concepts, found: {len(lines_2)}"
+    
+    # Test case 3: Mixed case duplicates with different definitions
+    test_content_3 = """Risk Assessment: Systematic evaluation of potential threats
+risk assessment: Evaluating and mitigating potential threats to the business
+RISK ASSESSMENT: A process of identifying and analyzing potential risks
+Stakeholder Alignment: Ensuring all parties' interests are considered
+stakeholder alignment: Aligning your decision with your goals
+Strategic Framing: Structuring the decision problem to clarify objectives
+Decision Tree: A visual tool that maps out different options
+SWOT Analysis: A framework for identifying strengths and weaknesses"""
+    
+    result_3 = query_engine.deduplicate_concepts(test_content_3)
+    lines_3 = [line.strip() for line in result_3.split('\n') if line.strip()]
+    
+    print(f"\nTest 3 - Mixed case with different definitions:")
+    print(f"Original: {len(test_content_3.split('\n'))} lines")
+    print(f"Result: {len(lines_3)} lines")
+    print(f"Result content:\n{result_3}")
+    
+    # Validate first occurrence is kept
+    concept_names_3 = [line.split(':', 1)[0].strip() for line in lines_3 if ':' in line]
+    assert "Risk Assessment" in concept_names_3, "First occurrence of Risk Assessment should be kept"
+    assert concept_names_3[0] == "Risk Assessment", "Original order should be preserved"
+    
+    # Test case 4: Edge case - exactly 5 concepts
+    test_content_4 = """Concept A: First concept
+Concept B: Second concept
+Concept C: Third concept
+Concept D: Fourth concept
+Concept E: Fifth concept"""
+    
+    result_4 = query_engine.deduplicate_concepts(test_content_4)
+    lines_4 = [line.strip() for line in result_4.split('\n') if line.strip()]
+    
+    print(f"\nTest 4 - Exactly 5 concepts:")
+    print(f"Original: {len(test_content_4.split('\n'))} lines")
+    print(f"Result: {len(lines_4)} lines")
+    print(f"Result content:\n{result_4}")
+    
+    assert len(lines_4) == 5, f"Expected exactly 5 concepts, found: {len(lines_4)}"
+    
+    # Test case 5: Empty or invalid content
+    test_content_5 = """This is not a concept line
+Another invalid line
+- Bullet point line
+* Another bullet point"""
+    
+    result_5 = query_engine.deduplicate_concepts(test_content_5)
+    lines_5 = [line.strip() for line in result_5.split('\n') if line.strip()]
+    
+    print(f"\nTest 5 - Invalid content:")
+    print(f"Original: {len(test_content_5.split('\n'))} lines")
+    print(f"Result: {len(lines_5)} lines")
+    print(f"Result content:\n{result_5}")
+    
+    assert len(lines_5) == 0, f"Expected 0 valid concepts, found: {len(lines_5)}"
+    
+    print("✅ Concept deduplication and limiting working correctly.")
+
 def run_full_test_suite():
     """Run the complete test suite"""
     print("🚀 ThinkPal V1.6.3 Full Test Suite")
@@ -474,6 +584,7 @@ def run_full_test_suite():
         test_concept_deduplication()
         test_fuzzy_concept_extraction()
         test_tariff_uncertainty_fuzzy_matching()
+        test_concept_deduplication_and_limiting()
     except AssertionError as e:
         print(f"❌ Test failed: {e}")
         all_passed = False
