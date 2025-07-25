@@ -373,6 +373,93 @@ Strategic Diversification: Spreading production across multiple locations
     
     print("✅ Fuzzy concept extraction working correctly.")
 
+def test_tariff_uncertainty_fuzzy_matching():
+    """Test fuzzy concept matching with the specific tariff uncertainty scenario."""
+    print("\n🧪 Testing tariff uncertainty fuzzy matching scenario")
+    print("=" * 50)
+    
+    # Input question from test case
+    question = "Under tariff uncertainty, how do I plan my production?"
+    
+    # Simulated answer body from test case
+    answer = """
+In tariff-sensitive environments, companies should prepare contingency plans and evaluate multiple scenario paths 
+to adapt production and pricing strategies. Risk models help forecast cost fluctuations due to raw material sourcing.
+"""
+    
+    # Expected glossary terms
+    expected_concepts = [
+        "Contingency Planning: Developing backup strategies to prepare for uncertainty.",
+        "Scenario Planning: Preparing for different future situations with structured forecasts.",
+        "Risk Assessment: Evaluating and mitigating potential threats to the business."
+    ]
+    
+    import query_engine
+    
+    # Test fuzzy extraction directly on the answer text
+    fuzzy_concepts = query_engine.extract_concepts_with_fuzzy_matching(answer, threshold=0.7)
+    
+    print(f"Input answer: {answer}")
+    print(f"Fuzzy concepts extracted: {fuzzy_concepts}")
+    
+    # Check for expected fuzzy matches
+    expected_matches = {
+        "contingency plans": "Contingency Planning",
+        "scenario paths": "Scenario Planning", 
+        "risk models": "Risk Assessment"
+    }
+    
+    found_matches = []
+    concept_names = [concept[0].lower() for concept in fuzzy_concepts]
+    
+    for input_phrase, expected_concept in expected_matches.items():
+        if expected_concept.lower() in concept_names:
+            found_matches.append(f"✅ '{input_phrase}' → '{expected_concept}'")
+        else:
+            found_matches.append(f"❌ '{input_phrase}' → '{expected_concept}' (NOT FOUND)")
+    
+    print("Fuzzy match validation:")
+    for match in found_matches:
+        print(f"  {match}")
+    
+    # Should find at least 2 of the expected concepts
+    successful_matches = sum(1 for match in found_matches if "✅" in match)
+    assert successful_matches >= 2, f"Expected at least 2 fuzzy matches, found: {successful_matches}"
+    
+    # Test with actual query processing
+    print(f"\nTesting with actual query: '{question}'")
+    response = query_engine.process_query(question)
+    
+    # Extract Concepts/Tools section from response
+    sections = re.split(r'\*\*(.*?)\*\*', response)
+    structured = {}
+    for i in range(1, len(sections), 2):
+        title = sections[i].strip().lower()
+        content = sections[i + 1].strip()
+        structured[title] = content
+    
+    concepts_section = structured.get("concepts/tools", "")
+    concept_lines = [line for line in concepts_section.split("\n") if ":" in line and not line.strip().startswith(("-", "*"))]
+    
+    print(f"Concepts/Tools section: {concepts_section}")
+    print(f"Concept lines found: {len(concept_lines)}")
+    
+    # Should have at least 2 concepts in the final response
+    assert len(concept_lines) >= 2, f"Expected at least 2 concepts in response, found: {len(concept_lines)}"
+    
+    # Verify format and content
+    for line in concept_lines:
+        assert ":" in line, f"Concept line missing colon: {line}"
+        assert not line.strip().startswith(("-", "*")), f"Concept line should not start with bullet: {line}"
+        parts = line.split(":", 1)
+        assert len(parts) == 2, f"Concept line should have exactly one colon: {line}"
+        concept_name = parts[0].strip()
+        definition = parts[1].strip()
+        assert len(concept_name) > 2, f"Concept name too short: {concept_name}"
+        assert len(definition) > 5, f"Definition too short: {definition}"
+    
+    print("✅ Tariff uncertainty fuzzy matching working correctly.")
+
 def run_full_test_suite():
     """Run the complete test suite"""
     print("🚀 ThinkPal V1.6.3 Full Test Suite")
@@ -386,6 +473,7 @@ def run_full_test_suite():
         test_fallback_concepts_injected_for_sparse_response()
         test_concept_deduplication()
         test_fuzzy_concept_extraction()
+        test_tariff_uncertainty_fuzzy_matching()
     except AssertionError as e:
         print(f"❌ Test failed: {e}")
         all_passed = False

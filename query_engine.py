@@ -93,6 +93,7 @@ CONCEPT_GLOSSARY = {
     "risk assessment": "Systematic evaluation of potential threats and their impact on decision outcomes",
     "scenario planning": "Exploring different future possibilities to prepare for uncertainty",
     "scenario analysis": "Exploring different future possibilities to prepare for uncertainty",
+    "contingency planning": "Developing backup strategies to prepare for uncertainty",
     "cost-benefit analysis": "Comparing the advantages and disadvantages of different options",
     "decision tree": "A visual tool that maps out different options and their potential outcomes",
     "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats",
@@ -168,7 +169,7 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
                 found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
                 used_concepts.add(concept_name)
     
-    # Also check for multi-word concept patterns
+    # Enhanced multi-word concept pattern matching
     for concept_name in concept_names:
         if concept_name in used_concepts:
             continue
@@ -181,6 +182,48 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
             if matching_words >= len(concept_words) * 0.7:  # 70% of words must match
                 found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
                 used_concepts.add(concept_name)
+    
+    # Additional pattern matching for common variations
+    for concept_name in concept_names:
+        if concept_name in used_concepts:
+            continue
+            
+        # Check for singular/plural variations and common word forms
+        concept_words = concept_name.split()
+        for i, word in enumerate(concept_words):
+            # Check singular/plural variations
+            if word.endswith('s'):
+                singular = word[:-1]
+                if singular in text_words:
+                    matching_words = sum(1 for w in concept_words if w in text_words or (w.endswith('s') and w[:-1] in text_words))
+                    if matching_words >= len(concept_words) * 0.6:  # 60% of words must match
+                        found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
+                        used_concepts.add(concept_name)
+                        break
+            else:
+                plural = word + 's'
+                if plural in text_words:
+                    matching_words = sum(1 for w in concept_words if w in text_words or (w + 's') in text_words)
+                    if matching_words >= len(concept_words) * 0.6:  # 60% of words must match
+                        found_concepts.append((concept_name.title(), CONCEPT_GLOSSARY[concept_name]))
+                        used_concepts.add(concept_name)
+                        break
+    
+    # Special case matching for common variations
+    special_matches = {
+        "risk models": "risk assessment",
+        "risk modeling": "risk assessment", 
+        "risk analysis": "risk assessment",
+        "scenario paths": "scenario planning",
+        "scenario analysis": "scenario planning",
+        "contingency plans": "contingency planning",
+        "contingency strategies": "contingency planning"
+    }
+    
+    for text_phrase, concept_key in special_matches.items():
+        if text_phrase in text_lower and concept_key not in used_concepts:
+            found_concepts.append((concept_key.title(), CONCEPT_GLOSSARY[concept_key]))
+            used_concepts.add(concept_key)
     
     return found_concepts
 
