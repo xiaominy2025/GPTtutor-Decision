@@ -797,30 +797,17 @@ def process_query(query: str) -> str:
         answer_raw = content.strip() if content is not None else ""
         # Enforce structure
         answer = enforce_thinkpal_structure(answer_raw, query)
-        # Log if any section is missing
-        required_headers = [
-            r'Strategic Thinking Lens',
-            r'Story in Action',
-            r'Follow-up Prompts',
-            r'Concepts/Tools'
-        ]
-        for pattern in required_headers:
-            flexible_pattern = r'(\*\*)?\s*' + re.escape(pattern) + r'\s*(\*\*)?'
-            if not re.search(flexible_pattern, answer, re.IGNORECASE):
-                print(f"🚨 Missing section: {pattern} in answer for query: {query}\nFull answer:\n{answer}")
         # Extract and clean concepts
         concepts_tools_practice = extract_tools_from_section(answer)
         if not isinstance(concepts_tools_practice, list):
-            print(f"🚨 conceptsToolsPractice is not a list for query: {query}\nExtracted: {concepts_tools_practice}\nFull answer:\n{answer}")
             concepts_tools_practice = []
         for item in concepts_tools_practice:
             if not (isinstance(item, dict) and 'term' in item and 'definition' in item):
-                print(f"🚨 Malformed concept in conceptsToolsPractice for query: {query}\nItem: {item}\nFull answer:\n{answer}")
+                pass
         
         # Inject fallback concepts if fewer than 2 valid concepts found
         valid_concepts = [item for item in concepts_tools_practice if isinstance(item, dict) and 'term' in item and 'definition' in item]
         if len(valid_concepts) < 2:
-            print(f"⚠️ Only {len(valid_concepts)} valid concepts found for query: {query}. Injecting fallbacks...")
             fallback_concepts = generate_fallback_concepts(query)
             
             # Find the Concepts/Tools section and inject fallbacks
@@ -836,7 +823,6 @@ def process_query(query: str) -> str:
                 
                 # Replace the original section with the enhanced one
                 answer = answer.replace(match.group(1), concepts_section)
-                print(f"✅ Injected {len(fallback_concepts)} fallback concepts: {fallback_concepts}")
         
         # Apply final formatting
         final_output = format_final_output(answer.strip())
@@ -846,7 +832,6 @@ def process_query(query: str) -> str:
         final_output = ensure_all_sections(final_output)
         return final_output
     except Exception as e:
-        print(f"🚨 Exception in process_query: {e}")
         return f"I encountered an error processing your question. Please try again."
 
 # Deep analysis: No global or local variable, cache, or fallback logic exists that could cause answer reuse. All context, prompt, and answer generation is scoped to the current query and context only. All debug and answer logic is now query-specific and context-limited.
