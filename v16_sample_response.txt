@@ -1,0 +1,51 @@
+=== SAMPLE V1.6 BACKEND API RESPONSE ===
+
+Question: "How should I plan production with fluctuating demand and limited storage?"
+
+RAW RESPONSE STRING:
+**Strategic Thinking Lens**
+
+In planning production with fluctuating demand and limited storage, you need to adopt a strategic mindset that balances multiple objectives: meeting customer demand, minimizing storage costs, and maintaining operational efficiency. This requires analytical tools like demand forecasting, <span class="tooltip" data-tooltip="A technique to model and analyze the behavior of a system under uncertainty.">simulation</span> modeling, and optimization techniques to make data-driven decisions. Understanding human behavior factors such as risk tolerance, team adaptability, and stakeholder communication is crucial for successful implementation of flexible production strategies.
+
+**Story in Action**
+
+Maria, a production manager at a manufacturing company, faces the challenge of planning production with highly variable customer demand and limited warehouse space. She uses <span class="tooltip" data-tooltip="A technique to model and analyze the behavior of a system under uncertainty.">simulation</span> software to model different demand scenarios and runs optimization models to determine the most efficient production levels. By implementing a just-in-time approach and collaborating closely with her sales team to get early demand signals, Maria successfully reduces storage costs by 30% while maintaining 95% customer satisfaction.
+
+**Reflection Prompts**
+
+- What are the key factors driving demand fluctuations in your market, and how can you better predict these patterns?
+- How might implementing flexible production scheduling impact your team's workload and morale, and what support systems would you need to put in place?
+- What trade-offs exist between maintaining higher inventory levels for demand spikes versus the additional storage costs and potential obsolescence risks?
+
+**Concepts/Tools/Practice Reference**
+
+- <span class="tooltip" data-tooltip="The process of determining how to produce goods efficiently while meeting customer demand.">Production Planning</span>
+- <span class="tooltip" data-tooltip="The supervision of non-capitalized assets and stock items for optimal business operations.">Inventory Management</span>
+- Demand Forecasting
+- Just-in-Time Production
+
+=== API RESPONSE OBJECT ===
+
+{
+  "status": "success",
+  "data": {
+    "answer": "[RAW RESPONSE STRING ABOVE]",
+    "query": "How should I plan production with fluctuating demand and limited storage?",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "model": "gpt-3.5-turbo",
+    "processing_time": 2.3
+  },
+  "tooltips_metadata": {
+    "Production Planning": "The process of determining how to produce goods efficiently while meeting customer demand.",
+    "Inventory Management": "The supervision of non-capitalized assets and stock items for optimal business operations.",
+    "simulation": "A technique to model and analyze the behavior of a system under uncertainty."
+  }
+}
+
+=== FRONTEND RENDERING NOTES ===
+
+1. Section Headers: Use **Header** markdown style (already formatted)
+2. Tooltips: HTML spans with class="tooltip" and data-tooltip attributes
+3. Concepts Section: Mix of tooltip-wrapped and plain text concepts
+4. Spacing: Maintain paragraph breaks and bullet point formatting
+5. Metadata: tooltips_metadata object available for additional tooltip definitions 

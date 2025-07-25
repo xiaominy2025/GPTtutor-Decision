@@ -84,7 +84,7 @@ ANALYTICAL_TOOLS = [
     ("Human-Computer Integration", "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities.")
 ]
 
-# 1. V1.6 System Prompt - ThinkPal Decision Coach
+# 1. V1.6.3 System Prompt - ThinkPal Decision Coach
 SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
 
 Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
@@ -93,37 +93,40 @@ Your job is to generate thoughtful, well-structured answers to student decision-
 
 **Strategic Thinking Lens**
 
-Think through the decision using these elements *only if they apply*:
-- Strategic mindset: goals, trade-offs, long-term perspective
-- Analytical tools: decision trees, optimization, simulation, sensitivity analysis, etc.
-- Human behavior awareness: risk tolerance, emotions, group dynamics, cognitive bias
-
-Be thoughtful. Use concepts only if they meaningfully contribute to answering the question.
+This is the analytical core. Write **2–3 deep, natural paragraphs** (around **250–300 words**). Avoid overloading with bullets or headers. Do **not** use literal framework terms like "strategic mindset" or "human behavior awareness." Instead, express those ideas naturally (e.g. "thinking long-term," "anticipating stakeholder reactions," etc.). Do **not** exceed 350 words or 3 paragraphs.
 
 ---
 
 **Story in Action**
 
-Write a short (3-4 sentence) fictionalized but realistic story that shows someone applying the strategy above. Use business, school, or life examples. The goal is to help students visualize how the strategy plays out — not to repeat the question.
+Provide a short 3–4 sentence example. Must mirror the ideas in the Strategic Thinking Lens without being longer or more detailed.
 
 ---
 
-**Reflection Prompts**
+**Follow-up Prompts**
 
-List 2-3 thoughtful follow-up questions the student should ask themselves. Cover different perspectives like trade-offs, stakeholder concerns, uncertainty, tool usage, or values.
+Offer 2–4 reflective questions. These should invite deeper thinking and not repeat the above content.
 
 ---
 
-**Concepts/Tools/Practice Reference**
+**Concepts/Tools**
 
-List only the names of 2–3 core tools or concepts used in the strategy section. Do not define or explain them — definitions will be injected separately as tooltips.
+List 2–3 course concepts using this exact format:
+
+Concept Name: Short definition
+Concept Name: Short definition
+
+Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
+
+If the query is narrow or course-specific concepts do not apply, include broader decision-making concepts such as: Stakeholder Alignment, Strategic Framing, or Risk Assessment.
 
 ---
 
 Formatting Rules:
 - Use markdown-style headers (e.g., **Strategic Thinking Lens**) to label each section.
 - Break long answers into clear paragraphs.
-- Do not mention that you are an AI."""
+- Do not mention that you are an AI.
+- Output must sound natural, helpful, and avoid sounding like a framework summary. Your goal is to guide the student into thinking strategically — not just to label what they're doing."""
 
 # 2. Limit context to top 2 most relevant document excerpts
 # (in process_query, after index.search)
@@ -183,37 +186,134 @@ def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: i
                 return None, str(e)
     return None, "Max retries exceeded"
 
-def extract_tools_from_section(content: str) -> dict:
-    """Extract tools from the Concepts/Tools/Practice Reference section (V1.6 format: names only)"""
-    tooltips_metadata = {}
+# Add this helper near extract_tools_from_section
+
+def clean_concepts_tools_practice(raw_items):
+    """Ensure conceptsToolsPractice is always a list of {term, definition} objects with non-empty, non-placeholder definitions."""
+    cleaned = []
+    if not isinstance(raw_items, list):
+        return []
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        if 'term' not in item or 'definition' not in item:
+            continue
+        if not isinstance(item['term'], str) or not isinstance(item['definition'], str):
+            continue
+        term = item['term'].strip()
+        definition = item['definition'].strip()
+        if not term or len(term) < 2:
+            continue
+        if '<' in term or '>' in term:
+            continue
+        if not definition:
+            continue
+        placeholder_patterns = [
+            '(no definition available)',
+            'no content available.',
+            'no definition available',
+            'no definition',
+            'undefined',
+            'n/a',
+            'tbd',
+            'to be determined'
+        ]
+        if any(pattern in definition.lower() for pattern in placeholder_patterns):
+            continue
+        if '<' in definition or '>' in definition:
+            continue
+        cleaned.append({
+            'term': term,
+            'definition': definition
+        })
+    return cleaned
+
+def strip_html_from_markdown(markdown_content: str) -> str:
+    """Strip HTML tags from markdown content while preserving the text content."""
+    # Remove tooltip spans but keep the inner text
+    # Pattern: <span class="tooltip" data-tooltip="...">text</span> -> text
+    markdown_content = re.sub(r'<span class="tooltip" data-tooltip="[^"]*">([^<]+)</span>', r'\1', markdown_content)
     
-    # Find the Concepts/Tools/Practice Reference section
-    # Look for the section header and capture everything after it
-    section_match = re.search(r'\*\*Concepts/Tools/Practice Reference\*\*', content, re.IGNORECASE)
+    # Remove any other HTML tags that might be present
+    markdown_content = re.sub(r'<[^>]+>', '', markdown_content)
+    
+    # Clean up any extra whitespace that might result from tag removal
+    markdown_content = re.sub(r'\n\s*\n\s*\n', '\n\n', markdown_content)
+    
+    return markdown_content
+
+# Update extract_tools_from_section to use the cleaner
+
+def normalize_tool_name(raw: str) -> str:
+    """Normalize tool names for consistent matching with PREBUILT_TOOLTIPS."""
+    # Remove markdown formatting (** or __)
+    normalized = re.sub(r'\*\*|__', '', raw)
+    # Strip leading/trailing spaces and collapse multiple spaces
+    normalized = re.sub(r'\s+', ' ', normalized.strip())
+    # Convert to lowercase for case-insensitive matching
+    return normalized.lower()
+
+def parse_tooltip_spans(content: str) -> list:
+    """Parse tooltip spans from content and extract term/definition pairs."""
+    concepts_tools = []
+    # Pattern to match tooltip spans: <span class="tooltip" data-tooltip="Definition">Term</span>
+    tooltip_pattern = r'<span class="tooltip" data-tooltip="([^"]+)">([^<]+)</span>'
+    
+    matches = re.findall(tooltip_pattern, content)
+    for definition, term in matches:
+        term = term.strip()
+        definition = definition.strip()
+        if term and definition and len(term) > 2:
+            concepts_tools.append({
+                "term": term,
+                "definition": definition
+            })
+    return concepts_tools
+
+def extract_tools_from_section(content: str) -> list:
+    concepts_tools = []
+    section_match = re.search(r'\*\*Concepts/Tools\*\*', content, re.IGNORECASE)
     if not section_match:
-        return tooltips_metadata
-    
-    # Get the position after the section header
+        return []
     start_pos = section_match.end()
-    
-    # Extract everything from the start position to the end
     tool_section = content[start_pos:].strip()
-    
-    # V1.6: Extract tool names only (format: - Tool Name)
-    tool_lines = re.findall(r'-\s*([^\n]+)', tool_section)
-    
-    for tool_name in tool_lines:
-        # Clean up the tool name
+    tooltip_concepts = parse_tooltip_spans(tool_section)
+    concepts_tools.extend(tooltip_concepts)
+    tooltip_terms = {item['term'].lower() for item in tooltip_concepts}
+    tool_lines = re.findall(r'[-*]\s*([^:\n]+?)(?:\s*:\s*([^\n]+))?\s*$', tool_section, re.MULTILINE)
+    numbered_lines = re.findall(r'\d+\.\s*([^:\n]+?)(?:\s*:\s*([^\n]+))?\s*$', tool_section, re.MULTILINE)
+    tool_lines.extend(numbered_lines)
+    for tool_name, tool_def in tool_lines:
         tool_name = tool_name.strip()
-        
-        if tool_name and len(tool_name) > 2:  # Avoid very short tool names
-            # Look up the definition from PREBUILT_TOOLTIPS
-            for tool_key, tool_def in PREBUILT_TOOLTIPS.items():
-                if tool_key.lower() == tool_name.lower():
-                    tooltips_metadata[tool_name] = tool_def
-                    break
-    
-    return tooltips_metadata
+        if tool_name.lower() in tooltip_terms:
+            continue
+        if tool_def and tool_def.strip():
+            definition = tool_def.strip()
+        else:
+            normalized_tool_name = normalize_tool_name(tool_name)
+            definition = None
+            normalized_tooltips = {normalize_tool_name(k): v for k, v in PREBUILT_TOOLTIPS.items()}
+            if normalized_tool_name in normalized_tooltips:
+                definition = normalized_tooltips[normalized_tool_name]
+            else:
+                continue
+        if tool_name and len(tool_name) > 2:
+            clean_term = re.sub(r'\*\*|__', '', tool_name.strip())
+            concepts_tools.append({"term": clean_term, "definition": definition})
+    cleaned_concepts = clean_concepts_tools_practice(concepts_tools)
+    return cleaned_concepts
+
+def extract_concepts_from_markdown(text: str) -> list:
+    lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+    concepts = []
+    for line in lines:
+        match = re.match(r'^(.+?):\s*(.+)$', line)
+        if match:
+            concept = match.group(1).strip()
+            definition = match.group(2).strip()
+            if len(concept) > 2 and len(definition) > 5:
+                concepts.append((concept, definition))
+    return concepts
 
 def extract_decision_domain(query: str) -> str:
     """Infer the decision domain/type from the query for context-aware answer generation."""
@@ -231,61 +331,61 @@ def extract_decision_domain(query: str) -> str:
     return "general"
 
 def context_aware_fallbacks(query: str):
-    """Generate context-aware fallback content for each ThinkPal V1.6 section based on the query domain."""
+    """Generate context-aware fallback content for each ThinkPal V1.6.3 section based on the query domain."""
     domain = extract_decision_domain(query)
     if domain == "admission":
         return {
             'Strategic Thinking Lens': "This is a multi-criteria decision requiring strategic thinking about long-term goals and trade-offs. Consider your values, career objectives, and the unique strengths of each option. Use analytical tools to structure your comparison.",
             'Story in Action': "Sarah, a high school senior, sits with her parents comparing three college offers. She lists her priorities—academic reputation, location, cost, and campus culture—then uses a weighted scoring model to evaluate each option systematically.",
-            'Reflection Prompts': "- What are your top three priorities for your college experience?\n- How might you score each offer on those priorities?\n- Are there uncertainties (e.g., financial aid, campus visits) you need to resolve?",
-            'Concepts/Tools/Practice Reference': "- Decision Tree\n- Weighted Scoring Model"
+            'Follow-up Prompts': "- What are your top three priorities for your college experience?\n- How might you score each offer on those priorities?\n- Are there uncertainties (e.g., financial aid, campus visits) you need to resolve?",
+            'Concepts/Tools': "- Decision Tree\n- Weighted Scoring Model"
         }
     if domain == "job":
         return {
             'Strategic Thinking Lens': "This decision involves strategic career planning and trade-off analysis. Consider your long-term goals, values, and the opportunity costs of each choice. Use structured comparison tools to evaluate options objectively.",
             'Story in Action': "Alex, a software engineer, receives two job offers. He creates a decision matrix comparing growth opportunities, compensation, work-life balance, and company culture. The structured approach helps him see beyond immediate salary differences.",
-            'Reflection Prompts': "- What matters most to you in your next role?\n- How do the offers align with your long-term goals?\n- What uncertainties (e.g., relocation, team fit) should you clarify?",
-            'Concepts/Tools/Practice Reference': "- Weighted Scoring Model\n- Pros and Cons List"
+            'Follow-up Prompts': "- What matters most to you in your next role?\n- How do the offers align with your long-term goals?\n- What uncertainties (e.g., relocation, team fit) should you clarify?",
+            'Concepts/Tools': "- Weighted Scoring Model\n- Pros and Cons List"
         }
     if domain == "startup":
         return {
             'Strategic Thinking Lens': "This requires strategic market analysis and risk assessment. Consider market needs, competitive landscape, your resources, and risk tolerance. Use analytical frameworks to evaluate business model viability.",
             'Story in Action': "Maria, an entrepreneur, evaluates two product ideas using Lean Canvas. She researches customer pain points, maps out value propositions, and assesses market size. The structured analysis reveals which idea has stronger market potential.",
-            'Reflection Prompts': "- What customer problems does each product solve?\n- What differentiates your product in the market?\n- How much risk are you willing to take on a new launch?",
-            'Concepts/Tools/Practice Reference': "- Lean Canvas\n- SWOT Analysis"
+            'Follow-up Prompts': "- What customer problems does each product solve?\n- What differentiates your product in the market?\n- How much risk are you willing to take on a new launch?",
+            'Concepts/Tools': "- Lean Canvas\n- SWOT Analysis"
         }
     if domain == "negotiation":
         return {
             'Strategic Thinking Lens': "This requires strategic preparation and value creation thinking. Clarify your objectives, understand the partner's interests, and prepare for different scenarios. Use analytical tools to structure your approach.",
             'Story in Action': "David, a business development manager, prepares for a partnership negotiation. He researches the potential partner, defines his BATNA, and outlines key terms. The preparation helps him create a win-win agreement.",
-            'Reflection Prompts': "- What are your must-haves and trade-offs in this deal?\n- What is your BATNA if negotiations stall?\n- How can you create value for both parties?",
-            'Concepts/Tools/Practice Reference': "- BATNA\n- Scenario Analysis"
+            'Follow-up Prompts': "- What are your must-haves and trade-offs in this deal?\n- What is your BATNA if negotiations stall?\n- How can you create value for both parties?",
+            'Concepts/Tools': "- BATNA\n- Scenario Analysis"
         }
     if domain == "operations":
         return {
             'Strategic Thinking Lens': "This involves strategic planning under uncertainty. Model key variables like demand, costs, and external factors. Use analytical tools to prepare for multiple scenarios and optimize outcomes.",
             'Story in Action': "Lisa, an operations manager, faces tariff uncertainty in her supply chain. She uses scenario analysis to model different tariff scenarios and Monte Carlo simulation to understand the range of possible outcomes for production planning.",
-            'Reflection Prompts': "- What are the main sources of uncertainty?\n- How could you model demand or costs as distributions?\n- What would optimistic and pessimistic scenarios look like?",
-            'Concepts/Tools/Practice Reference': "- Scenario Analysis\n- Monte Carlo Simulation"
+            'Follow-up Prompts': "- What are the main sources of uncertainty?\n- How could you model demand or costs as distributions?\n- What would optimistic and pessimistic scenarios look like?",
+            'Concepts/Tools': "- Scenario Analysis\n- Monte Carlo Simulation"
         }
     # General fallback
     return {
         'Strategic Thinking Lens': "This decision involves strategic thinking about alternatives, objectives, and trade-offs. Consider your goals, values, and the long-term implications of each choice. Use structured approaches to compare options systematically.",
         'Story in Action': "Imagine someone facing this decision, listing their priorities and using a structured approach to compare options. They consider multiple perspectives and use analytical tools to make an informed choice.",
-        'Reflection Prompts': "- What are your main objectives?\n- What are the trade-offs between your options?\n- What information do you need to decide?",
-        'Concepts/Tools/Practice Reference': "- Decision Matrix\n- Pros and Cons List"
+        'Follow-up Prompts': "- What are your main objectives?\n- What are the trade-offs between your options?\n- What information do you need to decide?",
+        'Concepts/Tools': "- Decision Matrix\n- Pros and Cons List"
     }
 
 # In enforce_thinkpal_structure, always start with a clean sections object and never reuse prior content.
 def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
     import re
     
-    # V1.6: Check for the new 4-section structure
+    # V1.6.3: Check for the new 4-section structure
     required_headers = [
         r'Strategic Thinking Lens',
         r'Story in Action',
-        r'Reflection Prompts',
-        r'Concepts/Tools/Practice Reference'
+        r'Follow-up Prompts',
+        r'Concepts/Tools'
     ]
     
     # Count how many required headers are present (case insensitive, with or without **)
@@ -303,24 +403,24 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
     # If the GPT response doesn't have the right structure, use context-aware fallbacks
     fallbacks = context_aware_fallbacks(query)
     
-    # Format content to match V1.6 structure
-    def format_reflection_prompts(content):
+    # Format content to match V1.6.3 structure
+    def format_followup_prompts(content):
         """Convert numbered prompts to bullet points"""
         # Replace numbered prompts with bullet points
         content = re.sub(r'^\d+\.\s*', '- ', content, flags=re.MULTILINE)
         return content
     
     def format_concepts_section(content):
-        """V1.6: Concepts section should only list names, no definitions"""
-        # Remove definitions and keep only tool names
-        content = re.sub(r'^\s*-\s*\*\*([^*]+)\*\*:\s*.*$', r'- \1', content, flags=re.MULTILINE)
-        return content
+        """V1.6.3: Keep concepts in 'Concept: Definition' format, one per line."""
+        lines = content.strip().splitlines()
+        valid_lines = [line for line in lines if ':' in line and len(line.split(':')[0].strip()) > 2]
+        return '\n'.join(valid_lines)
     
     output = []
     output.append("**Strategic Thinking Lens**\n" + fallbacks.get('Strategic Thinking Lens', '') + "\n")
     output.append("**Story in Action**\n" + fallbacks.get('Story in Action', '') + "\n")
-    output.append("**Reflection Prompts**\n" + format_reflection_prompts(fallbacks.get('Reflection Prompts', '')) + "\n")
-    output.append("**Concepts/Tools/Practice Reference**\n" + format_concepts_section(fallbacks.get('Concepts/Tools/Practice Reference', '')) + "\n")
+    output.append("**Follow-up Prompts**\n" + format_followup_prompts(fallbacks.get('Follow-up Prompts', '')) + "\n")
+    output.append("**Concepts/Tools**\n" + format_concepts_section(fallbacks.get('Concepts/Tools', '')) + "\n")
     return "\n".join(output)
 
 
@@ -389,6 +489,7 @@ PREBUILT_TOOLTIPS = {
     "Financial Analysis": "The process of evaluating businesses, projects, budgets, and other finance-related entities.",
     "Group Dynamics": "The behavioral and psychological processes that occur within a group or between groups.",
     "Communication": "The exchange of information, ideas, and feelings between people.",
+    "Constructive Communication": "A method of communication that focuses on positive, solution-oriented dialogue to achieve mutual understanding and resolution.",
     "Negotiation Strategy": "A planned approach to achieving favorable outcomes in discussions and agreements.",
     "Customer Feedback": "Information provided by customers about their experience with a product or service.",
     "Strategic Analysis": "A systematic evaluation of an organization's internal and external environment.",
@@ -399,6 +500,10 @@ PREBUILT_TOOLTIPS = {
     # Additional concepts from test responses
     "Eisenhower Matrix": "A time management tool that categorizes tasks by urgency and importance.",
     "Critical Path Analysis": "A project management technique that identifies the longest sequence of dependent activities.",
+    # Additional missing terms from test queries
+    "Framing Bias": "A tendency to focus only on how information is framed, ignoring underlying facts.",
+    "Cognitive Bias": "A systematic pattern of deviation from norm or rationality in judgment, where inferences may be illogical or biased.",
+    "Cognitive Bias in Decision Making": "A pattern of deviation in judgment, where inferences may be illogical or biased.",
 }
 
 # Refactor inject_tooltips for robust matching
@@ -553,16 +658,16 @@ def format_final_output(answer: str) -> str:
     import re
     
     # Remove colons from section headers only (not from tool definitions)
-    answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools \(When Appropriate\)|Reflection Prompts|Concepts/Tools/Practice Reference)\*\*:', r'**\1**', answer)
+    answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools \(When Appropriate\)|Follow-up Prompts|Concepts/Tools)\*\*:', r'**\1**', answer)
     
     # Convert "Analytical Tools (When Appropriate)" to "Analytical Tools"
     answer = re.sub(r'\*\*Analytical Tools \(When Appropriate\)\*\*', r'**Analytical Tools**', answer)
     
-    # Convert numbered reflection prompts to bullet points
+    # Convert numbered follow-up prompts to bullet points
     answer = re.sub(r'^\d+\.\s*', '- ', answer, flags=re.MULTILINE)
     
     # Ensure proper spacing between sections
-    answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools|Reflection Prompts|Concepts/Tools/Practice Reference)\*\*\n', r'**\1**\n\n', answer)
+    answer = re.sub(r'\*\*(How to Strategize Your Decision|Story in Action|Analytical Tools|Follow-up Prompts|Concepts/Tools)\*\*\n', r'**\1**\n\n', answer)
     
     return answer
 
@@ -603,7 +708,23 @@ def ensure_tooltip_wrapping(answer: str) -> str:
     
     return answer
 
+def ensure_all_sections(markdown: str) -> str:
+    required_sections = [
+        "**Strategic Thinking Lens**",
+        "**Story in Action**",
+        "**Follow-up Prompts**",
+        "**Concepts/Tools**"
+    ]
+    for section in required_sections:
+        if section not in markdown:
+            print(f"🚨 Inserting fallback for missing section: {section}")
+            markdown += f"\n\n{section}\nNo content available."
+    return markdown
+
 # In process_query, pass the query to generate_clean_response
+
+# In process_query, after generating the answer, always enforce structure and log if missing sections or malformed concepts
+# (Assume this is the main process_query used by the API)
 
 def process_query(query: str) -> str:
     """Process a single query and return clean output with tooltips metadata, formatted for frontend UI."""
@@ -629,15 +750,36 @@ def process_query(query: str) -> str:
             return f"I couldn't generate a response. Please try again."
         content = response.choices[0].message.content
         answer_raw = content.strip() if content is not None else ""
-        answer, tooltips_metadata = generate_clean_response(answer_raw, query)
-        
-        # Apply final formatting to ensure consistency with reference file
+        # Enforce structure
+        answer = enforce_thinkpal_structure(answer_raw, query)
+        # Log if any section is missing
+        required_headers = [
+            r'Strategic Thinking Lens',
+            r'Story in Action',
+            r'Follow-up Prompts',
+            r'Concepts/Tools'
+        ]
+        for pattern in required_headers:
+            flexible_pattern = r'(\*\*)?\s*' + re.escape(pattern) + r'\s*(\*\*)?'
+            if not re.search(flexible_pattern, answer, re.IGNORECASE):
+                print(f"🚨 Missing section: {pattern} in answer for query: {query}\nFull answer:\n{answer}")
+        # Extract and clean concepts
+        concepts_tools_practice = extract_tools_from_section(answer)
+        if not isinstance(concepts_tools_practice, list):
+            print(f"🚨 conceptsToolsPractice is not a list for query: {query}\nExtracted: {concepts_tools_practice}\nFull answer:\n{answer}")
+            concepts_tools_practice = []
+        for item in concepts_tools_practice:
+            if not (isinstance(item, dict) and 'term' in item and 'definition' in item):
+                print(f"🚨 Malformed concept in conceptsToolsPractice for query: {query}\nItem: {item}\nFull answer:\n{answer}")
+        # Apply final formatting
         final_output = format_final_output(answer.strip())
-        final_output = ensure_tooltip_wrapping(final_output)
         
-        # For console output, only return the clean markdown without metadata
+        # STEP 3: Strip HTML from the final markdown before returning to frontend
+        final_output = strip_html_from_markdown(final_output)
+        final_output = ensure_all_sections(final_output)
         return final_output
     except Exception as e:
+        print(f"🚨 Exception in process_query: {e}")
         return f"I encountered an error processing your question. Please try again."
 
 # Deep analysis: No global or local variable, cache, or fallback logic exists that could cause answer reuse. All context, prompt, and answer generation is scoped to the current query and context only. All debug and answer logic is now query-specific and context-limited.
@@ -758,8 +900,8 @@ def validate_sections(response: str) -> bool:
     required_sections = [
         "Strategic Thinking Lens",
         "Story in Action", 
-        "Reflection Prompts",
-        "Concepts/Tools/Practice Reference"
+        "Follow-up Prompts",
+        "Concepts/Tools"
     ]
     
     missing_sections = []
