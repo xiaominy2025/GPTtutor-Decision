@@ -16,6 +16,7 @@ from openai import OpenAI
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+from sentence_transformers import util
 import spacy
 import uuid
 import string
@@ -85,48 +86,502 @@ ANALYTICAL_TOOLS = [
     ("Human-Computer Integration", "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities.")
 ]
 
-# Comprehensive concept glossary for fuzzy matching
+# Comprehensive concept glossary with domain categorization, core concept flags, and aliases
 CONCEPT_GLOSSARY = {
     # Core decision-making concepts
-    "strategic framing": "Structuring the decision problem to clarify objectives and alternatives",
-    "stakeholder alignment": "Ensuring all parties' interests are considered and balanced",
-    "risk assessment": "Systematic evaluation of potential threats and their impact on decision outcomes",
-    "scenario planning": "Exploring different future possibilities to prepare for uncertainty",
-    "scenario analysis": "Exploring different future possibilities to prepare for uncertainty",
-    "contingency planning": "Developing backup strategies to prepare for uncertainty",
-    "cost-benefit analysis": "Comparing the advantages and disadvantages of different options",
-    "decision tree": "A visual tool that maps out different options and their potential outcomes",
-    "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats",
-    "monte carlo simulation": "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty",
-    "sensitivity analysis": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions",
-    "linear optimization": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints",
-    "utility functions": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis",
-    "expected value": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios",
-    "batna": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached",
-    "reservation point": "The least favorable outcome acceptable before walking away from a negotiation",
-    "zopa": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation",
-    "supply chain risk management": "Identifying and mitigating risks in procurement and distribution",
-    "leadership assessment": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts",
-    "cognitive behaviors": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias",
-    "judgment intuitive bias": "Systematic errors in thinking that affect decisions and judgments, often unconsciously",
-    "negotiation term sheet": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted",
-    "value creation": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction",
-    "risk tolerance assessment": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives",
-    "human-computer integration": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities",
-    "competitive advantage analysis": "A strategic evaluation of factors that allow an organization to outperform its competitors",
-    "value chain analysis": "A process of analyzing the activities that add value to a product or service from conception to delivery",
-    "investigative negotiation": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes",
-    "seasonal analysis": "A forecasting method that identifies and models repeating patterns or cycles in time series data",
-    "regression": "A statistical technique for estimating relationships among variables and predicting future values based on historical data",
-    "moving average": "A method that smooths time series data by averaging values over a specified number of periods to identify trends",
-    "semi-quantitative forecast": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions",
-    "profitability analysis": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses",
-    "grow model": "A structured approach to goal setting and action planning",
-    "prospect theory": "Shows how people often value avoiding losses more than achieving gains",
-    "bounded rationality": "The recognition that good decisions don't require perfect information",
-    "ooda loop": "A decision cycle (Observe, Orient, Decide, Act) for rapid decision-making",
-    "solver-based simulation": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty"
+    "strategic framing": {"definition": "Structuring the decision problem to clarify objectives and alternatives", "core": True, "aliases": ["strategic analysis", "problem framing", "decision framing"]},
+    "stakeholder alignment": {"definition": "Ensuring all parties' interests are considered and balanced", "core": True, "aliases": ["stakeholder management", "stakeholder engagement", "alignment"]},
+    "risk assessment": {"definition": "Systematic evaluation of potential threats and their impact on decision outcomes", "core": True, "aliases": ["risk evaluation", "risk analysis", "threat assessment"]},
+    "scenario planning": {"definition": "Exploring different future possibilities to prepare for uncertainty", "core": True, "aliases": ["scenario analysis", "future planning", "uncertainty planning"]},
+    "scenario analysis": {"definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making", "core": True, "aliases": ["scenario planning", "model uncertainty", "uncertainty modeling"]},
+    "contingency planning": {"definition": "Developing backup strategies to prepare for uncertainty", "core": False, "aliases": ["backup planning", "emergency planning", "fallback strategies"]},
+    "cost-benefit analysis": {"definition": "Comparing the advantages and disadvantages of different options", "core": True, "aliases": ["cost benefit", "compare alternatives", "trade-off analysis", "benefit cost analysis"]},
+    "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ["decision mapping", "option tree", "outcome mapping"]},
+    "swot analysis": {"definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats", "core": True, "aliases": ["swot", "strengths weaknesses", "opportunities threats"]},
+    "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ["monte carlo", "simulation modeling", "statistical simulation", "uncertainty simulation"]},
+    "sensitivity analysis": {"definition": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions", "core": True, "aliases": ["sensitivity testing", "what-if analysis", "parameter analysis"]},
+    "linear optimization": {"definition": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints", "core": True, "aliases": ["linear programming", "optimization", "mathematical optimization"]},
+    "utility functions": {"definition": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis", "core": True, "aliases": ["utility", "preference functions", "value functions"]},
+    "expected value": {"definition": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios", "core": True, "aliases": ["expected outcome", "probability weighted", "average outcome"]},
+    "batna": {"definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached", "core": True, "aliases": ["best alternative", "walk away option", "negotiation alternative"]},
+    "reservation point": {"definition": "The least favorable outcome acceptable before walking away from a negotiation", "core": True, "aliases": ["walk away point", "minimum acceptable", "bottom line"]},
+    "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ["zone of agreement", "negotiation zone", "agreement zone"]},
+    "supply chain risk management": {"definition": "Identifying and mitigating risks in procurement and distribution", "core": False, "aliases": ["supply chain", "procurement risk", "distribution risk"]},
+    "leadership assessment": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": False, "aliases": ["leadership evaluation", "leadership skills", "management assessment"]},
+    "cognitive behaviors": {"definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias", "core": True, "aliases": ["cognitive behavior", "thinking patterns", "mental models", "cognitive bias"]},
+    "judgment intuitive bias": {"definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously", "core": True, "aliases": ["cognitive bias", "judgment bias", "thinking errors", "decision bias"]},
+    "negotiation term sheet": {"definition": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted", "core": True, "aliases": ["term sheet", "negotiation terms", "agreement terms"]},
+    "value creation": {"definition": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction", "core": True, "aliases": ["value generation", "benefit creation", "stakeholder value"]},
+    "risk tolerance assessment": {"definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives", "core": False, "aliases": ["risk tolerance", "risk appetite", "risk willingness"]},
+    "human-computer integration": {"definition": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities", "core": False, "aliases": ["human computer", "human machine", "computer integration"]},
+    "competitive advantage analysis": {"definition": "A strategic evaluation of factors that allow an organization to outperform its competitors", "core": True, "aliases": ["competitive advantage", "competitive analysis", "advantage analysis"]},
+    "value chain analysis": {"definition": "A process of analyzing the activities that add value to a product or service from conception to delivery", "core": True, "aliases": ["value chain", "chain analysis", "value analysis"]},
+    "investigative negotiation": {"definition": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes", "core": True, "aliases": ["investigative", "interest-based negotiation", "information gathering"]},
+    "seasonal analysis": {"definition": "A forecasting method that identifies and models repeating patterns or cycles in time series data", "core": False, "aliases": ["seasonal patterns", "seasonality", "cyclical analysis"]},
+    "regression": {"definition": "A statistical technique for estimating relationships among variables and predicting future values based on historical data", "core": True, "aliases": ["regression analysis", "statistical regression", "prediction model"]},
+    "moving average": {"definition": "A method that smooths time series data by averaging values over a specified number of periods to identify trends", "core": False, "aliases": ["moving averages", "trend smoothing", "time series smoothing"]},
+    "semi-quantitative forecast": {"definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions", "core": False, "aliases": ["semi quantitative", "mixed forecasting", "qualitative quantitative"]},
+    "profitability analysis": {"definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses", "core": True, "aliases": ["profitability", "earnings analysis", "financial performance"]},
+    "grow model": {"definition": "A structured approach to goal setting and action planning", "core": False, "aliases": ["grow", "goal setting", "action planning"]},
+    "prospect theory": {"definition": "Shows how people often value avoiding losses more than achieving gains", "core": True, "aliases": ["prospect", "loss aversion", "gain loss"]},
+    "bounded rationality": {"definition": "The recognition that good decisions don't require perfect information", "core": True, "aliases": ["bounded", "rationality", "imperfect information"]},
+    "ooda loop": {"definition": "A decision cycle (Observe, Orient, Decide, Act) for rapid decision-making", "core": False, "aliases": ["ooda", "observe orient decide act", "decision cycle"]},
+    "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ["solver simulation", "algorithmic optimization", "computational optimization"]}
 }
+
+# Domain categorization for better concept filtering
+CONCEPT_DOMAINS = {
+    # Human behavior and psychology concepts
+    "cognitive behaviors": "behavioral",
+    "judgment intuitive bias": "behavioral", 
+    "prospect theory": "behavioral",
+    "bounded rationality": "behavioral",
+    "leadership assessment": "behavioral",
+    "risk tolerance assessment": "behavioral",
+    
+    # Technical/analytical concepts
+    "monte carlo simulation": "technical",
+    "sensitivity analysis": "technical",
+    "linear optimization": "technical",
+    "utility functions": "technical",
+    "expected value": "technical",
+    "scenario analysis": "technical",
+    "scenario planning": "technical",
+    "solver-based simulation": "technical",
+    "regression": "technical",
+    "moving average": "technical",
+    "seasonal analysis": "technical",
+    "semi-quantitative forecast": "technical",
+    
+    # Strategic concepts
+    "strategic framing": "strategic",
+    "stakeholder alignment": "strategic",
+    "swot analysis": "strategic",
+    "competitive advantage analysis": "strategic",
+    "value chain analysis": "strategic",
+    "value creation": "strategic",
+    "profitability analysis": "strategic",
+    
+    # Technical/analytical concepts
+    "cost-benefit analysis": "technical",
+    
+    # Negotiation concepts
+    "batna": "negotiation",
+    "reservation point": "negotiation",
+    "zopa": "negotiation",
+    "investigative negotiation": "negotiation",
+    "negotiation term sheet": "negotiation",
+    
+    # General decision-making concepts (can apply to multiple domains)
+    "decision tree": "technical",
+    "risk assessment": "technical",
+    "contingency planning": "general",
+    "grow model": "general",
+    "ooda loop": "general",
+    "supply chain risk management": "general",
+    "human-computer integration": "technical"
+}
+
+# Global cache for concept embeddings to improve performance
+_concept_embeddings_cache = None
+
+def clear_concept_cache():
+    """Clear the concept embeddings cache to force re-initialization with new format."""
+    global _concept_embeddings_cache
+    _concept_embeddings_cache = None
+    print("🗑️ Concept embeddings cache cleared")
+
+def detect_query_domains(query: str) -> dict:
+    """
+    Detect multiple domains of a query based on keyword analysis.
+    Returns: Dictionary with domain names as keys and confidence scores as values.
+    """
+    query_lower = query.lower()
+    domain_scores = {
+        'behavioral': 0,
+        'technical': 0,
+        'strategic': 0,
+        'negotiation': 0
+    }
+    
+    # Behavioral/psychological indicators
+    behavioral_keywords = [
+        'team', 'teams', 'conflict', 'conflicts', 'value', 'values', 'behavior', 'behaviour',
+        'psychology', 'psychological', 'bias', 'biases', 'cognitive', 'cognition',
+        'judgment', 'judgement', 'leadership', 'personality', 'personalities',
+        'motivation', 'motivational', 'emotion', 'emotional', 'human', 'people',
+        'individual', 'group', 'social', 'interpersonal', 'communication',
+        'behave', 'behaving', 'behaved', 'psychologic', 'cognitively', 'judge', 'judging',
+        'lead', 'leading', 'led', 'motivate', 'motivating', 'motivated', 'feel', 'feeling',
+        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating'
+    ]
+    for keyword in behavioral_keywords:
+        if keyword in query_lower:
+            domain_scores['behavioral'] += 1
+    
+    # Technical/analytical indicators
+    technical_keywords = [
+        'model', 'modeling', 'modeled', 'simulation', 'simulate', 'simulating', 'simulated',
+        'forecast', 'forecasting', 'forecasted', 'optimization', 'optimize', 'optimizing', 
+        'optimized', 'optimum', 'optimization strategy', 'optimization strategies',
+        'maximization', 'maximize', 'maximizing', 'maximized', 'maximum', 'minimization', 
+        'minimize', 'minimizing', 'minimized', 'minimum', 'simulation strategy', 'simulation strategies',
+        'analysis', 'analyze', 'analyzing', 'analyzed', 'analytical',
+        'data', 'statistical', 'statistics', 'mathematical', 'mathematics',
+        'algorithm', 'algorithms', 'uncertainty', 'uncertain', 'uncertainties', 'probability', 
+        'probabilistic', 'probable', 'calculate', 'calculation', 'calculating', 'calculated',
+        'compute', 'computation', 'computing', 'computed', 'numerical', 'numeric',
+        'assess', 'assessment', 'assessing', 'assessed', 'evaluate', 'evaluation', 
+        'evaluating', 'evaluated', 'measure', 'measurement', 'measuring', 'measured',
+        'choose', 'choosing', 'chose', 'chosen', 'decide', 
+        'deciding', 'decided', 'options', 'option', 'select', 'selecting', 'selected',
+        'determine', 'determining', 'determined', 'estimate', 'estimating', 'estimated',
+        'predict', 'predicting', 'predicted', 'prediction', 'predictions',
+        'production', 'demand', 'storage', 'capacity', 'inventory', 'supply chain',
+        'operations', 'operational', 'manufacturing', 'logistics', 'distribution'
+    ]
+    for keyword in technical_keywords:
+        if keyword in query_lower:
+            domain_scores['technical'] += 1
+    
+    # Strategic indicators
+    strategic_keywords = [
+        'strategy', 'strategic', 'strategically', 'market', 'markets', 'marketing',
+        'competitive', 'competition', 'competitor', 'competitors', 'compete', 'competing',
+        'advantage', 'advantageous', 'positioning', 'position', 'positioned', 'positioning',
+        'business', 'businesses', 'organization', 'organizations', 'organize', 'organizing',
+        'company', 'companies', 'industry', 'industries', 'industrial',
+        'expansion', 'expand', 'expanding', 'expanded', 'growth', 'grow', 'growing', 'grown',
+        'planning', 'plan', 'planned', 'corporate', 'enterprise', 'enterprising',
+        'swot', 'value chain', 'profitability', 'profitable', 'stakeholder', 'stakeholders',
+        'alignment', 'align', 'aligning', 'aligned', 'competitive advantage', 'market analysis', 
+        'strategic analysis', 'business strategy', 'business strategies', 'corporate strategy', 
+        'corporate strategies', 'strategic planning', 'competitive position', 'market position', 
+        'market share', 'competitive edge', 'business model', 'business plan', 'strategic thinking', 
+        'strategic decision', 'decision strategy', 'decision strategies', 'optimal strategy', 'optimal strategies', 
+        'long-term', 'long term'
+    ]
+    for keyword in strategic_keywords:
+        if keyword in query_lower:
+            domain_scores['strategic'] += 1
+    
+    # Negotiation indicators
+    negotiation_keywords = [
+        'negotiate', 'negotiation', 'negotiating', 'negotiated', 'negotiator', 'negotiators',
+        'agreement', 'agree', 'agreeing', 'agreed', 'disagree', 'disagreeing', 'disagreed',
+        'bargain', 'bargaining', 'bargained', 'bargaining strategy', 'bargaining strategies', 
+        'negotiation strategy', 'negotiation strategies', 'contract', 'contracts', 'contracting', 'contracted', 
+        'settlement', 'settle', 'settling', 'settled', 'compromise', 'compromising', 'compromised',
+        'proposal', 'proposals', 'propose', 'proposing', 'proposed',
+        'offer', 'offers', 'offering', 'offered', 'counteroffer', 'counteroffers',
+        'terms', 'term', 'condition', 'conditions', 'concession', 'concessions',
+        'deadlock', 'impasse', 'deadlocked', 'win-win', 'win win', 'zero-sum', 'zero sum'
+    ]
+    for keyword in negotiation_keywords:
+        if keyword in query_lower:
+            domain_scores['negotiation'] += 1
+    
+    # IMPROVEMENT 3: Lightweight domain classifier as fallback
+    # If keyword detection is weak, use semantic similarity to classify domain
+    total_keywords = sum(domain_scores.values())
+    if total_keywords < 2:  # Weak keyword signals
+        try:
+            # Use semantic similarity to classify domain
+            query_embedding = model.encode([query])
+            
+            # Domain-specific example queries for classification
+            domain_examples = {
+                'behavioral': [
+                    "How do people make decisions under pressure?",
+                    "What cognitive biases affect team decisions?",
+                    "How can I improve team communication?"
+                ],
+                'technical': [
+                    "What tools can model uncertainty in production?",
+                    "How do I optimize resource allocation?",
+                    "What forecasting methods are best for demand planning?"
+                ],
+                'strategic': [
+                    "How should I position my company in the market?",
+                    "What factors determine competitive advantage?",
+                    "How do I structure a strategic partnership?"
+                ],
+                'negotiation': [
+                    "How do I negotiate better terms in a contract?",
+                    "What's my best alternative in this negotiation?",
+                    "How can I find common ground in a deal?"
+                ]
+            }
+            
+            # Calculate similarity with domain examples
+            domain_similarities = {}
+            for domain, examples in domain_examples.items():
+                example_embeddings = model.encode(examples)
+                similarities = util.pytorch_cos_sim(query_embedding, example_embeddings)[0]
+                domain_similarities[domain] = similarities.mean().item()
+            
+            # If semantic similarity is stronger than keyword detection, use it
+            max_semantic_similarity = max(domain_similarities.values())
+            if max_semantic_similarity > 0.6:  # Strong semantic signal
+                # Blend keyword and semantic scores
+                for domain in domain_scores:
+                    semantic_weight = 0.7
+                    keyword_weight = 0.3
+                    domain_scores[domain] = (semantic_weight * domain_similarities[domain] + 
+                                           keyword_weight * domain_scores[domain])
+            
+        except Exception as e:
+            pass  # Silent fallback to keyword-based detection
+    
+    # Normalize scores and filter out zero scores
+    total_keywords = sum(domain_scores.values())
+    if total_keywords == 0:
+        # If no domain keywords found, return empty dict (will be treated as general)
+        return {}
+    else:
+        # Convert to percentages
+        for domain in domain_scores:
+            domain_scores[domain] = domain_scores[domain] / total_keywords
+    
+    return domain_scores
+
+def detect_query_domain(query: str) -> str:
+    """
+    Detect the primary domain of a query (backward compatibility).
+    Returns: 'behavioral', 'technical', 'strategic', 'negotiation', or 'general'
+    """
+    domains = detect_query_domains(query)
+    # Return the domain with the highest score
+    return max(domains, key=domains.get)
+
+def get_top_ranked_concepts(query: str, top_k: int = 3) -> List[Tuple[str, str]]:
+    """
+    Extract concepts using semantic similarity scoring with SentenceTransformer embeddings.
+    
+    Args:
+        query: The user's query text
+        top_k: Maximum number of concepts to return (default 3, max 4)
+        
+    Returns:
+        List of (concept_name, definition) tuples ranked by relevance score
+    """
+    # Cap at maximum 4 concepts to maintain focus
+    top_k = min(top_k, 4)
+    global _concept_embeddings_cache
+    
+    try:
+        # Detect multiple domains for better concept filtering
+        query_domains = detect_query_domains(query)
+        if query_domains:
+            primary_domain = max(query_domains, key=query_domains.get)
+        else:
+            primary_domain = 'general'
+        
+        # Generate embedding for the query
+        query_embedding = model.encode([query])
+        
+        # Initialize or get cached concept embeddings
+        if _concept_embeddings_cache is None:
+            # Use more descriptive concept texts for better matching
+            concept_texts = []
+            for name, concept_data in CONCEPT_GLOSSARY.items():
+                # Handle both old string format and new dictionary format
+                if isinstance(concept_data, str):
+                    definition = concept_data
+                else:
+                    definition = concept_data["definition"]
+                # Create a more focused text that emphasizes the definition over the name
+                # This reduces false matches based on word overlap in concept names
+                concept_text = f"{definition} {name.replace('-', ' ')}"
+                concept_texts.append(concept_text)
+            _concept_embeddings_cache = model.encode(concept_texts)
+        
+        # Calculate cosine similarities
+        similarities = util.pytorch_cos_sim(query_embedding, _concept_embeddings_cache)[0]
+        
+        # Create list of (concept_name, definition, score) tuples with domain filtering
+        concept_scores = []
+        concept_names = list(CONCEPT_GLOSSARY.keys())
+        
+        for i, (concept_name, concept_data) in enumerate(CONCEPT_GLOSSARY.items()):
+            score = similarities[i].item()
+            
+            # IMPROVEMENT 2: Alias-based score boosting
+            # Check if any aliases appear in the query for additional score boost
+            alias_boost = 0.0
+            if isinstance(concept_data, dict) and "aliases" in concept_data:
+                query_lower = query.lower()
+                for alias in concept_data["aliases"]:
+                    if alias.lower() in query_lower:
+                        alias_boost = 0.15  # Boost score by 0.15 if alias found
+                        break
+            
+            # Apply alias boost to similarity score
+            score += alias_boost
+            
+            if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
+                # Handle both old string format and new dictionary format
+                if isinstance(concept_data, str):
+                    definition = concept_data
+                    is_core = False  # Default to False for old format
+                else:
+                    definition = concept_data["definition"]
+                    is_core = concept_data.get("core", False)
+                
+                # Apply multi-domain filtering: calculate weighted score based on all detected domains
+                concept_domain = CONCEPT_DOMAINS.get(concept_name, 'general')
+                
+                # Calculate domain multiplier based on all detected domains
+                domain_multiplier = 0.5  # Base multiplier for irrelevant domains
+                
+                if query_domains:  # If specific domains are detected
+                    if concept_domain in query_domains:
+                        # Concept domain is detected in query - use weighted score
+                        domain_score = query_domains[concept_domain]
+                        if domain_score > 0.3:  # Strong domain match
+                            domain_multiplier = 1.5
+                        elif domain_score > 0.1:  # Moderate domain match
+                            domain_multiplier = 1.2
+                        else:  # Weak domain match
+                            domain_multiplier = 1.0
+                    elif concept_domain == 'general':
+                        # General concepts get penalized when specific domains are detected
+                        # The stronger the domain signals, the more we penalize general concepts
+                        strongest_domain_score = max(query_domains.values())
+                        if strongest_domain_score > 0.5:  # Strong domain signal
+                            domain_multiplier = 0.6  # Significant penalty
+                        elif strongest_domain_score > 0.3:  # Moderate domain signal
+                            domain_multiplier = 0.7  # Moderate penalty
+                        else:  # Weak domain signal
+                            domain_multiplier = 0.8  # Light penalty
+                else:
+                    # No specific domains detected - treat as general query
+                    if concept_domain == 'general':
+                        domain_multiplier = 1.0  # Neutral for general concepts
+                    else:
+                        domain_multiplier = 0.8  # Slight penalty for specific concepts in general queries
+                
+                adjusted_score = score * domain_multiplier
+                
+                # Apply core concept prioritization
+                if is_core:
+                    adjusted_score *= 1.2
+                
+                concept_scores.append((concept_name, definition, adjusted_score, is_core))
+        
+        # Sort by adjusted score (highest first)
+        concept_scores.sort(key=lambda x: x[2], reverse=True)
+        
+        # Determine threshold based on domain situation
+        if query_domains:
+            # Check if this is effectively a single domain (one domain has >80% weight)
+            sorted_domains = sorted(query_domains.items(), key=lambda x: x[1], reverse=True)
+            primary_score = sorted_domains[0][1]
+            
+            if primary_score > 0.8:  # Single domain - use higher threshold
+                threshold = 0.50
+                core_threshold = 0.45
+            else:  # Multi-domain - use lower threshold to ensure coverage
+                threshold = 0.35
+                core_threshold = 0.30
+        else:  # General query - use higher threshold
+            threshold = 0.50
+            core_threshold = 0.45
+        
+        # Filter to only high-quality concepts with appropriate threshold
+        high_quality_concepts = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= threshold]
+        
+        # Check if we have core concepts that are just under the threshold but should be included
+        core_concepts_under_threshold = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= core_threshold and is_core and score < threshold]
+        
+        # Smart domain-based concept selection
+        selected_concepts = []
+        
+        if query_domains:  # Multi-domain or single-domain query
+            # Sort domains by score (highest first)
+            sorted_domains = sorted(query_domains.items(), key=lambda x: x[1], reverse=True)
+            
+            # Check if this is effectively a single domain (one domain has >80% weight)
+            primary_domain = sorted_domains[0][0]
+            primary_score = sorted_domains[0][1]
+            
+            if primary_score > 0.8:  # Single domain (one domain dominates)
+                # Single domain: up to 3 concepts (max, not fixed)
+                domain_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
+                                 if CONCEPT_DOMAINS.get(name, 'general') == primary_domain][:3]
+                selected_concepts = domain_concepts
+                # Debug: Single domain selection completed
+                
+            else:  # Multiple domains (no single domain dominates)
+                # Multi-domain: up to 2 from primary domain, up to 1 from each additional domain
+                # Get up to 2 concepts from primary domain
+                primary_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
+                                  if CONCEPT_DOMAINS.get(name, 'general') == primary_domain][:2]
+                selected_concepts.extend(primary_concepts)
+                
+                # Get up to 1 concept from each additional domain
+                for domain_name, domain_score in sorted_domains[1:]:
+                    if domain_score > 0.1:  # Only include domains with meaningful weight
+                        domain_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
+                                         if CONCEPT_DOMAINS.get(name, 'general') == domain_name][:1]
+                        selected_concepts.extend(domain_concepts)
+                
+                
+        else:  # General query (no specific domains detected)
+            # General domain: cap at 2 concepts
+            general_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
+                              if CONCEPT_DOMAINS.get(name, 'general') == 'general'][:2]
+            selected_concepts = general_concepts
+        
+        # IMPROVEMENT 1: Post-filter override for core concepts
+        # If we have weak matches and a core concept scores ≥ 0.45, promote it
+        if len(selected_concepts) < 2:
+            for name, definition, score, is_core in concept_scores:
+                if is_core and score >= 0.45 and (name, definition) not in selected_concepts:
+                    # Check if this core concept is better than the weakest selected
+                    if not selected_concepts or score > min(s for n, d, s, ic in concept_scores if (n, d) in selected_concepts):
+                        if selected_concepts and len(selected_concepts) >= 2:
+                            # Replace weakest concept
+                            weakest_concept = min(selected_concepts, key=lambda x: next(s for n, d, s, ic in concept_scores if (n, d) == x))
+                            selected_concepts.remove(weakest_concept)
+                        
+                        selected_concepts.append((name, definition))
+                        break
+        
+        # Fallback: if insufficient high-quality concepts, use top concepts regardless of domain
+        if len(selected_concepts) < 2:
+            if core_concepts_under_threshold:
+                # Include core concepts that are just under threshold
+                fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
+                # Replace weakest with core concept if available
+                if len(fallback_concepts) > 0 and core_concepts_under_threshold:
+                    weakest_score = min(score for name, definition, score, is_core in concept_scores[:min(2, top_k)] if (name, definition) in fallback_concepts)
+                    best_core = max(core_concepts_under_threshold, key=lambda x: x[2])
+                    if best_core[2] > weakest_score:
+                        # Replace weakest concept with best core concept
+                        fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)] 
+                                           if score > weakest_score and (name, definition) in fallback_concepts]
+                        fallback_concepts.append((best_core[0], best_core[1]))
+                selected_concepts = fallback_concepts
+            else:
+                selected_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
+        
+        # Deduplicate selected concepts by name (case-insensitive)
+        seen_names = set()
+        deduplicated_concepts = []
+        for name, definition in selected_concepts:
+            if name.lower() not in seen_names:
+                deduplicated_concepts.append((name, definition))
+                seen_names.add(name.lower())
+        
+        selected_concepts = deduplicated_concepts
+        
+        return selected_concepts
+        
+    except Exception as e:
+        print(f"❌ Error in semantic concept extraction: {e}")
+        # Fallback to fuzzy matching if semantic extraction fails
+        return extract_concepts_with_fuzzy_matching(query, threshold=0.7)
 
 def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> List[Tuple[str, str]]:
     """
@@ -984,51 +1439,27 @@ def process_query(query: str) -> str:
             if not (isinstance(item, dict) and 'term' in item and 'definition' in item):
                 pass
         
-        # Inject fallback concepts if fewer than 2 valid concepts found
-        valid_concepts = [item for item in concepts_tools_practice if isinstance(item, dict) and 'term' in item and 'definition' in item]
-        if len(valid_concepts) < 2:
-            fallback_concepts = generate_fallback_concepts(query)
-            
-            # Find the Concepts/Tools section and inject fallbacks
-            concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
-            match = re.search(concepts_pattern, answer, re.DOTALL | re.IGNORECASE)
-            
-            if match:
-                concepts_section = match.group(1)
-                # Add fallback concepts to the section
-                for concept in fallback_concepts:
-                    if concept not in concepts_section:
-                        concepts_section += f"\n{concept}"
-                
-                # Replace the original section with the enhanced one
-                answer = answer.replace(match.group(1), concepts_section)
+        # Note: Fallback concepts are now handled by semantic scoring in the next section
+        # The semantic scoring will ensure we always get relevant concepts based on the query
         
-        # Enhanced concept extraction using fuzzy matching from full answer text
-        fuzzy_concepts = extract_concepts_with_fuzzy_matching(answer, threshold=0.7)
+        # Enhanced concept extraction using semantic scoring from query
+        semantic_concepts = get_top_ranked_concepts(query, top_k=3)
         
-        # Find the Concepts/Tools section and add any new concepts found
+        # Find the Concepts/Tools section and replace with semantic concepts
         concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'
         match = re.search(concepts_pattern, answer, re.DOTALL | re.IGNORECASE)
         
-        if match and fuzzy_concepts:
+        if match and semantic_concepts:
             concepts_section = match.group(1)
             header_match = re.search(r'\*\*Concepts/Tools\*\*', concepts_section, re.IGNORECASE)
             if header_match:
                 header = concepts_section[:header_match.end()]
-                content = concepts_section[header_match.end():].strip()
                 
-                # Get existing concept names to avoid duplicates
-                existing_concepts = set()
-                for line in content.split('\n'):
-                    if ':' in line:
-                        concept_name = line.split(':', 1)[0].strip().lower()
-                        existing_concepts.add(concept_name)
-                
-                # Add new concepts found through fuzzy matching
-                for concept_name, definition in fuzzy_concepts:
-                    if concept_name.lower() not in existing_concepts:
-                        content += f"\n{concept_name}: {definition}"
-                        existing_concepts.add(concept_name.lower())
+                # Replace content with semantic concepts
+                content = ""
+                for concept_name, definition in semantic_concepts:
+                    content += f"{concept_name.title()}: {definition}\n"
+                content = content.strip()
                 
                 # Reconstruct the section
                 enhanced_section = f"{header}\n{content}"
@@ -1173,6 +1604,126 @@ def run_test_cases():
                 print("    - Tooltip validation failed")
             if not fail['nested']:
                 print("    - Nested tooltips detected")
+    
+    return passed_tests == total_tests
+
+def run_flexible_concept_tests():
+    """Run flexible concept extraction tests using the new test structure"""
+    import json
+    
+    # Load test cases
+    try:
+        with open('test_cases.json', 'r', encoding='utf-8') as f:
+            test_cases = json.load(f)
+    except FileNotFoundError:
+        print("❌ test_cases.json not found")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"❌ Error parsing test_cases.json: {e}")
+        return False
+    
+    print(f"🧪 Running {len(test_cases)} flexible concept extraction tests...")
+    print("=" * 60)
+    
+    passed_tests = 0
+    warned_tests = 0
+    failed_tests = 0
+    total_tests = len(test_cases)
+    
+    for i, case in enumerate(test_cases, 1):
+        print(f"\n🧪 Test {i}: {case['question'][:50]}...")
+        
+        try:
+            # Get concept extraction results
+            concepts = get_top_ranked_concepts(case['question'])
+            concept_names = [name for name, definition in concepts]
+            
+            # Get domain detection results
+            domains = detect_query_domains(case['question'])
+            detected_domains = list(domains.keys()) if domains else ['general']
+            
+            # Check required concepts (case-insensitive)
+            concept_names_lower = [name.lower() for name in concept_names]
+            required_found = [concept for concept in case['required_concepts'] if concept.lower() in concept_names_lower]
+            required_missing = [concept for concept in case['required_concepts'] if concept.lower() not in concept_names_lower]
+            
+            # Check optional concepts (case-insensitive)
+            optional_found = [concept for concept in case['optional_concepts'] if concept.lower() in concept_names_lower]
+            
+            # Check excluded concepts (case-insensitive)
+            excluded_found = [concept for concept in case['excluded_concepts'] if concept.lower() in concept_names_lower]
+            
+            # Check domain match (with mapping)
+            expected_domains = case['expected_domains']
+            # Map test case domains to system domains
+            domain_mapping = {
+                'human_behavior': 'behavioral',
+                'technical': 'technical', 
+                'strategic': 'strategic',
+                'negotiation': 'negotiation'
+            }
+            mapped_expected_domains = [domain_mapping.get(domain, domain) for domain in expected_domains]
+            domain_match = any(domain in detected_domains for domain in mapped_expected_domains)
+            
+            # Determine test result
+            test_status = "PASS"
+            warnings = []
+            failures = []
+            
+            # ✅ Pass conditions
+            if required_found:
+                print(f"✅ Required concept found: {', '.join(required_found)}")
+            else:
+                failures.append(f"No required concepts found. Missing: {', '.join(required_missing)}")
+                test_status = "FAIL"
+            
+            if domain_match:
+                print(f"✅ Domain match: {', '.join(detected_domains)}")
+            else:
+                warnings.append(f"Domain mismatch. Expected: {expected_domains}, Got: {detected_domains}")
+            
+            if not excluded_found:
+                print("✅ No excluded concepts found")
+            else:
+                failures.append(f"Excluded concepts appeared: {', '.join(excluded_found)}")
+                test_status = "FAIL"
+            
+            # ⚠️ Warning conditions
+            if not required_found and optional_found:
+                warnings.append(f"Only optional concepts found: {', '.join(optional_found)}")
+                test_status = "WARN"
+            
+            # Print concept scores for debugging
+            print(f"📊 Selected concepts: {', '.join(concept_names)}")
+            
+            # Update counters
+            if test_status == "PASS":
+                passed_tests += 1
+                print("✅ PASSED")
+            elif test_status == "WARN":
+                warned_tests += 1
+                print("⚠️ WARNED")
+                for warning in warnings:
+                    print(f"   ⚠️ {warning}")
+            else:  # FAIL
+                failed_tests += 1
+                print("❌ FAILED")
+                for failure in failures:
+                    print(f"   ❌ {failure}")
+                for warning in warnings:
+                    print(f"   ⚠️ {warning}")
+                    
+        except Exception as e:
+            print(f"❌ Error processing test case: {e}")
+            failed_tests += 1
+    
+    # Summary
+    print("\n" + "=" * 60)
+    print(f"📊 FLEXIBLE TEST SUMMARY:")
+    print(f"✅ Passed: {passed_tests}")
+    print(f"⚠️ Warned: {warned_tests}")
+    print(f"❌ Failed: {failed_tests}")
+    print(f"📊 Total: {total_tests}")
     
     return passed_tests == total_tests
 

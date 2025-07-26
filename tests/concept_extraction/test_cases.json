@@ -1,4 +1,34 @@
 [
+  /*
+   * V1.6.4 Flexible Concept Extraction Test Suite
+   * 
+   * This test suite validates ThinkPal's semantic concept extraction capabilities
+   * using a flexible structure that tests both core functionality and edge cases.
+   * 
+   * Test Structure:
+   * {
+   *   "question": "User query text",
+   *   "expected_domains": ["domain1", "domain2"], // Expected detected domains
+   *   "required_concepts": ["concept1", "concept2"], // Must be found in results
+   *   "optional_concepts": ["concept3", "concept4"], // Nice to have, not required
+   *   "excluded_concepts": ["concept5", "concept6"] // Should NOT appear in results
+   * }
+   * 
+   * Test Categories:
+   * - Core Cases (1-10): Standard decision-making scenarios
+   * - Edge Cases (11-17): Challenging scenarios with limited data, urgency, etc.
+   * 
+   * Domain Mapping:
+   * - human_behavior → behavioral (system domain)
+   * - technical → technical
+   * - strategic → strategic  
+   * - negotiation → negotiation
+   * 
+   * Success Criteria:
+   * ✅ PASS: At least one required concept found, no excluded concepts, domain match
+   * ⚠️ WARN: Only optional concepts found, or domain mismatch
+   * ❌ FAIL: No required concepts found, or excluded concepts appear
+   */
   {
     "question": "How do I reduce groupthink in high-pressure team decisions?",
     "expected_domains": [
