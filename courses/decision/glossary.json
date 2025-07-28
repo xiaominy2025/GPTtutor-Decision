@@ -1,0 +1,167 @@
+{
+  "strategic framing": {
+    "definition": "Structuring the decision problem to clarify objectives and alternatives",
+    "core": true,
+    "aliases": ["strategic analysis", "problem framing", "decision framing"]
+  },
+  "stakeholder alignment": {
+    "definition": "Ensuring all parties' interests are considered and balanced",
+    "core": true,
+    "aliases": ["stakeholder management", "stakeholder engagement", "alignment"]
+  },
+  "risk assessment": {
+    "definition": "Systematic evaluation of potential threats and their impact on decision outcomes",
+    "core": true,
+    "aliases": ["risk evaluation", "risk analysis", "threat assessment"]
+  },
+  "scenario planning": {
+    "definition": "Exploring different future possibilities to prepare for uncertainty",
+    "core": true,
+    "aliases": ["scenario analysis", "future planning", "uncertainty planning"]
+  },
+  "scenario analysis": {
+    "definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making",
+    "core": true,
+    "aliases": ["scenario planning", "model uncertainty", "uncertainty modeling"]
+  },
+  "contingency planning": {
+    "definition": "Developing backup strategies to prepare for uncertainty",
+    "core": false,
+    "aliases": ["backup planning", "emergency planning", "fallback strategies"]
+  },
+  "cost-benefit analysis": {
+    "definition": "Comparing the advantages and disadvantages of different options",
+    "core": true,
+    "aliases": ["cost benefit", "compare alternatives", "trade-off analysis", "benefit cost analysis"]
+  },
+  "decision tree": {
+    "definition": "A visual tool that maps out different options and their potential outcomes",
+    "core": true,
+    "aliases": ["decision mapping", "option tree", "outcome mapping"]
+  },
+  "swot analysis": {
+    "definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats",
+    "core": true,
+    "aliases": ["swot", "strengths weaknesses", "opportunities threats"]
+  },
+  "monte carlo simulation": {
+    "definition": "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty",
+    "core": true,
+    "aliases": ["monte carlo", "simulation modeling", "probabilistic modeling"]
+  },
+  "sensitivity analysis": {
+    "definition": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions",
+    "core": true,
+    "aliases": ["what-if analysis", "parameter analysis", "impact analysis"]
+  },
+  "expected value": {
+    "definition": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios",
+    "core": true,
+    "aliases": ["ev", "expected outcome", "probability-weighted outcome"]
+  },
+  "bounded rationality": {
+    "definition": "The recognition that good decisions don't require perfect information",
+    "core": true,
+    "aliases": ["limited rationality", "satisficing", "cognitive limits"]
+  },
+  "cognitive behaviors": {
+    "definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias",
+    "core": true,
+    "aliases": ["cognitive patterns", "thinking patterns", "mental models"]
+  },
+  "judgment intuitive bias": {
+    "definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously",
+    "core": true,
+    "aliases": ["cognitive bias", "judgment bias", "intuitive errors"]
+  },
+  "negotiation strategy": {
+    "definition": "A systematic approach to achieving favorable outcomes in discussions and agreements",
+    "core": true,
+    "aliases": ["negotiation planning", "deal strategy", "bargaining approach"]
+  },
+  "batna": {
+    "definition": "Best Alternative To a Negotiated Agreement - your fallback option if negotiations fail",
+    "core": true,
+    "aliases": ["best alternative", "fallback option", "walk-away point"]
+  },
+  "competitive advantage analysis": {
+    "definition": "A strategic evaluation of factors that allow an organization to outperform its competitors",
+    "core": true,
+    "aliases": ["competitive analysis", "advantage assessment", "competitive positioning"]
+  },
+  "value chain analysis": {
+    "definition": "A process of analyzing the activities that add value to a product or service from conception to delivery",
+    "core": true,
+    "aliases": ["value chain", "process analysis", "value creation"]
+  },
+  "utility functions": {
+    "definition": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis",
+    "core": true,
+    "aliases": ["utility", "preference functions", "value functions"]
+  },
+  "linear optimization": {
+    "definition": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints",
+    "core": true,
+    "aliases": ["linear programming", "optimization", "mathematical programming"]
+  },
+  "solver-based simulation": {
+    "definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty",
+    "core": true,
+    "aliases": ["solver simulation", "algorithmic optimization", "computational modeling"]
+  },
+  "seasonal analysis": {
+    "definition": "A forecasting method that identifies and models repeating patterns or cycles in time series data",
+    "core": true,
+    "aliases": ["seasonality", "cyclical analysis", "pattern recognition"]
+  },
+  "regression": {
+    "definition": "A statistical technique for estimating relationships among variables and predicting future values based on historical data",
+    "core": true,
+    "aliases": ["regression analysis", "statistical modeling", "predictive modeling"]
+  },
+  "moving average": {
+    "definition": "A method that smooths time series data by averaging values over a specified number of periods to identify trends",
+    "core": true,
+    "aliases": ["rolling average", "smoothing", "trend analysis"]
+  },
+  "semi-quantitative forecast": {
+    "definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions",
+    "core": true,
+    "aliases": ["hybrid forecasting", "mixed methods", "qualitative-quantitative"]
+  },
+  "profitability analysis": {
+    "definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses",
+    "core": true,
+    "aliases": ["profit analysis", "financial analysis", "earnings assessment"]
+  },
+  "investigative negotiation": {
+    "definition": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes",
+    "core": true,
+    "aliases": ["interest-based negotiation", "collaborative negotiation", "problem-solving negotiation"]
+  },
+  "negotiation term sheet": {
+    "definition": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted",
+    "core": true,
+    "aliases": ["term sheet", "agreement outline", "deal terms"]
+  },
+  "value creation": {
+    "definition": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction",
+    "core": true,
+    "aliases": ["value generation", "benefit creation", "stakeholder value"]
+  },
+  "risk tolerance assessment": {
+    "definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives",
+    "core": true,
+    "aliases": ["risk appetite", "risk preference", "risk capacity"]
+  },
+  "leadership assessment": {
+    "definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts",
+    "core": true,
+    "aliases": ["leadership evaluation", "management assessment", "leadership style"]
+  },
+  "human-computer integration": {
+    "definition": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities",
+    "core": true,
+    "aliases": ["human-ai collaboration", "augmented decision-making", "human-machine partnership"]
+  }
+} 

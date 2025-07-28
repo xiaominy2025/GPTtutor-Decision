@@ -354,13 +354,14 @@ def detect_query_domain(query: str) -> str:
     # Return the domain with the highest score
     return max(domains, key=domains.get)
 
-def get_top_ranked_concepts(query: str, top_k: int = 3) -> List[Tuple[str, str]]:
+def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = None) -> List[Tuple[str, str]]:
     """
     Extract concepts using semantic similarity scoring with SentenceTransformer embeddings.
     
     Args:
         query: The user's query text
         top_k: Maximum number of concepts to return (default 3, max 4)
+        custom_glossary: Optional course-specific glossary to use instead of default
         
     Returns:
         List of (concept_name, definition) tuples ranked by relevance score
@@ -368,6 +369,9 @@ def get_top_ranked_concepts(query: str, top_k: int = 3) -> List[Tuple[str, str]]
     # Cap at maximum 4 concepts to maintain focus
     top_k = min(top_k, 4)
     global _concept_embeddings_cache
+    
+    # Use custom glossary if provided, otherwise use default
+    glossary_to_use = custom_glossary if custom_glossary else CONCEPT_GLOSSARY
     
     try:
         # Detect multiple domains for better concept filtering
@@ -384,7 +388,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3) -> List[Tuple[str, str]]
         if _concept_embeddings_cache is None:
             # Use more descriptive concept texts for better matching
             concept_texts = []
-            for name, concept_data in CONCEPT_GLOSSARY.items():
+            for name, concept_data in glossary_to_use.items():
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -401,9 +405,9 @@ def get_top_ranked_concepts(query: str, top_k: int = 3) -> List[Tuple[str, str]]
         
         # Create list of (concept_name, definition, score) tuples with domain filtering
         concept_scores = []
-        concept_names = list(CONCEPT_GLOSSARY.keys())
+        concept_names = list(glossary_to_use.keys())
         
-        for i, (concept_name, concept_data) in enumerate(CONCEPT_GLOSSARY.items()):
+        for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
             score = similarities[i].item()
             
             # IMPROVEMENT 2: Alias-based score boosting
@@ -1405,9 +1409,30 @@ def ensure_all_sections(markdown: str) -> str:
 # In process_query, after generating the answer, always enforce structure and log if missing sections or malformed concepts
 # (Assume this is the main process_query used by the API)
 
-def process_query(query: str) -> str:
-    """Process a single query and return clean output with tooltips metadata, formatted for frontend UI."""
+def process_query(query: str, course_config: dict = None) -> str:
+    """
+    Process a single query and return clean output with tooltips metadata, formatted for frontend UI.
+    
+    Args:
+        query: The user's question
+        course_config: Optional course-specific configuration containing:
+            - glossary: Course-specific concept definitions
+            - prompt_template: Course-specific prompt template
+            - sections_config: Course-specific section configuration
+    """
     try:
+        # Use course-specific configuration if provided, otherwise use defaults
+        if course_config is None:
+            course_config = {
+                "course_id": "decision",
+                "glossary": {},
+                "prompt_template": "",
+                "sections_config": {}
+            }
+        
+        # Use course-specific prompt template if available, otherwise use default
+        system_prompt = course_config.get("prompt_template", SYSTEM_PROMPT_ANALYTICS)
+        
         query_embedding = model.encode([query])
         query_embedding = np.array(query_embedding).astype("float32")
         D, I = index.search(query_embedding, 5)
@@ -1419,7 +1444,6 @@ def process_query(query: str) -> str:
             if idx != -1:
                 relevant_docs.append(documents[idx])
         combined_context = smart_context_truncation(relevant_docs, max_chars=8000)
-        system_prompt = SYSTEM_PROMPT_ANALYTICS
         user_message = f"Relevant document excerpts:\n{combined_context}\n\nQuestion: {query}\n\nPlease answer using the required structure."
         optimal_tokens = calculate_optimal_tokens(len(query), len(combined_context))
         response, error = robust_api_call(client, system_prompt, user_message, max_tokens=optimal_tokens)
@@ -1443,7 +1467,9 @@ def process_query(query: str) -> str:
         # The semantic scoring will ensure we always get relevant concepts based on the query
         
         # Enhanced concept extraction using semantic scoring from query
-        semantic_concepts = get_top_ranked_concepts(query, top_k=3)
+        # Use course-specific glossary if available, otherwise use default
+        course_glossary = course_config.get("glossary", {})
+        semantic_concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_glossary)
         
         # Find the Concepts/Tools section and replace with semantic concepts
         concepts_pattern = r'(\*\*Concepts/Tools\*\*.*?)(?=\*\*|$)'

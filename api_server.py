@@ -1,10 +1,13 @@
 """
-Simple Flask API server for GPTTutor frontend integration
+Simple Flask API server for Engent Labs Backend V1.6.4
+Supports multi-course loading with dynamic configuration
 """
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import traceback
-import time # Added for timestamp
+import time
+import os
+import json
 
 # Import the correct query engine with V1.6 implementation
 import query_engine
@@ -12,8 +15,68 @@ import query_engine
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
 
+# Course configuration management
+DEFAULT_COURSE = "decision"
+COURSES_DIR = "courses"
+
+def load_course_config(course_id: str) -> dict:
+    """
+    Load course-specific configuration files.
+    Falls back to 'decision' course if course_id is missing or invalid.
+    """
+    # Validate course_id
+    if not course_id or not isinstance(course_id, str):
+        course_id = DEFAULT_COURSE
+    
+    course_path = os.path.join(COURSES_DIR, course_id)
+    
+    # Check if course directory exists
+    if not os.path.exists(course_path):
+        print(f"⚠️ Course '{course_id}' not found, falling back to '{DEFAULT_COURSE}'")
+        course_id = DEFAULT_COURSE
+        course_path = os.path.join(COURSES_DIR, course_id)
+    
+    config = {
+        "course_id": course_id,
+        "glossary": {},
+        "prompt_template": "",
+        "sections_config": {}
+    }
+    
+    # Load glossary.json
+    glossary_path = os.path.join(course_path, "glossary.json")
+    if os.path.exists(glossary_path):
+        try:
+            with open(glossary_path, 'r', encoding='utf-8') as f:
+                config["glossary"] = json.load(f)
+            print(f"✅ Loaded glossary for course '{course_id}'")
+        except Exception as e:
+            print(f"❌ Failed to load glossary for course '{course_id}': {e}")
+    
+    # Load prompt_template.txt
+    prompt_path = os.path.join(course_path, "prompt_template.txt")
+    if os.path.exists(prompt_path):
+        try:
+            with open(prompt_path, 'r', encoding='utf-8') as f:
+                config["prompt_template"] = f.read()
+            print(f"✅ Loaded prompt template for course '{course_id}'")
+        except Exception as e:
+            print(f"❌ Failed to load prompt template for course '{course_id}': {e}")
+    
+    # Load sections_config.json
+    sections_path = os.path.join(course_path, "sections_config.json")
+    if os.path.exists(sections_path):
+        try:
+            with open(sections_path, 'r', encoding='utf-8') as f:
+                config["sections_config"] = json.load(f)
+            print(f"✅ Loaded sections config for course '{course_id}'")
+        except Exception as e:
+            print(f"❌ Failed to load sections config for course '{course_id}': {e}")
+    
+    return config
+
 # Initialize query engine
-print("\U0001F680 Initializing GPTTutor API Server...")
+print("\U0001F680 Initializing Engent Labs API Server V1.6.4...")
 try:
     print("\u2705 Query engine module loaded successfully")
 except Exception as e:
@@ -25,7 +88,8 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "engine_ready": True # Assuming engine is always available for health check
+        "version": "1.6.4",
+        "engine_ready": True
     })
 
 
@@ -47,9 +111,14 @@ def process_query():
 
         query = data['query']
         user_id = data.get('user_id')
+        course_id = data.get('course_id', DEFAULT_COURSE)
+        
+        # Load course-specific configuration
+        course_config = load_course_config(course_id)
+        print(f"📚 Using course: {course_config['course_id']}")
 
-        # Process query using V1.6 query engine
-        answer = query_engine.process_query(query)
+        # Process query using V1.6 query engine with course configuration
+        answer = query_engine.process_query(query, course_config=course_config)
         
         # Extract concepts/tools as objects for frontend
         concepts_tools_practice = []
@@ -87,6 +156,7 @@ def process_query():
             "data": {
                 "answer": answer,
                 "query": query,
+                "course_id": course_config['course_id'],
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "gpt-3.5-turbo",
                 "processing_time": 2.3,  # Placeholder
@@ -102,6 +172,53 @@ def process_query():
         return jsonify({
             "success": False,
             "error": f"Internal server error: {str(e)}"
+        }), 500
+
+
+@app.route('/courses', methods=['GET'])
+def list_courses():
+    """List available courses"""
+    try:
+        courses = []
+        if os.path.exists(COURSES_DIR):
+            for item in os.listdir(COURSES_DIR):
+                course_path = os.path.join(COURSES_DIR, item)
+                if os.path.isdir(course_path):
+                    courses.append({
+                        "course_id": item,
+                        "name": item.title(),
+                        "has_glossary": os.path.exists(os.path.join(course_path, "glossary.json")),
+                        "has_prompt_template": os.path.exists(os.path.join(course_path, "prompt_template.txt")),
+                        "has_sections_config": os.path.exists(os.path.join(course_path, "sections_config.json"))
+                    })
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "courses": courses,
+                "default_course": DEFAULT_COURSE
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to list courses: {str(e)}"
+        }), 500
+
+
+@app.route('/courses/<course_id>/config', methods=['GET'])
+def get_course_config(course_id):
+    """Get course configuration"""
+    try:
+        config = load_course_config(course_id)
+        return jsonify({
+            "success": True,
+            "data": config
+        })
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "error": f"Failed to load course config: {str(e)}"
         }), 500
 
 
@@ -169,14 +286,16 @@ def user_profile():
 
 
 if __name__ == '__main__':
-    print("🌐 Starting GPTTutor API Server...")
+    print("🌐 Starting Engent Labs API Server V1.6.4...")
     print("📱 Server will be available at http://localhost:5000")
     print("📋 Available endpoints:")
-    print("   GET  /health    - Health check")
-    print("   POST /query     - Process query")
-    print("   GET  /stats     - Get usage statistics")
-    print("   GET  /profile   - Get user profile")
-    print("   PUT  /profile   - Update user profile")
+    print("   GET  /health                    - Health check")
+    print("   POST /query                     - Process query")
+    print("   GET  /courses                   - List available courses")
+    print("   GET  /courses/<course_id>/config - Get course configuration")
+    print("   GET  /stats                     - Get usage statistics")
+    print("   GET  /profile                   - Get user profile")
+    print("   PUT  /profile                   - Update user profile")
 
     app.run(debug=True, host='0.0.0.0', port=5000)
 

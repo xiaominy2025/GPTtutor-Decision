@@ -1,0 +1,44 @@
+{
+  "sections": {
+    "strategic_thinking_lens": {
+      "title": "Strategic Thinking Lens",
+      "required": true,
+      "max_words": 300,
+      "min_paragraphs": 2,
+      "max_paragraphs": 3,
+      "description": "The analytical core that provides deep strategic thinking without using framework terms literally"
+    },
+    "story_in_action": {
+      "title": "Story in Action",
+      "required": true,
+      "max_sentences": 4,
+      "description": "A short narrative example that mirrors the strategic thinking without being longer or more detailed"
+    },
+    "follow_up_prompts": {
+      "title": "Follow-up Prompts",
+      "required": true,
+      "min_questions": 2,
+      "max_questions": 4,
+      "description": "Reflective questions that invite deeper thinking without repeating the above content"
+    },
+    "concepts_tools": {
+      "title": "Concepts/Tools",
+      "required": true,
+      "min_concepts": 2,
+      "max_concepts": 3,
+      "format": "inline",
+      "description": "Course concepts with definitions on the same line as the concept name"
+    }
+  },
+  "formatting": {
+    "use_markdown_headers": true,
+    "avoid_bullets": true,
+    "natural_tone": true,
+    "no_ai_mentions": true
+  },
+  "fallback_concepts": [
+    "Stakeholder Alignment",
+    "Strategic Framing", 
+    "Risk Assessment"
+  ]
+} 

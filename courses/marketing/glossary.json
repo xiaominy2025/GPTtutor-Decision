@@ -1,0 +1,167 @@
+{
+  "market segmentation": {
+    "definition": "Dividing a market into distinct groups of buyers with different needs, characteristics, or behaviors",
+    "core": true,
+    "aliases": ["segmentation", "market division", "customer groups"]
+  },
+  "target market": {
+    "definition": "A specific group of consumers at whom a company aims its products and services",
+    "core": true,
+    "aliases": ["target audience", "target customers", "ideal customer"]
+  },
+  "positioning": {
+    "definition": "Creating a distinct image and identity for a product or brand in the minds of consumers",
+    "core": true,
+    "aliases": ["brand positioning", "market positioning", "competitive positioning"]
+  },
+  "value proposition": {
+    "definition": "A clear statement that explains how a product solves customers' problems, delivers specific benefits, and tells the ideal customer why they should buy from you",
+    "core": true,
+    "aliases": ["unique value proposition", "uvp", "value statement"]
+  },
+  "marketing mix": {
+    "definition": "The set of controllable tactical marketing tools that a company uses to produce a desired response from its target market",
+    "core": true,
+    "aliases": ["4ps", "product price place promotion", "marketing elements"]
+  },
+  "brand equity": {
+    "definition": "The commercial value that derives from consumer perception of the brand name of a particular product or service",
+    "core": true,
+    "aliases": ["brand value", "brand strength", "brand recognition"]
+  },
+  "customer lifetime value": {
+    "definition": "The total worth to a business of a customer over the whole period of their relationship",
+    "core": true,
+    "aliases": ["clv", "lifetime value", "customer value"]
+  },
+  "customer acquisition cost": {
+    "definition": "The cost associated with convincing a customer to buy a product or service",
+    "core": true,
+    "aliases": ["cac", "acquisition cost", "customer cost"]
+  },
+  "return on marketing investment": {
+    "definition": "A metric used to measure the effectiveness of marketing campaigns and strategies",
+    "core": true,
+    "aliases": ["romi", "marketing roi", "campaign roi"]
+  },
+  "digital marketing": {
+    "definition": "Marketing that uses digital channels such as search engines, social media, email, and websites to connect with current and prospective customers",
+    "core": true,
+    "aliases": ["online marketing", "internet marketing", "digital advertising"]
+  },
+  "content marketing": {
+    "definition": "A strategic marketing approach focused on creating and distributing valuable, relevant, and consistent content to attract and retain a clearly defined audience",
+    "core": true,
+    "aliases": ["content strategy", "educational marketing", "inbound marketing"]
+  },
+  "social media marketing": {
+    "definition": "The use of social media platforms to connect with your audience to build your brand, increase sales, and drive website traffic",
+    "core": true,
+    "aliases": ["social marketing", "social media strategy", "social advertising"]
+  },
+  "search engine optimization": {
+    "definition": "The practice of optimizing your website to rank higher in search engine results pages",
+    "core": true,
+    "aliases": ["seo", "search optimization", "organic search"]
+  },
+  "pay-per-click": {
+    "definition": "An internet advertising model used to direct traffic to websites, where advertisers pay the publisher when the ad is clicked",
+    "core": true,
+    "aliases": ["ppc", "paid search", "click advertising"]
+  },
+  "email marketing": {
+    "definition": "The act of sending commercial messages to a group of people using email to promote your business",
+    "core": true,
+    "aliases": ["email campaigns", "email advertising", "newsletter marketing"]
+  },
+  "influencer marketing": {
+    "definition": "A form of social media marketing involving endorsements and product placement from influencers",
+    "core": true,
+    "aliases": ["influencer collaboration", "influencer partnerships", "social influence"]
+  },
+  "viral marketing": {
+    "definition": "A business strategy that uses existing social networks to promote a product or service",
+    "core": true,
+    "aliases": ["viral advertising", "word-of-mouth marketing", "buzz marketing"]
+  },
+  "guerilla marketing": {
+    "definition": "An unconventional marketing strategy that relies on time, energy, and imagination rather than a big marketing budget",
+    "core": true,
+    "aliases": ["unconventional marketing", "creative marketing", "low-budget marketing"]
+  },
+  "relationship marketing": {
+    "definition": "A strategy designed to foster customer loyalty, interaction, and long-term engagement",
+    "core": true,
+    "aliases": ["customer relationship", "loyalty marketing", "relationship building"]
+  },
+  "market research": {
+    "definition": "The process of gathering, analyzing, and interpreting information about a market, product, or service",
+    "core": true,
+    "aliases": ["marketing research", "consumer research", "market analysis"]
+  },
+  "competitive analysis": {
+    "definition": "The process of identifying and evaluating competitors to understand their strengths, weaknesses, and strategies",
+    "core": true,
+    "aliases": ["competitor analysis", "competitive intelligence", "market competition"]
+  },
+  "swot analysis": {
+    "definition": "A framework for identifying and analyzing the internal and external factors that can have an impact on the viability of a project, product, place, or person",
+    "core": true,
+    "aliases": ["strengths weaknesses opportunities threats", "strategic analysis", "situation analysis"]
+  },
+  "pest analysis": {
+    "definition": "A framework for analyzing the macro-environmental factors that affect an organization",
+    "core": true,
+    "aliases": ["political economic social technological", "macro analysis", "environmental analysis"]
+  },
+  "customer journey": {
+    "definition": "The complete sum of experiences that customers go through when interacting with your company and brand",
+    "core": true,
+    "aliases": ["buyer journey", "customer experience", "purchase journey"]
+  },
+  "conversion rate": {
+    "definition": "The percentage of visitors to a website who complete a desired goal out of the total number of visitors",
+    "core": true,
+    "aliases": ["conversion", "conversion ratio", "success rate"]
+  },
+  "lead generation": {
+    "definition": "The process of attracting and converting strangers and prospects into someone who has indicated interest in your company's product or service",
+    "core": true,
+    "aliases": ["lead gen", "prospect generation", "customer acquisition"]
+  },
+  "brand awareness": {
+    "definition": "The extent to which consumers are familiar with the distinctive qualities or image of a particular brand",
+    "core": true,
+    "aliases": ["brand recognition", "brand familiarity", "brand recall"]
+  },
+  "market penetration": {
+    "definition": "A measure of how much a product or service is being used by customers compared to the total estimated market for that product or service",
+    "core": true,
+    "aliases": ["penetration rate", "market share", "adoption rate"]
+  },
+  "product lifecycle": {
+    "definition": "The time period from when a product is introduced to consumers until it's removed from the market",
+    "core": true,
+    "aliases": ["product life cycle", "product stages", "market lifecycle"]
+  },
+  "pricing strategy": {
+    "definition": "A plan for setting the right price for a product or service to maximize profit and shareholder value",
+    "core": true,
+    "aliases": ["pricing model", "price strategy", "cost strategy"]
+  },
+  "distribution channel": {
+    "definition": "A chain of businesses or intermediaries through which a good or service passes until it reaches the final buyer or end consumer",
+    "core": true,
+    "aliases": ["sales channel", "distribution network", "marketing channel"]
+  },
+  "promotional mix": {
+    "definition": "The combination of promotional methods used to communicate with customers and potential customers",
+    "core": true,
+    "aliases": ["promotion mix", "marketing communications", "promotional strategy"]
+  },
+  "integrated marketing communications": {
+    "definition": "A planning process designed to assure that all brand contacts received by a customer or prospect for a product, service, or organization are relevant to that person and consistent over time",
+    "core": true,
+    "aliases": ["imc", "integrated communications", "unified marketing"]
+  }
+} 
