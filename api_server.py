@@ -1,5 +1,5 @@
 """
-Simple Flask API server for Engent Labs Backend V1.6.4
+Simple Flask API server for Engent Labs Backend V1.6.5
 Supports multi-course loading with dynamic configuration
 """
 from flask import Flask, request, jsonify
@@ -76,7 +76,7 @@ def load_course_config(course_id: str) -> dict:
     return config
 
 # Initialize query engine
-print("\U0001F680 Initializing Engent Labs API Server V1.6.4...")
+print("\U0001F680 Initializing Engent Labs API Server V1.6.5...")
 try:
     print("\u2705 Query engine module loaded successfully")
 except Exception as e:
