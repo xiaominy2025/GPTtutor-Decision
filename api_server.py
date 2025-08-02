@@ -88,7 +88,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "version": "1.6.5 (FINAL)",
+        "version": "1.6.5",
         "engine_ready": True
     })
 
@@ -316,7 +316,7 @@ def user_profile():
 
 
 if __name__ == '__main__':
-    print("🌐 Starting Engent Labs API Server V1.6.5 (FINAL)...")
+    print("🌐 Starting Engent Labs API Server V1.6.5...")
     print("📱 Server will be available at http://localhost:5000")
     print("📋 Available endpoints:")
     print("   GET  /health                    - Health check")
