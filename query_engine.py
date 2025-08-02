@@ -68,11 +68,7 @@ def load_data_lazily():
 FRAMEWORKS = {
     "decision tree": "A visual tool that maps out different options and their potential outcomes.",
     "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats.",
-    "cost-benefit analysis": "A systematic approach to compare the pros and cons of different options.",
-    "grow model": "A structured approach to goal setting and action planning.",
-    "prospect theory": "Shows how people often value avoiding losses more than achieving gains.",
-    "bounded rationality": "The recognition that good decisions don't require perfect information.",
-    "ooda loop": "A decision cycle (Observe, Orient, Decide, Act) for rapid decision-making."
+    "prospect theory": "Shows how people often value avoiding losses more than achieving gains."
 }
 
 # Add a list of analytical tools and their definitions for prompt injection
@@ -111,7 +107,7 @@ CONCEPT_GLOSSARY = {
     "scenario planning": {"definition": "Exploring different future possibilities to prepare for uncertainty", "core": True, "aliases": ["scenario analysis", "future planning", "uncertainty planning"]},
     "scenario analysis": {"definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making", "core": True, "aliases": ["scenario planning", "model uncertainty", "uncertainty modeling"]},
     "contingency planning": {"definition": "Developing backup strategies to prepare for uncertainty", "core": False, "aliases": ["backup planning", "emergency planning", "fallback strategies"]},
-    "cost-benefit analysis": {"definition": "Comparing the advantages and disadvantages of different options", "core": True, "aliases": ["cost benefit", "compare alternatives", "trade-off analysis", "benefit cost analysis"]},
+
     "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ["decision mapping", "option tree", "outcome mapping"]},
     "swot analysis": {"definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats", "core": True, "aliases": ["swot", "strengths weaknesses", "opportunities threats"]},
     "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ["monte carlo", "simulation modeling", "statistical simulation", "uncertainty simulation"]},
@@ -138,10 +134,7 @@ CONCEPT_GLOSSARY = {
     "moving average": {"definition": "A method that smooths time series data by averaging values over a specified number of periods to identify trends", "core": False, "aliases": ["moving averages", "trend smoothing", "time series smoothing"]},
     "semi-quantitative forecast": {"definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions", "core": False, "aliases": ["semi quantitative", "mixed forecasting", "qualitative quantitative"]},
     "profitability analysis": {"definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses", "core": True, "aliases": ["profitability", "earnings analysis", "financial performance"]},
-    "grow model": {"definition": "A structured approach to goal setting and action planning", "core": False, "aliases": ["grow", "goal setting", "action planning"]},
     "prospect theory": {"definition": "Shows how people often value avoiding losses more than achieving gains", "core": True, "aliases": ["prospect", "loss aversion", "gain loss"]},
-    "bounded rationality": {"definition": "The recognition that good decisions don't require perfect information", "core": True, "aliases": ["bounded", "rationality", "imperfect information"]},
-    "ooda loop": {"definition": "A decision cycle (Observe, Orient, Decide, Act) for rapid decision-making", "core": False, "aliases": ["ooda", "observe orient decide act", "decision cycle"]},
     "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ["solver simulation", "algorithmic optimization", "computational optimization"]}
 }
 
@@ -151,7 +144,6 @@ CONCEPT_DOMAINS = {
     "cognitive behaviors": "behavioral",
     "judgment intuitive bias": "behavioral", 
     "prospect theory": "behavioral",
-    "bounded rationality": "behavioral",
     "leadership assessment": "behavioral",
     "risk tolerance assessment": "behavioral",
     
@@ -179,7 +171,6 @@ CONCEPT_DOMAINS = {
     "profitability analysis": "strategic",
     
     # Technical/analytical concepts
-    "cost-benefit analysis": "technical",
     
     # Negotiation concepts
     "batna": "negotiation",
@@ -491,7 +482,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Define concept-pattern relationships for boosting
                 concept_patterns = {
                     'decision tree': ['comparison', 'planning'],
-                    'cost-benefit analysis': ['comparison', 'analysis'],
+     
                     'swot analysis': ['analysis', 'planning'],
                     'monte carlo simulation': ['risk', 'forecasting'],
                     'scenario analysis': ['risk', 'planning'],
@@ -518,16 +509,13 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic concept penalty to avoid domination by overly generic concepts
             generic_penalty = 0.0
             generic_concepts = [
-                'cost-benefit analysis',  # Very generic, appears in many contexts
                 'swot analysis',         # Generic strategic tool
                 'competitive analysis'    # Generic business analysis
             ]
             
             if concept_name in generic_concepts:
                 # Apply penalty based on how generic the concept is
-                if concept_name == 'cost-benefit analysis':
-                    generic_penalty = 0.15  # Significant penalty for most generic concept
-                elif concept_name == 'swot analysis':
+                if concept_name == 'swot analysis':
                     generic_penalty = 0.10  # Moderate penalty
                 elif concept_name == 'competitive analysis':
                     generic_penalty = 0.08  # Light penalty
@@ -1118,7 +1106,7 @@ def generate_fallback_concepts(query: str) -> List[str]:
         "risk": ["Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
         "planning": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Scenario Analysis: Exploring different future possibilities to prepare for uncertainty"],
         "career": ["Career Path Analysis: Evaluating long-term professional development and growth opportunities", "Personal Values Assessment: Aligning decisions with core personal and professional values"],
-        "finance": ["Cost-Benefit Analysis: Comparing the advantages and disadvantages of different financial options", "Risk Tolerance Assessment: Understanding your comfort level with financial uncertainty"],
+                    "finance": ["Risk Tolerance Assessment: Understanding your comfort level with financial uncertainty"],
         "negotiation": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Value Creation: Identifying opportunities to create mutual benefits in negotiations"],
         "uncertainty": ["Scenario Analysis: Exploring different future possibilities to prepare for uncertainty", "Risk Assessment: Systematic evaluation of potential threats and their impact"],
         "strategy": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Competitive Analysis: Understanding your position relative to alternatives and competitors"],
@@ -1365,7 +1353,7 @@ def context_aware_fallbacks(query: str):
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Maya, a young professional, compares three health insurance plans using a decision matrix. She carefully weighs monthly premiums, provider network coverage, emergency care benefits, and prescription drug coverage. After researching each plan's reputation and reading customer reviews, Maya balances affordability with comprehensive coverage, ensuring both immediate health security and long-term financial stability for unexpected medical expenses.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Cost-Benefit Analysis: Weighing costs against benefits\n- Risk Tolerance Assessment: Measuring comfort with uncertainty"
+            'Concepts/Tools': "- Risk Tolerance Assessment: Measuring comfort with uncertainty"
         }
     if application_field == "education":
         return {
@@ -1407,7 +1395,7 @@ def context_aware_fallbacks(query: str):
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Carlos, a small business owner, considers adopting AI-powered customer support tools to improve efficiency and reduce response times. He carefully weighs the potential efficiency gains against employee training requirements, customer experience impacts, and implementation costs. After consulting with his team and researching similar implementations, Carlos's decision hinges on balancing the speed of technology adoption with his organization's readiness for change and ability to maintain service quality.",
             'Follow-up Prompts': ["- What long-term benefits could technology bring?", "- What barriers might slow adoption?"],
-            'Concepts/Tools': "- Cost-Benefit Analysis: Comparing pros and cons of adoption\n- Human-Computer Integration: Enhancing decisions with technology"
+            'Concepts/Tools': "- Human-Computer Integration: Enhancing decisions with technology"
         }
     if application_field == "risk_management":
         return {
