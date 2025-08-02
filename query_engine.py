@@ -448,6 +448,13 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             'map out', 'mapping', 'diagram', 'chart', 'graph', 'tree', 'flow'
         ])
         
+        # Check if this is a choice/option selection query (more specific keywords)
+        is_choice_query = any(word in query_lower for word in [
+            'choose', 'choosing', 'choice', 'choices', 'select', 'selecting', 'selection',
+            'option', 'options', 'alternative', 'alternatives', 'between', 'versus', 'vs',
+            'which', 'what', 'how to choose', 'how to select', 'evaluate options', 'compare options'
+        ])
+        
         # Enhanced pattern recognition for better concept selection
         detected_patterns = {}
         pattern_keywords = {
@@ -508,6 +515,26 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply pattern boost
             score += pattern_boost
             
+            # Apply generic concept penalty to avoid domination by overly generic concepts
+            generic_penalty = 0.0
+            generic_concepts = [
+                'cost-benefit analysis',  # Very generic, appears in many contexts
+                'swot analysis',         # Generic strategic tool
+                'competitive analysis'    # Generic business analysis
+            ]
+            
+            if concept_name in generic_concepts:
+                # Apply penalty based on how generic the concept is
+                if concept_name == 'cost-benefit analysis':
+                    generic_penalty = 0.15  # Significant penalty for most generic concept
+                elif concept_name == 'swot analysis':
+                    generic_penalty = 0.10  # Moderate penalty
+                elif concept_name == 'competitive analysis':
+                    generic_penalty = 0.08  # Light penalty
+            
+            # Apply generic penalty
+            score -= generic_penalty
+            
             if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
@@ -526,6 +553,9 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Special handling for visualization queries - boost decision tree
                 if is_visualization_query and concept_name == "decision tree":
                     domain_multiplier = 1.2  # Boost decision tree for visualization queries
+                # Special handling for choice queries - boost decision tree
+                elif is_choice_query and concept_name == "decision tree":
+                    domain_multiplier = 1.4  # Strong boost for decision tree in choice queries
                 elif query_domains:  # If specific domains are detected
                     if concept_domain in query_domains:
                         # Concept domain is detected in query - use weighted score
@@ -636,6 +666,15 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                             selected_concepts = selected_concepts[:2]  # Keep only top 2
                         selected_concepts.append(('decision tree', decision_tree_concept[1]))
                 
+                # Special case: For choice queries, include decision tree if it's not already selected
+                if is_choice_query:
+                    decision_tree_concept = next((c for c in concept_scores if c[0] == 'decision tree' and c[2] >= 0.45), None)
+                    if decision_tree_concept and ('decision tree', decision_tree_concept[1]) not in selected_concepts:
+                        # Add decision tree and remove the weakest concept if we have 3 already
+                        if len(selected_concepts) >= 3:
+                            selected_concepts = selected_concepts[:2]  # Keep only top 2
+                        selected_concepts.append(('decision tree', decision_tree_concept[1]))
+                
             else:  # Multiple domains (no single domain dominates)
                 # Multi-domain: 2 from primary domain, +1 from each additional domain, hard cap = 4 total
                 # Get up to 2 concepts from primary domain (>= primary_threshold)
@@ -653,6 +692,15 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Enforce hard total cap of 4 tooltips maximum
                 if len(selected_concepts) > 4:
                     selected_concepts = selected_concepts[:4]
+                
+                # Special case: For choice queries, include decision tree if it's not already selected
+                if is_choice_query:
+                    decision_tree_concept = next((c for c in concept_scores if c[0] == 'decision tree' and c[2] >= 0.45), None)
+                    if decision_tree_concept and ('decision tree', decision_tree_concept[1]) not in selected_concepts:
+                        # Add decision tree and remove the weakest concept if we have 4 already
+                        if len(selected_concepts) >= 4:
+                            selected_concepts = selected_concepts[:3]  # Keep only top 3
+                        selected_concepts.append(('decision tree', decision_tree_concept[1]))
                 
         else:  # General query (no specific domains detected)
             # General domain: cap at 2 concepts
