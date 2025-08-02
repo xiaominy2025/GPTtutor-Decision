@@ -448,6 +448,22 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             'map out', 'mapping', 'diagram', 'chart', 'graph', 'tree', 'flow'
         ])
         
+        # Enhanced pattern recognition for better concept selection
+        detected_patterns = {}
+        pattern_keywords = {
+            'comparison': ['compare', 'versus', 'vs', 'between', 'choose', 'select', 'option', 'options', 'alternative', 'alternatives'],
+            'analysis': ['analyze', 'evaluate', 'assess', 'examine', 'study', 'investigate', 'research'],
+            'planning': ['plan', 'strategy', 'approach', 'method', 'process', 'framework'],
+            'risk': ['risk', 'uncertainty', 'probability', 'chance', 'likelihood', 'scenario'],
+            'optimization': ['optimize', 'maximize', 'minimize', 'best', 'optimal', 'efficient', 'efficiency'],
+            'forecasting': ['forecast', 'predict', 'future', 'trend', 'projection', 'estimate']
+        }
+        
+        for pattern, keywords in pattern_keywords.items():
+            matches = sum(1 for keyword in keywords if keyword in query_lower)
+            if matches > 0:
+                detected_patterns[pattern] = matches / len(keywords)  # Normalized score
+        
         for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
             score = similarities[i].item()
             
@@ -461,6 +477,36 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             
             # Apply alias boost to similarity score
             score += alias_boost
+            
+            # Apply pattern-based concept boosting (minimal overhead)
+            pattern_boost = 0.0
+            if detected_patterns:
+                # Define concept-pattern relationships for boosting
+                concept_patterns = {
+                    'decision tree': ['comparison', 'planning'],
+                    'cost-benefit analysis': ['comparison', 'analysis'],
+                    'swot analysis': ['analysis', 'planning'],
+                    'monte carlo simulation': ['risk', 'forecasting'],
+                    'scenario analysis': ['risk', 'planning'],
+                    'linear optimization': ['optimization', 'analysis'],
+                    'sensitivity analysis': ['analysis', 'risk'],
+                    'expected value': ['risk', 'analysis'],
+                    'utility functions': ['analysis', 'comparison'],
+                    'competitive analysis': ['analysis', 'planning'],
+                    'strategic positioning': ['planning', 'analysis'],
+                    'forecasting': ['forecasting', 'analysis'],
+                    'moving average': ['forecasting', 'analysis'],
+                    'regression': ['forecasting', 'analysis']
+                }
+                
+                # Check if this concept should be boosted based on detected patterns
+                if concept_name in concept_patterns:
+                    for pattern in concept_patterns[concept_name]:
+                        if pattern in detected_patterns:
+                            pattern_boost = max(pattern_boost, detected_patterns[pattern] * 0.1)  # Small boost
+            
+            # Apply pattern boost
+            score += pattern_boost
             
             if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
                 # Handle both old string format and new dictionary format
