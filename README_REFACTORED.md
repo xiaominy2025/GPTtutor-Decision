@@ -12,7 +12,7 @@ GPTTutor is a modular, maintainable decision-making tutor that synthesizes answe
   1. **Strategic Framing**: Identify the decision type and key challenge.
   2. **Story in Action**: Use a short narrative (with a named character like Yin or Sarah) to illustrate the situation.
   3. **Analytical Tools (When Appropriate)**: If the decision involves uncertainty, trade-offs, optimization, or forecasting, introduce 1–2 relevant tools from the course (e.g., decision trees, Monte Carlo simulation, optimization, expected value, sensitivity analysis, predictive analysis, term sheet, behavior awareness, strategic analysis, financial analysis, competitive advantage) and explain how and why the tool helps.
-  4. **Reflection Prompts**: Offer 2–3 thoughtful questions to help the student apply the strategy and/or tools to their context.
+  4. **Reflection Prompts**: Offer 2–4 thoughtful questions to help the student apply the strategy and/or tools to their context.
   5. **Concepts Recap**: Briefly list any tools or terms mentioned with a short definition or reminder.
 - If the question is more emotional, ethical, or about personal values, the AI prioritizes clarity, empathy, and structured reflection, only including tools if they truly support the student’s thinking.
 - The AI avoids generic motivational advice, focusing on insight, structure, and practical application.

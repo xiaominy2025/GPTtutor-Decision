@@ -1,0 +1,14 @@
+# Ignore virtual environment
+venv/
+
+# Ignore frontend dependencies
+node_modules/
+
+# Ignore build outputs
+dist/
+build/
+
+# Ignore logs and caches
+*.log
+__pycache__/
+*.pyc

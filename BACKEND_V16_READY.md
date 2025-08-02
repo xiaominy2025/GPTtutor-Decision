@@ -8,7 +8,7 @@
 - ✅ **V1.6 System Prompt**: Implemented with 4-section structure
 - ✅ **Strategic Thinking Lens**: Dynamic lens selection (strategic_mindset, analytical_tools, human_behavior)
 - ✅ **Story in Action**: 3-4 sentence fictional scenarios
-- ✅ **Reflection Prompts**: 2-3 thoughtful questions
+- ✅ **Reflection Prompts**: 2-4 thoughtful questions
 - ✅ **Concepts/Tools/Practice Reference**: Tool names only (no definitions)
 - ✅ **Tooltip Injection**: Prevents nested spans, handles case-insensitivity
 - ✅ **Markdown Headers**: `**Section Name**` format

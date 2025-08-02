@@ -1,85 +1,105 @@
-# Next Phase Quick Reference Guide
+# Next Phase Quick Reference - Post V1.6.5
 
-## 🚀 V1.6.3 Status: COMPLETE ✅
+## 🎯 **V1.6.5 Status: ✅ COMPLETE**
 
-ThinkPal V1.6.3 is fully implemented and production-ready. All core functionality is working perfectly.
+### **What's Been Accomplished:**
+- ✅ Enhanced concept selection with stricter thresholds
+- ✅ Strategic Thinking Lens length enforcement (120-160 words)
+- ✅ Story in Action standardization (~60 words across 13 domains)
+- ✅ 7 new decision domains added (finance, health, education, relocation, leadership, ethics, technology)
+- ✅ Multi-course metadata API endpoint (`/api/course/<course_id>`)
+- ✅ Complete template consistency across all domains
+- ✅ Comprehensive testing and validation
 
-## 📋 Current State Summary
+## 🚀 **Ready for V1.6.6 Development**
 
-### **What's Working**
-- ✅ V1.6.3 response structure (4 sections)
-- ✅ Automated quality validation
-- ✅ Fuzzy concept matching (30+ concepts)
-- ✅ 5-concept limit with deduplication
-- ✅ Comprehensive test suite (100% pass rate)
-- ✅ Clean, production-ready code
+### **Potential V1.6.6 Features:**
+1. **Frontend Integration**
+   - Integrate new metadata API endpoint
+   - Enhanced course selection UI
+   - Real-time content validation
 
-### **Key Files**
-- `query_engine.py` - Main processing logic
-- `api_server.py` - Flask API server
-- `test_suite.py` - Comprehensive testing
-- `V1.6.3_FINAL_STATUS.md` - Complete status report
+2. **Advanced Analytics**
+   - User interaction tracking
+   - Content quality metrics
+   - Performance monitoring
 
-### **Latest Commit**
-- `e20e32d` - Final status report added
-- All changes committed and ready
+3. **Performance Optimization**
+   - Response time optimization
+   - Caching strategies
+   - Load balancing preparation
 
-## 🎯 Potential Next Phase Options
+4. **Additional Domains**
+   - More specialized decision contexts
+   - Industry-specific templates
+   - Custom domain configurations
 
-### **Option 1: Frontend Integration**
-- Enhance UI/UX for V1.6.3 structure
-- Improve tooltip display for concepts
-- Add interactive elements
+### **Current System Capabilities:**
 
-### **Option 2: Performance Optimization**
-- Response time improvements
-- Caching strategies
-- API optimization
+#### **API Endpoints:**
+- `GET /health` - Health check (V1.6.5)
+- `POST /query` - Process queries with course config
+- `GET /courses` - List available courses
+- `GET /courses/<course_id>/config` - Get course configuration
+- `GET /api/course/<course_id>` - Get course metadata (V1.6.5)
+- `GET /stats` - Usage statistics
+- `GET/PUT /profile` - User profile management
 
-### **Option 3: Feature Expansion**
-- Additional concept categories
-- Advanced analytics
-- User feedback integration
+#### **Decision Domains Supported:**
+1. **admission** - College/education choices
+2. **job** - Career and employment decisions
+3. **startup** - Entrepreneurship and business
+4. **negotiation** - Deal-making and bargaining
+5. **operations** - Business operations and supply chain
+6. **finance** - Investment and financial planning
+7. **health** - Healthcare and wellness decisions
+8. **education** - Learning and skill development
+9. **relocation** - Moving and location choices
+10. **leadership** - Team and organizational leadership
+11. **ethics** - Moral and value-based decisions
+12. **technology** - Tech adoption and digital transformation
+13. **general** - Universal decision-making framework
 
-### **Option 4: Production Deployment**
-- Deployment pipeline setup
-- Monitoring and logging
-- Production environment configuration
+#### **Content Structure (All Domains):**
+- **Strategic Thinking Lens**: ~120-160 words with tradeoffs
+- **Story in Action**: ~60 words with real-world scenarios
+- **Follow-up Prompts**: 2-4 focused questions
+- **Concepts/Tools**: 2 tools with definitions
 
-## 🧪 Testing Commands
+### **Testing Infrastructure:**
+- `test_story_length.py` - Story length validation
+- `test_strategic_lens_length.py` - Strategic Thinking Lens validation
+- `test_new_domains.py` - New domain detection testing
+- `test_cases.json` - Comprehensive test suite
 
-```bash
-# Run full test suite
-python -c "import test_suite; test_suite.run_full_test_suite()"
+### **Key Files for Development:**
+- `api_server.py` - Main API server (V1.6.5)
+- `query_engine.py` - Core decision logic (V1.6.5)
+- `courses/` - Multi-course configuration system
+- `V1.6.5_FINAL_SUMMARY.md` - Complete feature documentation
 
-# Test specific functionality
-python -c "import test_suite; test_suite.test_concept_deduplication_and_limiting()"
+## 📋 **Development Guidelines**
 
-# Test fuzzy matching
-python -c "import test_suite; test_suite.test_tariff_uncertainty_fuzzy_matching()"
-```
+### **Adding New Features:**
+1. Maintain backward compatibility
+2. Follow existing code patterns
+3. Include comprehensive testing
+4. Update documentation
+5. Validate content quality
 
-## 🔧 Key Functions to Know
+### **Quality Standards:**
+- Strategic Thinking Lens: 120-160 words with tradeoffs
+- Story in Action: ~60 words with specific tools
+- Follow-up Prompts: 2-4 focused questions
+- Concepts/Tools: 2 tools with clear definitions
 
-- `process_query(query)` - Main entry point
-- `extract_concepts_with_fuzzy_matching(text)` - Fuzzy concept detection
-- `deduplicate_concepts(section)` - 5-concept limit enforcement
-- `enforce_thinkpal_structure(answer)` - Structure validation
+### **Testing Requirements:**
+- Content length validation
+- Domain detection accuracy
+- API response format
+- Error handling scenarios
+- Performance benchmarks
 
-## 📊 Quality Metrics
+---
 
-- **Strategic Thinking Lens**: 250-300 words
-- **Concepts/Tools**: Exactly 5 concepts
-- **Format**: "Concept: Definition" (single line)
-- **Deduplication**: Case-insensitive, first occurrence kept
-
-## 🚨 Important Notes
-
-- All debugging messages removed from user output
-- Robust error handling in place
-- Comprehensive test coverage
-- Clean git history with detailed commits
-
-## 🎉 Ready for Next Phase
-
-The system is stable, tested, and ready for whatever direction you choose to take next! 
+**V1.6.5 is production-ready and ready for the next development phase! 🎉** 

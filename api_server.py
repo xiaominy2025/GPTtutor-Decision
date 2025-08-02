@@ -88,7 +88,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "version": "1.6.4",
+        "version": "1.6.5 (FINAL)",
         "engine_ready": True
     })
 
@@ -222,6 +222,36 @@ def get_course_config(course_id):
         }), 500
 
 
+@app.route('/api/course/<course_id>', methods=['GET'])
+def get_course_metadata(course_id):
+    """
+    V1.6.5 update: Multi-course metadata route.
+    Loads metadata.json and glossary.json for a given course.
+    Falls back to 'decision' if the course does not exist.
+    """
+    import os, json
+    base_path = os.path.join('courses', course_id)
+
+    if not os.path.exists(base_path):
+        course_id = 'decision'
+        base_path = os.path.join('courses', course_id)
+
+    try:
+        with open(os.path.join(base_path, 'metadata.json')) as f:
+            metadata = json.load(f)
+        with open(os.path.join(base_path, 'glossary.json')) as f:
+            glossary = json.load(f)
+
+        return jsonify({
+            "course_id": course_id,
+            "metadata": metadata,
+            "glossary": glossary
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 @app.route('/stats', methods=['GET'])
 def get_stats():
     """Get usage statistics"""
@@ -286,13 +316,14 @@ def user_profile():
 
 
 if __name__ == '__main__':
-    print("🌐 Starting Engent Labs API Server V1.6.4...")
+    print("🌐 Starting Engent Labs API Server V1.6.5 (FINAL)...")
     print("📱 Server will be available at http://localhost:5000")
     print("📋 Available endpoints:")
     print("   GET  /health                    - Health check")
     print("   POST /query                     - Process query")
     print("   GET  /courses                   - List available courses")
     print("   GET  /courses/<course_id>/config - Get course configuration")
+    print("   GET  /api/course/<course_id>    - Get course metadata (V1.6.5)")
     print("   GET  /stats                     - Get usage statistics")
     print("   GET  /profile                   - Get user profile")
     print("   PUT  /profile                   - Update user profile")

@@ -2,7 +2,7 @@
   {
     "question": "How do I reduce groupthink in high-pressure team decisions?",
     "expected_domains": [
-      "human_behavior"
+      "behavioral"
     ],
     "required_concepts": [
       "Cognitive Behaviors",
@@ -94,7 +94,7 @@
     "question": "How can I align stakeholder interests when making a controversial decision?",
     "expected_domains": [
       "strategic",
-      "human_behavior"
+      "behavioral"
     ],
     "required_concepts": [
       "Stakeholder Alignment"
@@ -111,7 +111,7 @@
   {
     "question": "How do personal biases affect strategic decision making?",
     "expected_domains": [
-      "human_behavior",
+              "behavioral",
       "strategic"
     ],
     "required_concepts": [
