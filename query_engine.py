@@ -108,16 +108,16 @@ CONCEPT_GLOSSARY = {
     "scenario analysis": {"definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making", "core": True, "aliases": ["scenario planning", "model uncertainty", "uncertainty modeling"]},
     "contingency planning": {"definition": "Developing backup strategies to prepare for uncertainty", "core": False, "aliases": ["backup planning", "emergency planning", "fallback strategies"]},
 
-    "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ["decision mapping", "option tree", "outcome mapping"]},
+    "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ["decision mapping", "option tree", "outcome mapping", "tree analysis", "decision branching"]},
     "swot analysis": {"definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats", "core": True, "aliases": ["swot", "strengths weaknesses", "opportunities threats"]},
-    "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ["monte carlo", "simulation modeling", "statistical simulation", "uncertainty simulation"]},
+    "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ["monte carlo", "simulation modeling", "statistical simulation", "uncertainty simulation", "probabilistic simulation"]},
     "sensitivity analysis": {"definition": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions", "core": True, "aliases": ["sensitivity testing", "what-if analysis", "parameter analysis"]},
-    "linear optimization": {"definition": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints", "core": True, "aliases": ["linear programming", "optimization", "mathematical optimization"]},
+    "linear optimization": {"definition": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints", "core": True, "aliases": ["linear programming", "optimization", "mathematical optimization", "lp method"]},
     "utility functions": {"definition": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis", "core": True, "aliases": ["utility", "preference functions", "value functions"]},
-    "expected value": {"definition": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios", "core": True, "aliases": ["expected outcome", "probability weighted", "average outcome"]},
-    "batna": {"definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached", "core": True, "aliases": ["best alternative", "walk away option", "negotiation alternative"]},
-    "reservation point": {"definition": "The least favorable outcome acceptable before walking away from a negotiation", "core": True, "aliases": ["walk away point", "minimum acceptable", "bottom line"]},
-    "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ["zone of agreement", "negotiation zone", "agreement zone"]},
+    "expected value": {"definition": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios", "core": True, "aliases": ["expected outcome", "probability weighted", "average outcome", "ev analysis"]},
+    "batna": {"definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached", "core": True, "aliases": ["best alternative", "walk away option", "negotiation alternative", "reservation alternative"]},
+    "reservation point": {"definition": "The least favorable outcome acceptable before walking away from a negotiation", "core": True, "aliases": ["walk away point", "minimum acceptable", "bottom line", "walk-away point"]},
+    "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ["zone of agreement", "negotiation zone", "agreement zone", "bargaining zone"]},
     "supply chain risk management": {"definition": "Identifying and mitigating risks in procurement and distribution", "core": False, "aliases": ["supply chain", "procurement risk", "distribution risk"]},
     "leadership assessment": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": False, "aliases": ["leadership evaluation", "leadership skills", "management assessment"]},
     "cognitive behaviors": {"definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias", "core": True, "aliases": ["cognitive behavior", "thinking patterns", "mental models", "cognitive bias"]},
@@ -135,7 +135,33 @@ CONCEPT_GLOSSARY = {
     "semi-quantitative forecast": {"definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions", "core": False, "aliases": ["semi quantitative", "mixed forecasting", "qualitative quantitative"]},
     "profitability analysis": {"definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses", "core": True, "aliases": ["profitability", "earnings analysis", "financial performance"]},
     "prospect theory": {"definition": "Shows how people often value avoiding losses more than achieving gains", "core": True, "aliases": ["prospect", "loss aversion", "gain loss"]},
-    "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ["solver simulation", "algorithmic optimization", "computational optimization"]}
+    "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ["solver simulation", "algorithmic optimization", "computational optimization"]},
+    
+    # Enhanced concepts from bulk glossary (course-aligned only, current glossary dominates)
+    "confirmation bias": {"definition": "Favoring evidence that supports existing beliefs", "core": True, "aliases": ["selective evidence bias"]},
+    "anchoring bias": {"definition": "Relying too heavily on initial information", "core": True, "aliases": ["initial value bias"]},
+    "framing bias": {"definition": "Decisions shaped by how options are presented", "core": True, "aliases": ["context framing"]},
+    "representative heuristic": {"definition": "Judging probability based on similarity", "core": True, "aliases": ["representativeness bias"]},
+    "endowment effect": {"definition": "Valuing owned items higher than market value", "core": True, "aliases": ["ownership bias"]},
+    "status quo bias": {"definition": "Preference for maintaining the current state", "core": True, "aliases": ["resistance to change"]},
+    "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ["sunk cost fallacy"]},
+    "mental accounting": {"definition": "Treating money differently depending on its source", "core": True, "aliases": ["psychological budgeting"]},
+    "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ["strategic games", "payoff analysis"]},
+    "winner's curse": {"definition": "Overpaying or overcommitting in competitive bidding", "core": True, "aliases": []},
+    "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ["collaborative negotiation"]},
+    "distributive negotiation": {"definition": "Zero-sum bargaining where one's gain is another's loss", "core": False, "aliases": []},
+    "porter's five forces": {"definition": "Framework for analyzing industry competitiveness", "core": True, "aliases": ["five forces analysis"]},
+    "cost leadership": {"definition": "Achieving competitive edge by offering the lowest cost", "core": True, "aliases": ["low-cost strategy"]},
+    "differentiation strategy": {"definition": "Gaining advantage by offering unique features valued by customers", "core": True, "aliases": ["uniqueness strategy"]},
+    "portfolio management": {"definition": "Balancing business units and investments", "core": True, "aliases": ["strategic portfolio management"]},
+    "qualitative forecasting": {"definition": "Judgment-based prediction methods", "core": True, "aliases": []},
+    "regression forecasting": {"definition": "Using statistical models for long-term predictions", "core": True, "aliases": ["regression analysis"]},
+    "seasonal forecasting": {"definition": "Accounting for repeating seasonal patterns", "core": True, "aliases": ["seasonality modeling"]},
+    "integer optimization": {"definition": "Solving LP problems with discrete choices", "core": True, "aliases": []},
+    "aggregate planning": {"definition": "Balancing supply and demand through optimization", "core": True, "aliases": ["demand-driven optimization"]},
+    "analytical solver": {"definition": "Tool for implementing optimization models", "core": True, "aliases": ["solver add-on"]},
+    "integrated optimization & simulation": {"definition": "Combining LP and simulation for robust planning", "core": False, "aliases": []},
+    "automated simulation models": {"definition": "Tools that streamline repetitive decision simulations", "core": False, "aliases": []}
 }
 
 # Domain categorization for better concept filtering
@@ -146,6 +172,14 @@ CONCEPT_DOMAINS = {
     "prospect theory": "behavioral",
     "leadership assessment": "behavioral",
     "risk tolerance assessment": "behavioral",
+    "confirmation bias": "behavioral",
+    "anchoring bias": "behavioral",
+    "framing bias": "behavioral",
+    "representative heuristic": "behavioral",
+    "endowment effect": "behavioral",
+    "status quo bias": "behavioral",
+    "escalation of commitment": "behavioral",
+    "mental accounting": "behavioral",
     
     # Technical/analytical concepts
     "monte carlo simulation": "technical",
@@ -160,6 +194,14 @@ CONCEPT_DOMAINS = {
     "moving average": "technical",
     "seasonal analysis": "technical",
     "semi-quantitative forecast": "technical",
+    "qualitative forecasting": "technical",
+    "regression forecasting": "technical",
+    "seasonal forecasting": "technical",
+    "integer optimization": "technical",
+    "aggregate planning": "technical",
+    "analytical solver": "technical",
+    "integrated optimization & simulation": "technical",
+    "automated simulation models": "technical",
     
     # Strategic concepts
     "strategic framing": "strategic",
@@ -169,6 +211,10 @@ CONCEPT_DOMAINS = {
     "value chain analysis": "strategic",
     "value creation": "strategic",
     "profitability analysis": "strategic",
+    "porter's five forces": "strategic",
+    "cost leadership": "strategic",
+    "differentiation strategy": "strategic",
+    "portfolio management": "strategic",
     
     # Technical/analytical concepts
     
@@ -178,6 +224,10 @@ CONCEPT_DOMAINS = {
     "zopa": "negotiation",
     "investigative negotiation": "negotiation",
     "negotiation term sheet": "negotiation",
+    "game theory": "negotiation",
+    "winner's curse": "negotiation",
+    "integrative negotiation": "negotiation",
+    "distributive negotiation": "negotiation",
     
     # General decision-making concepts (can apply to multiple domains)
     "decision tree": "technical",
