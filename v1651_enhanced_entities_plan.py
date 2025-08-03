@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""
+V1.6.5.1 Enhanced Entities Rollout Plan
+Updated plan for Decision Query Engine V1.6.5.1 with strict safeguards
+"""
+import json
+from typing import Dict, List, Any
+
+def analyze_v1651_plan():
+    """Analyze the updated V1.6.5.1 plan"""
+    print("🚀 V1.6.5.1 ENHANCED ENTITIES ROLLOUT PLAN")
+    print("=" * 60)
+    
+    print("🎯 PHASE 1: Safe Preparation (Day 1)")
+    print("-" * 40)
+    print("✅ Create backup of current V1.6.5")
+    print("   • Save query_engine.py as query_engine_v165_stable.py")
+    print("   • Ensure Git branch v165.1_entities created")
+    print("")
+    print("✅ Create separate entity module")
+    print("   • Move EXPANDED_ENTITIES, ENTITY_PATTERNS, DECISION_INDICATORS")
+    print("   • Move CONTEXT_CLASSIFIERS into expanded_entities.py")
+    print("")
+    print("✅ Implement feature flag system")
+    print("   • USE_ENHANCED_ENTITIES = False")
+    print("")
+    print("✅ Test entity extraction independently")
+    print("   • Run unit tests on extract_expanded_entities(query)")
+    print("   • Validate detection of stakeholders, timeframes, criteria, etc.")
+    print("")
+    print("✅ Validate entity structure")
+    print("   • Check for missing fields, duplicates, or broken regex in patterns")
+
+def analyze_phase2_integration():
+    """Analyze Phase 2 Conservative Integration"""
+    print("\n🎯 PHASE 2: Conservative Integration (Day 2)")
+    print("-" * 40)
+    print("✅ Add feature flag to query_engine.py")
+    print("   • if USE_ENHANCED_ENTITIES:")
+    print("   •     expanded_entities = extract_expanded_entities(query)")
+    print("   • else:")
+    print("   •     expanded_entities = {}")
+    print("")
+    print("✅ Implement conditional entity extraction")
+    print("   • Entities feed into context sections only")
+    print("   • Example: enrich Strategic Thinking Lens with 'timeframe: short term'")
+    print("")
+    print("✅ Use entities for context enhancement only")
+    print("   • Do not alter get_top_ranked_concepts scoring")
+    print("   • Embeddings remain the primary selector")
+    print("")
+    print("✅ Deduplicate Concepts")
+    print("   • Run deduplicate_concepts() before finalizing Concepts/Tools")
+    print("")
+    print("✅ Maintain existing cache logic")
+    print("   • Keep _concept_embeddings_cache intact")
+    print("   • Entities handled separately, not cached in FAISS")
+
+def analyze_phase3_validation():
+    """Analyze Phase 3 Quality Validation"""
+    print("\n🎯 PHASE 3: Quality Validation (Day 3)")
+    print("-" * 40)
+    print("✅ Implement A/B testing framework")
+    print("   • Compare USE_ENHANCED_ENTITIES=False vs True")
+    print("   • Use 20–30 representative queries")
+    print("")
+    print("✅ Compare results with original V1.6.5")
+    print("   • Metrics: concept/tool accuracy, answer clarity, duplication rate")
+    print("")
+    print("✅ Ensure no quality degradation")
+    print("   • 95–99% answer consistency maintained")
+    print("")
+    print("✅ Validate entity extraction accuracy")
+    print("   • Check stakeholders, criteria, uncertainty detection")
+    print("")
+    print("✅ Test API server compatibility")
+    print("   • Ensure thin API server continues passing query seamlessly")
+
+def analyze_phase4_rollout():
+    """Analyze Phase 4 Gradual Rollout"""
+    print("\n🎯 PHASE 4: Gradual Rollout (Day 4)")
+    print("-" * 40)
+    print("✅ Enable entity enhancement for subset of queries")
+    print("   • Flip USE_ENHANCED_ENTITIES=True for internal tests")
+    print("")
+    print("✅ Monitor quality metrics")
+    print("   • Watch for answer drift or bloated Concept/Tools lists")
+    print("")
+    print("✅ Implement rollback mechanism")
+    print("   • Immediate rollback: set flag back to False")
+    print("   • Code rollback: restore query_engine_v165_stable.py")
+    print("")
+    print("✅ Document all changes")
+    print("   • Keep notes on integration, results, and observed impact")
+    print("")
+    print("✅ Prepare for full rollout")
+    print("   • Only if A/B results meet or exceed baseline")
+
+def analyze_implementation_details():
+    """Analyze implementation details"""
+    print("\n🔧 IMPLEMENTATION DETAILS")
+    print("=" * 60)
+    
+    print("✅ 1. File Structure")
+    print("-" * 30)
+    print("• query_engine_v165_stable.py (backup)")
+    print("• query_engine.py (enhanced with feature flag)")
+    print("• expanded_entities.py (new entity module)")
+    print("• tests/test_expanded_entities.py (unit tests)")
+    
+    print("\n✅ 2. Feature Flag Implementation")
+    print("-" * 30)
+    print("USE_ENHANCED_ENTITIES = False  # Safe default")
+    print("")
+    print("def process_query(query: str, course_config: dict = None) -> str:")
+    print("    # ... existing code ...")
+    print("    ")
+    print("    # Conditional entity extraction")
+    print("    expanded_entities = {}")
+    print("    if USE_ENHANCED_ENTITIES:")
+    print("        try:")
+    print("            from expanded_entities import extract_expanded_entities")
+    print("            expanded_entities = extract_expanded_entities(query)")
+    print("        except Exception as e:")
+    print("            print(f'Entity extraction failed: {e}')")
+    print("            expanded_entities = {}  # Fallback to empty")
+    print("    ")
+    print("    # ... rest of existing code ...")
+    
+    print("\n✅ 3. Entity Integration Points")
+    print("-" * 30)
+    print("• Strategic Thinking Lens: Add timeframe, stakeholders, criteria")
+    print("• Story in Action: Enhance with entity context")
+    print("• Follow-up Prompts: Use entity information")
+    print("• Concepts/Tools: Keep existing embedding-driven selection")
+    
+    print("\n✅ 4. Safety Measures")
+    print("-" * 30)
+    print("• Embeddings remain primary concept selector")
+    print("• Entities only enhance context, not selection")
+    print("• Deduplication before final concept list")
+    print("• Multiple rollback options")
+
+def analyze_risk_mitigation():
+    """Analyze risk mitigation for V1.6.5.1"""
+    print("\n🛡️ V1.6.5.1 RISK MITIGATION")
+    print("=" * 60)
+    
+    print("✅ 1. Zero Impact on Core Logic")
+    print("-" * 30)
+    print("• get_top_ranked_concepts() unchanged")
+    print("• _concept_embeddings_cache preserved")
+    print("• Embedding-driven selection maintained")
+    print("• 4-5 concept cap enforced")
+    
+    print("\n✅ 2. Feature Flag Safety")
+    print("-" * 30)
+    print("• Default: USE_ENHANCED_ENTITIES = False")
+    print("• Instant rollback capability")
+    print("• No code changes required for rollback")
+    print("• Maintains original V1.6.5 behavior")
+    
+    print("\n✅ 3. Entity Isolation")
+    print("-" * 30)
+    print("• Entities in separate module")
+    print("• No interference with existing logic")
+    print("• Context enhancement only")
+    print("• No caching in FAISS")
+    
+    print("\n✅ 4. Quality Assurance")
+    print("-" * 30)
+    print("• A/B testing with 20-30 queries")
+    print("• 95-99% consistency requirement")
+    print("• Deduplication before final output")
+    print("• Monitoring for answer drift")
+
+def analyze_benefits():
+    """Analyze benefits of V1.6.5.1"""
+    print("\n🎯 V1.6.5.1 BENEFITS")
+    print("=" * 60)
+    
+    print("✅ 1. Enhanced Answer Quality")
+    print("-" * 30)
+    print("• Richer context in Strategic Thinking Lens")
+    print("• More specific Story in Action examples")
+    print("• Better targeted Follow-up Prompts")
+    print("• Improved entity awareness")
+    
+    print("\n✅ 2. Zero Risk Deployment")
+    print("-" * 30)
+    print("• Feature flag ensures safe deployment")
+    print("• Can stay disabled for Aug 12 deployment")
+    print("• Multiple rollback mechanisms")
+    print("• No mystery drift possible")
+    
+    print("\n✅ 3. Foundation for V1.6.6")
+    print("-" * 30)
+    print("• Perfect base for multi-course architecture")
+    print("• Entity system ready for expansion")
+    print("• Proven integration approach")
+    print("• Quality validation framework")
+    
+    print("\n✅ 4. Conservative Enhancement")
+    print("-" * 30)
+    print("• Preserves all existing functionality")
+    print("• Enhances without breaking")
+    print("• Gradual rollout capability")
+    print("• Quality monitoring built-in")
+
+def analyze_final_recommendation():
+    """Analyze final recommendation"""
+    print("\n✅ FINAL RECOMMENDATION")
+    print("=" * 60)
+    print("Implement Enhanced Entities in V1.6.5.1 under strict safeguards.")
+    print("")
+    print("Risk Level: LOW (with feature flag + rollback)")
+    print("Quality: Preserved and enriched")
+    print("Safety: Multiple rollback options")
+    print("Approach: Phased, conservative, and clear")
+    print("")
+    print("This plan ensures:")
+    print("✅ Stable Aug 12 deployment (flag can stay off)")
+    print("✅ Richer answers when enabled")
+    print("✅ Zero chance of 'mystery drift' because embeddings remain the anchor")
+
+if __name__ == "__main__":
+    analyze_v1651_plan()
+    analyze_phase2_integration()
+    analyze_phase3_validation()
+    analyze_phase4_rollout()
+    analyze_implementation_details()
+    analyze_risk_mitigation()
+    analyze_benefits()
+    analyze_final_recommendation()
+    
+    print("\n" + "=" * 60)
+    print("🚀 READY TO IMPLEMENT V1.6.5.1 ENHANCED ENTITIES!")
+    print("   Timeline: 4 days")
+    print("   Risk Level: LOW")
+    print("   Quality: Enhanced and preserved")
+    print("   Safety: Multiple rollback mechanisms")
+    print("   Approach: Conservative and phased")
+    print("   Ready to proceed with V1.6.5.1 enhancement!") 

@@ -113,12 +113,13 @@ def process_query():
         user_id = data.get('user_id')
         course_id = data.get('course_id', DEFAULT_COURSE)
         
-        # Load course-specific configuration
-        course_config = load_course_config(course_id)
-        print(f"📚 Using course: {course_config['course_id']}")
-
-        # Process query using V1.6 query engine with course configuration
-        answer = query_engine.process_query(query, course_config=course_config)
+        # TEMPORARY V1.6.5 FIX: Bypass course configuration to ensure 100% alignment
+        # Still accept course_id from frontend for compatibility, but ignore it for processing
+        print(f"📚 Frontend requested course: {course_id}")
+        print("🔄 TEMPORARY: Bypassing course config, using direct query engine call")
+        
+        # Process query using V1.6 query engine directly (no course_config parameter)
+        answer = query_engine.process_query(query)
         
         # Extract concepts/tools as objects for frontend
         concepts_tools_practice = []
@@ -156,7 +157,7 @@ def process_query():
             "data": {
                 "answer": answer,
                 "query": query,
-                "course_id": course_config['course_id'],
+                "course_id": DEFAULT_COURSE,  # Always return "decision" for compatibility
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "gpt-3.5-turbo",
                 "processing_time": 2.3,  # Placeholder
