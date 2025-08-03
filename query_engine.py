@@ -64,11 +64,13 @@ def load_data_lazily():
     
     return _index, _metadata, _documents, _file_names, _model, _nlp
 
-# Decision frameworks
+# Decision frameworks - Core domains of the decision-making process
 FRAMEWORKS = {
-    "decision tree": "A visual tool that maps out different options and their potential outcomes.",
-    "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats.",
-    "prospect theory": "Shows how people often value avoiding losses more than achieving gains."
+    "strategic analysis": "Strategic frameworks for analyzing competitive positioning, industry structure, and business strategy decisions.",
+    "analytical tools": "Mathematical and statistical tools for optimization, forecasting, simulation, and data-driven decision making.",
+    "human behaviors": "Psychological frameworks for understanding cognitive biases, decision patterns, and behavioral economics in decision making.",
+    "negotiation frameworks": "Structured approaches for bargaining, value creation, and reaching agreements in competitive situations.",
+    "risk assessment": "Systematic frameworks for evaluating uncertainty, threats, and opportunities in decision contexts."
 }
 
 # Add a list of analytical tools and their definitions for prompt injection
