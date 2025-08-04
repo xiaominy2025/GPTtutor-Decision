@@ -1865,6 +1865,15 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Ensure proper structure
         answer = enforce_thinkpal_structure(answer_raw, query)
         
+        # ============================================================================
+        # V1.6.5.1 SECTION FORMATTING ENFORCEMENT
+        # ============================================================================
+        
+        # Ensure proper spacing between sections
+        answer = re.sub(r'\*\*Story in Action\*\*', r'\n\n**Story in Action**', answer)
+        answer = re.sub(r'\*\*Follow-up Prompts\*\*', r'\n\n**Follow-up Prompts**', answer)
+        answer = re.sub(r'\*\*Concepts/Tools\*\*', r'\n\n**Concepts/Tools**', answer)
+        
         # Extract and validate concepts/tools
         concepts_tools = extract_tools_from_section(answer)
         
@@ -2079,10 +2088,18 @@ def format_fallback_response(fallback_content: dict) -> str:
     sections = []
     
     if 'Strategic Thinking Lens' in fallback_content:
-        sections.append(f"**Strategic Thinking Lens**\n\n{fallback_content['Strategic Thinking Lens']}")
+        content = fallback_content['Strategic Thinking Lens'].strip()
+        # Ensure proper ending punctuation
+        if not content.endswith('.') and not content.endswith('!') and not content.endswith('?'):
+            content += '.'
+        sections.append(f"**Strategic Thinking Lens**\n\n{content}")
     
     if 'Story in Action' in fallback_content:
-        sections.append(f"**Story in Action**\n\n{fallback_content['Story in Action']}")
+        content = fallback_content['Story in Action'].strip()
+        # Ensure proper ending punctuation
+        if not content.endswith('.') and not content.endswith('!') and not content.endswith('?'):
+            content += '.'
+        sections.append(f"**Story in Action**\n\n{content}")
     
     if 'Follow-up Prompts' in fallback_content:
         prompts = fallback_content['Follow-up Prompts']
@@ -2096,6 +2113,16 @@ def format_fallback_response(fallback_content: dict) -> str:
         sections.append(f"**Concepts/Tools**\n\n{fallback_content['Concepts/Tools']}")
     
     return '\n\n'.join(sections)
+
+def ensure_proper_section_formatting(answer: str) -> str:
+    """Ensure proper section formatting with correct endings and spacing."""
+    
+    # Ensure proper spacing between sections
+    answer = re.sub(r'\*\*Story in Action\*\*', r'\n\n**Story in Action**', answer)
+    answer = re.sub(r'\*\*Follow-up Prompts\*\*', r'\n\n**Follow-up Prompts**', answer)
+    answer = re.sub(r'\*\*Concepts/Tools\*\*', r'\n\n**Concepts/Tools**', answer)
+    
+    return answer
 
 def expand_section_content(content: str, target_words: int) -> str:
     """
