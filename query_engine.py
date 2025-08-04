@@ -42,7 +42,7 @@ GRADUAL_WEIGHT_INCREASE = True # Gradual rollout control
 ENFORCE_WORD_COUNTS = True     # Enable word count limits
 STRATEGIC_LENS_MIN_WORDS = 120 # Minimum words for Strategic Thinking Lens
 STRATEGIC_LENS_MAX_WORDS = 140 # Maximum words for Strategic Thinking Lens
-STORY_ACTION_MIN_WORDS = 60    # Minimum words for Story in Action
+STORY_ACTION_MIN_WORDS = 40    # Minimum words for Story in Action
 STORY_ACTION_MAX_WORDS = 80    # Maximum words for Story in Action
 
 # Quality Control Flags
@@ -1825,13 +1825,13 @@ def process_query(query: str, course_config: dict = None) -> str:
             strategic_lens_content = strategic_lens_match.group(1).strip()
             strategic_lens_words = len(strategic_lens_content.split())
             
-            # Only enforce if significantly out of range (more than 10 words off)
-            if strategic_lens_words < 120 or strategic_lens_words > 140:
+                    # Only enforce if significantly out of range (more than 15 words off)
+        if strategic_lens_words < 100 or strategic_lens_words > 150:
                 print(f"⚠️ Strategic Thinking Lens word count ({strategic_lens_words}) out of range (120-140). Applying conservative enforcement...")
                 
-                if strategic_lens_words < 120:
-                    # Expand content conservatively to target 130 words
-                    expanded_content = expand_section_content(strategic_lens_content, 130)
+                if strategic_lens_words < 100:
+                    # Expand content conservatively to target 110 words
+                    expanded_content = expand_section_content(strategic_lens_content, 110, query)
                     answer_raw = re.sub(
                         r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + expanded_content,
@@ -1851,7 +1851,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                             flags=re.DOTALL | re.IGNORECASE
                         )
                         print(f"✅ Final expansion to {len(expanded_content.split())} words")
-                elif strategic_lens_words > 140:
+                elif strategic_lens_words > 150:
                     # Truncate content conservatively to target 130 words
                     truncated_content = truncate_section_content(strategic_lens_content, 130)
                     answer_raw = re.sub(
@@ -2058,7 +2058,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
                 if story_action_words < STORY_ACTION_MIN_WORDS:
                     print(f"⚠️ Story in Action too short: {story_action_words} words (min {STORY_ACTION_MIN_WORDS})")
                     # Expand content to meet minimum - use more aggressive target
-                    expanded_content = expand_section_content(story_action_content, STORY_ACTION_MIN_WORDS + 10)  # Target 70 words
+                    expanded_content = expand_section_content(story_action_content, STORY_ACTION_MIN_WORDS + 5, query)  # Target 45 words
                     answer = re.sub(
                         r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + expanded_content,
@@ -2124,13 +2124,14 @@ def ensure_proper_section_formatting(answer: str) -> str:
     
     return answer
 
-def expand_section_content(content: str, target_words: int) -> str:
+def expand_section_content(content: str, target_words: int, query: str = "") -> str:
     """
-    Expand content to meet minimum word count requirements.
+    Expand content to meet minimum word count requirements with context-aware expansion.
     
     Args:
         content: Original content
         target_words: Target word count
+        query: Original query for context awareness
         
     Returns:
         Expanded content
@@ -2140,47 +2141,65 @@ def expand_section_content(content: str, target_words: int) -> str:
     if current_words >= target_words:
         return content
     
-    # Calculate how many more words we need
-    words_needed = target_words - current_words
+    # Determine if this is a personal decision vs organizational decision
+    personal_keywords = [
+        "job", "career", "personal", "life", "family", "work-life", "salary", "benefits",
+        "growth", "development", "opportunity", "choice", "decision", "offer", "position",
+        "role", "company", "employer", "work", "professional", "advancement", "promotion"
+    ]
     
-    # Add contextual expansion based on content
-    if "risk" in content.lower():
-        expansion = " This approach requires careful consideration of potential risks and mitigation strategies. Organizations must balance the benefits against potential negative outcomes."
-    elif "strategy" in content.lower() or "strategic" in content.lower():
-        expansion = " Strategic decisions like this require alignment with organizational goals and long-term vision. Consider how this choice impacts competitive positioning and future opportunities."
-    elif "optimization" in content.lower() or "efficiency" in content.lower():
-        expansion = " Optimization efforts should focus on maximizing value while minimizing costs and risks. This requires systematic analysis of trade-offs and resource allocation."
-    elif "decision" in content.lower():
-        expansion = " This decision should be evaluated against multiple criteria including feasibility, impact, and alignment with organizational objectives. Consider both short-term and long-term implications."
-    elif "production" in content.lower() or "capacity" in content.lower():
-        expansion = " Production capacity decisions require careful analysis of demand patterns, resource constraints, and operational efficiency. Consider both current capacity utilization and future growth requirements."
-    elif "employee" in content.lower() or "team" in content.lower():
-        expansion = " Employee and team considerations are crucial for successful implementation. This involves understanding stakeholder needs, communication requirements, and change management processes."
+    organizational_keywords = [
+        "business", "company", "organization", "enterprise", "corporate", "management",
+        "strategy", "operations", "production", "capacity", "efficiency", "optimization",
+        "stakeholder", "shareholder", "profit", "revenue", "market", "competitive"
+    ]
+    
+    query_lower = query.lower()
+    personal_score = sum(1 for keyword in personal_keywords if keyword in query_lower)
+    organizational_score = sum(1 for keyword in organizational_keywords if keyword in query_lower)
+    
+    is_personal_decision = personal_score > organizational_score
+    
+    # Add contextually appropriate expansion
+    if is_personal_decision:
+        # Personal career/life decision expansions
+        if "job" in query_lower or "career" in query_lower or "offer" in query_lower:
+            expansion = " Take time to reflect on how this choice aligns with your long-term career goals and personal values. Consider the impact on your work-life balance and overall life satisfaction."
+        elif "salary" in query_lower or "benefits" in query_lower:
+            expansion = " Evaluate the total compensation package, including benefits, growth opportunities, and work environment. Consider both immediate financial impact and long-term career development."
+        elif "growth" in query_lower or "development" in query_lower:
+            expansion = " Assess the learning opportunities and career advancement potential each option offers. Consider how this choice will contribute to your professional development and skill building."
+        else:
+            expansion = " Reflect on how this decision fits into your broader life goals and personal aspirations. Consider both immediate benefits and long-term implications for your happiness and fulfillment."
     else:
-        expansion = " This situation requires careful analysis of all available options and their potential outcomes. Consider stakeholder perspectives and organizational impact when making this decision."
+        # Organizational decision expansions (keep minimal)
+        if "risk" in content.lower():
+            expansion = " Consider the potential risks and develop mitigation strategies to address them effectively."
+        elif "strategy" in content.lower() or "strategic" in content.lower():
+            expansion = " Align this decision with your overall goals and long-term vision for success."
+        elif "decision" in content.lower():
+            expansion = " Evaluate this choice against your key criteria and consider both short-term and long-term implications."
+        else:
+            expansion = " Take time to carefully consider all available options and their potential outcomes."
     
     # Combine original content with expansion
     expanded_content = content + expansion
     
-    # If still too short, add more aggressive expansion
+    # If still too short, add minimal additional context
     if len(expanded_content.split()) < target_words:
-        additional_expansion = " The decision-making process should incorporate relevant frameworks and analytical tools to ensure comprehensive evaluation."
+        if is_personal_decision:
+            additional_expansion = " This thoughtful approach will help you make a well-informed decision that serves your best interests."
+        else:
+            additional_expansion = " This systematic approach will help ensure a well-considered decision."
         expanded_content += additional_expansion
     
-    # If still too short, add final aggressive expansion
+    # If still too short, add final minimal expansion
     if len(expanded_content.split()) < target_words:
-        final_expansion = " This approach should be evaluated against multiple criteria and stakeholder perspectives."
+        if is_personal_decision:
+            final_expansion = " Remember that the best choice is one that aligns with your values and long-term happiness."
+        else:
+            final_expansion = " Consider how this choice supports your overall objectives and goals."
         expanded_content += final_expansion
-    
-    # If still too short, add even more content (for Story in Action)
-    if len(expanded_content.split()) < target_words:
-        extra_expansion = " The implementation should consider practical constraints and real-world application of the decision framework."
-        expanded_content += extra_expansion
-    
-    # Final check - if still too short, add generic expansion
-    if len(expanded_content.split()) < target_words:
-        generic_expansion = " This example demonstrates the practical application of decision-making principles in a real-world context."
-        expanded_content += generic_expansion
     
     return expanded_content
 
