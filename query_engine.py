@@ -29,6 +29,28 @@ openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 openai_max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
 openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 
+# ============================================================================
+# V1.6.5.1 FEATURE FLAGS
+# ============================================================================
+
+# Entity Enhancement Feature Flags
+USE_ENHANCED_ENTITIES = False  # Safe default - disable enhanced entities
+ENTITY_WEIGHT_FACTOR = 0.3     # 30% influence max when enabled
+GRADUAL_WEIGHT_INCREASE = True # Gradual rollout control
+
+# Word Count Enforcement Flags
+ENFORCE_WORD_COUNTS = True     # Enable word count limits
+STRATEGIC_LENS_MIN_WORDS = 120 # Minimum words for Strategic Thinking Lens
+STRATEGIC_LENS_MAX_WORDS = 140 # Maximum words for Strategic Thinking Lens
+STORY_ACTION_MIN_WORDS = 60    # Minimum words for Story in Action
+STORY_ACTION_MAX_WORDS = 80    # Maximum words for Story in Action
+
+# Quality Control Flags
+ENFORCE_DUPLICATION_LIMITS = True  # Enable duplication rate limits
+MAX_DUPLICATION_RATE = 0.05        # Maximum 5% duplication
+ENFORCE_CLARITY_THRESHOLDS = True  # Enable clarity score validation
+MIN_CLARITY_SCORE = 0.6            # Minimum clarity score threshold
+
 if not openai_api_key:
     print("❌ Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
@@ -1612,6 +1634,31 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
+        # ============================================================================
+        # V1.6.5.1 ENTITY ENHANCEMENT INTEGRATION
+        # ============================================================================
+        
+        # Conditional entity extraction
+        expanded_entities = {}
+        entity_weight = 0.0
+        entity_summary = ""
+        
+        if USE_ENHANCED_ENTITIES:
+            try:
+                from expanded_entities import extract_expanded_entities, get_entity_summary
+                expanded_entities = extract_expanded_entities(query)
+                entity_weight = ENTITY_WEIGHT_FACTOR
+                entity_summary = get_entity_summary(expanded_entities)
+                
+                # Log entity extraction for debugging
+                if expanded_entities.get("confidence", 0.0) > 0.1:
+                    print(f"🔍 Extracted entities: {entity_summary}")
+            except Exception as e:
+                print(f"⚠️ Entity extraction failed: {e}")
+                expanded_entities = {}  # Fallback to empty
+                entity_weight = 0.0
+                entity_summary = ""
+        
         # Extract concepts using semantic similarity
         concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
         
@@ -1633,6 +1680,45 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Add application field context
         user_message += f"Application field: {application_field}\n\n"
+        
+        # ============================================================================
+        # V1.6.5.1 ENTITY CONTEXT ENHANCEMENT
+        # ============================================================================
+        
+        # Add entity context if entities were extracted
+        if expanded_entities and entity_summary and entity_summary != "general decision":
+            entity_context = f"Decision context: {entity_summary}\n\n"
+            user_message += entity_context
+            
+            # Add specific entity details for enhanced context
+            if expanded_entities.get("timeframe"):
+                timeframe = max(expanded_entities["timeframe"].items(), key=lambda x: x[1]["confidence"])
+                user_message += f"Timeframe consideration: {timeframe[0]} ({timeframe[1]['confidence']:.2f} confidence)\n"
+            
+            if expanded_entities.get("stakeholders"):
+                stakeholders = [k for k, v in expanded_entities["stakeholders"].items() if v["confidence"] > 0.3]
+                if stakeholders:
+                    user_message += f"Key stakeholders: {', '.join(stakeholders)}\n"
+            
+            if expanded_entities.get("criteria"):
+                criteria = [k for k, v in expanded_entities["criteria"].items() if v["confidence"] > 0.3]
+                if criteria:
+                    user_message += f"Primary criteria: {', '.join(criteria)}\n"
+            
+            if expanded_entities.get("uncertainty") or expanded_entities.get("complexity"):
+                uncertainty = expanded_entities.get("uncertainty", {})
+                complexity = expanded_entities.get("complexity", {})
+                if uncertainty or complexity:
+                    user_message += f"Decision environment: "
+                    if uncertainty:
+                        uncertainty_level = max(uncertainty.items(), key=lambda x: x[1]["confidence"])
+                        user_message += f"uncertainty={uncertainty_level[0]}"
+                    if complexity:
+                        complexity_level = max(complexity.items(), key=lambda x: x[1]["confidence"])
+                        user_message += f", complexity={complexity_level[0]}"
+                    user_message += "\n"
+            
+            user_message += "\n"
         
         # Add analytical tools context
         tools_context = "Available analytical tools:\n"
@@ -1674,6 +1760,25 @@ def process_query(query: str, course_config: dict = None) -> str:
                     flags=re.DOTALL
                 )
         
+        # ============================================================================
+        # V1.6.5.1 DEDUPLICATION ENFORCEMENT
+        # ============================================================================
+        
+        if ENFORCE_DUPLICATION_LIMITS:
+            # Apply deduplication to Concepts/Tools section
+            concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL)
+            if concepts_match:
+                concepts_content = concepts_match.group(1).strip()
+                deduplicated_concepts = deduplicate_concepts(concepts_content)
+                
+                # Replace with deduplicated content
+                answer = re.sub(
+                    r'\*\*Concepts/Tools\*\*.*?(?=\*\*|\Z)',
+                    f'**Concepts/Tools**\n\n{deduplicated_concepts}',
+                    answer,
+                    flags=re.DOTALL
+                )
+        
         return answer
         
     except Exception as e:
@@ -1691,6 +1796,40 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
        re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE) and \
        re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE) and \
        re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
+        
+        # ============================================================================
+        # V1.6.5.1 WORD COUNT ENFORCEMENT
+        # ============================================================================
+        
+        if ENFORCE_WORD_COUNTS:
+            # Extract sections for word count validation
+            strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+            story_action_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+            
+            # Validate Strategic Thinking Lens word count
+            if strategic_lens_match:
+                strategic_lens_content = strategic_lens_match.group(1).strip()
+                strategic_lens_words = len(strategic_lens_content.split())
+                
+                if strategic_lens_words < STRATEGIC_LENS_MIN_WORDS:
+                    print(f"⚠️ Strategic Thinking Lens too short: {strategic_lens_words} words (min {STRATEGIC_LENS_MIN_WORDS})")
+                    # Could add logic to expand content here
+                elif strategic_lens_words > STRATEGIC_LENS_MAX_WORDS:
+                    print(f"⚠️ Strategic Thinking Lens too long: {strategic_lens_words} words (max {STRATEGIC_LENS_MAX_WORDS})")
+                    # Could add logic to truncate content here
+            
+            # Validate Story in Action word count
+            if story_action_match:
+                story_action_content = story_action_match.group(1).strip()
+                story_action_words = len(story_action_content.split())
+                
+                if story_action_words < STORY_ACTION_MIN_WORDS:
+                    print(f"⚠️ Story in Action too short: {story_action_words} words (min {STORY_ACTION_MIN_WORDS})")
+                    # Could add logic to expand content here
+                elif story_action_words > STORY_ACTION_MAX_WORDS:
+                    print(f"⚠️ Story in Action too long: {story_action_words} words (max {STORY_ACTION_MAX_WORDS})")
+                    # Could add logic to truncate content here
+        
         return answer
     
     # If not, generate fallback content
