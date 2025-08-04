@@ -517,7 +517,8 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         is_choice_query = any(word in query_lower for word in [
             'choose', 'choosing', 'choice', 'choices', 'select', 'selecting', 'selection',
             'option', 'options', 'alternative', 'alternatives', 'between', 'versus', 'vs',
-            'which', 'what', 'how to choose', 'how to select', 'evaluate options', 'compare options'
+            'which', 'what', 'how to choose', 'how to select', 'evaluate options', 'compare options',
+            'job offer', 'job offers', 'career choice', 'career decision'
         ])
         
         # Enhanced pattern recognition for better concept selection
@@ -556,9 +557,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Define concept-pattern relationships for boosting
                 concept_patterns = {
                     'decision tree': ['comparison', 'planning'],
-     
                     'swot analysis': ['analysis', 'planning'],
-                    'monte carlo simulation': ['risk', 'forecasting'],
                     'scenario analysis': ['risk', 'planning'],
                     'linear optimization': ['optimization', 'analysis'],
                     'sensitivity analysis': ['analysis', 'risk'],
@@ -570,6 +569,15 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                     'moving average': ['forecasting', 'analysis'],
                     'regression': ['forecasting', 'analysis']
                 }
+                
+                # For job offer decisions, exclude complex concepts
+                if is_choice_query and any(word in query_lower for word in ['job offer', 'job offers', 'career choice', 'career decision']):
+                    # Only allow simple, relevant concepts for job decisions
+                    allowed_concepts = ['decision tree', 'swot analysis', 'scenario analysis']
+                    if concept_name == 'decision tree':
+                        pattern_boost = 0.3  # Strong boost for decision tree in job decisions
+                    elif concept_name not in allowed_concepts:
+                        pattern_boost = -0.5  # Heavy penalty for irrelevant concepts
                 
                 # Check if this concept should be boosted based on detected patterns
                 if concept_name in concept_patterns:
@@ -597,7 +605,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic penalty
             score -= generic_penalty
             
-            if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
+            if score > 0.35:  # Higher threshold to ensure only relevant concepts are included
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -617,7 +625,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                     domain_multiplier = 1.2  # Boost decision tree for visualization queries
                 # Special handling for choice queries - boost decision tree
                 elif is_choice_query and concept_name == "decision tree":
-                    domain_multiplier = 1.4  # Strong boost for decision tree in choice queries
+                    domain_multiplier = 2.0  # Very strong boost for decision tree in choice queries
                 elif query_domains:  # If specific domains are detected
                     if concept_domain in query_domains:
                         # Concept domain is detected in query - use weighted score
