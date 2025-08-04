@@ -412,7 +412,11 @@ def get_entity_summary(entities: Dict[str, Any]) -> str:
         complexity = max(entities["complexity"].items(), key=lambda x: x[1]["confidence"])
         summary_parts.append(f"complexity: {complexity[0]}")
     
-    return "; ".join(summary_parts) if summary_parts else "general decision"
+    # Return partial summary if any entities found, otherwise "general decision"
+    if summary_parts:
+        return "; ".join(summary_parts)
+    else:
+        return "general decision"
 
 def validate_entity_extraction(query: str) -> Dict[str, Any]:
     """

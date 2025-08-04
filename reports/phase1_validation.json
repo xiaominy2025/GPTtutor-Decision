@@ -1,0 +1,222 @@
+{
+  "validation_timestamp": "2025-08-03T21:15:21.372381",
+  "phase": "Phase I - Safe Preparation",
+  "tests": {
+    "feature_flags_working": {
+      "passed": true,
+      "timestamp": "2025-08-03T21:15:21.373332",
+      "details": {
+        "flags_accessible": true,
+        "default_enhanced_entities": true,
+        "default_weight_factor": true,
+        "default_word_counts": true,
+        "current_flags": {
+          "USE_ENHANCED_ENTITIES": false,
+          "ENTITY_WEIGHT_FACTOR": 0.3,
+          "ENFORCE_WORD_COUNTS": true
+        }
+      }
+    },
+    "sanity_with_flag_on_off": {
+      "passed": true,
+      "timestamp": "2025-08-03T21:15:30.388252",
+      "details": {
+        "query": "Should we continue a legacy project despite risks?",
+        "baseline_concepts": [
+          "risk assessment",
+          "scenario analysis",
+          "scenario planning"
+        ],
+        "enhanced_concepts": [
+          "Risk Assessment",
+          "Scenario Analysis",
+          "Scenario Planning",
+          "Status Quo Bias",
+          "Escalation of Commitment"
+        ],
+        "concepts_identical": false,
+        "sections_present": true,
+        "enrichment_detected": true,
+        "baseline_lens_words": 132,
+        "enhanced_lens_words": 128
+      }
+    },
+    "entity_extraction_spot_check": {
+      "passed": true,
+      "timestamp": "2025-08-03T21:15:30.394454",
+      "details": {
+        "test_queries": [
+          {
+            "query": "We need an immediate decision to stabilize operations",
+            "expected_entities": "timeframe: immediate",
+            "detected_entities": "timeframe: short_term; criteria: operational",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "What long-term growth strategies should we adopt",
+            "expected_entities": "timeframe: long_term, criteria: strategic",
+            "detected_entities": "timeframe: long_term; criteria: strategic",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "How will employees and customers react to this policy",
+            "expected_entities": "stakeholders: employees, customers",
+            "detected_entities": "stakeholders: employees, customers",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "Investors and regulators are concerned about compliance",
+            "expected_entities": "stakeholders: investors, regulators",
+            "detected_entities": "stakeholders: investors, regulators",
+            "confidence": 0.5666666666666667,
+            "entities_detected": true
+          },
+          {
+            "query": "What financial ROI and operational efficiency metrics matter most",
+            "expected_entities": "criteria: financial, operational",
+            "detected_entities": "stakeholders: investors; criteria: financial, operational",
+            "confidence": 0.6444444444444444,
+            "entities_detected": true
+          },
+          {
+            "query": "We must balance strategic advantage and risk control",
+            "expected_entities": "criteria: strategic, risk",
+            "detected_entities": "timeframe: long_term; criteria: strategic, risk",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "In volatile markets with high uncertainty, should we invest",
+            "expected_entities": "uncertainty: high",
+            "detected_entities": "criteria: risk; uncertainty: high",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "Low-risk stable environment for medium-term planning",
+            "expected_entities": "uncertainty: low, timeframe: medium_term",
+            "detected_entities": "timeframe: medium_term; criteria: risk; uncertainty: low",
+            "confidence": 0.4888888888888889,
+            "entities_detected": true
+          },
+          {
+            "query": "Immediate decision for employees under high uncertainty",
+            "expected_entities": "timeframe: immediate, stakeholders: employees, uncertainty: high",
+            "detected_entities": "timeframe: short_term; stakeholders: employees; criteria: risk; uncertainty: high",
+            "confidence": 0.3333333333333333,
+            "entities_detected": true
+          },
+          {
+            "query": "Financial and strategic criteria matter for investors and regulators",
+            "expected_entities": "criteria: financial, strategic, stakeholders: investors, regulators",
+            "detected_entities": "timeframe: long_term; stakeholders: investors, regulators; criteria: financial, strategic",
+            "confidence": 0.42666666666666664,
+            "entities_detected": true
+          }
+        ],
+        "all_entities_detected": true
+      }
+    },
+    "rollback_works": {
+      "passed": true,
+      "timestamp": "2025-08-03T21:15:37.764836",
+      "details": {
+        "query": "Immediate decision for employees under high uncertainty",
+        "baseline_concepts": [
+          "scenario analysis",
+          "scenario planning",
+          "utility functions"
+        ],
+        "enhanced_concepts": [
+          "- Scenario Analysis",
+          "- Utility Functions"
+        ],
+        "rollback_concepts": [
+          "scenario analysis",
+          "scenario planning",
+          "utility functions"
+        ],
+        "concepts_restored": true,
+        "sections_restored": true,
+        "enhanced_different": true
+      }
+    },
+    "clarity_word_count_compliance": {
+      "passed": true,
+      "timestamp": "2025-08-03T21:15:40.032413",
+      "details": {
+        "query": "Should we continue a legacy project despite risks?",
+        "compliance_result": {
+          "overall_passed": true,
+          "query_difficulty": "strategic",
+          "tolerance_mode_used": false,
+          "strategic_lens": {
+            "word_count": 132,
+            "clarity_score": 0.7777777777777778,
+            "query_difficulty": "strategic",
+            "tolerance_mode_used": false,
+            "passed": true,
+            "reason": "Passed strategic mode (clarity: 0.778, words: 132)"
+          },
+          "story_action": {
+            "word_count": 72,
+            "clarity_score": 1.0,
+            "query_difficulty": "basic",
+            "tolerance_mode_used": false,
+            "passed": true,
+            "reason": "Passed (clarity: 1.000, words: 72)"
+          },
+          "details": {
+            "strategic_lens_words": 132,
+            "strategic_lens_clarity": 0.7777777777777778,
+            "story_action_words": 72,
+            "story_action_clarity": 1.0,
+            "query": "Should we continue a legacy project despite risks?"
+          }
+        },
+        "concept_validation": {
+          "expected_concepts": [
+            "Scenario Analysis",
+            "Escalation of Commitment",
+            "Status Quo Bias",
+            "Sunk Cost Fallacy",
+            "Risk Assessment"
+          ],
+          "extracted_concepts": [
+            "- Risk Assessment",
+            "- Scenario Analysis",
+            "Status Quo Bias",
+            "Escalation of Commitment"
+          ],
+          "matches": [
+            "Scenario Analysis",
+            "Escalation of Commitment",
+            "Status Quo Bias",
+            "Risk Assessment"
+          ],
+          "match_rate": 0.8,
+          "passed": true
+        },
+        "word_counts": {
+          "strategic_thinking_lens": 132,
+          "story_in_action": 72,
+          "concepts_tools": 43
+        },
+        "clarity_scores": {
+          "strategic_thinking_lens": 0.7777777777777778,
+          "story_in_action": 1.0,
+          "concepts_tools": 0.0
+        }
+      }
+    }
+  },
+  "summary": {
+    "total_tests": 5,
+    "passed_tests": 5,
+    "failed_tests": 0,
+    "overall_status": "PASSED"
+  }
+}
