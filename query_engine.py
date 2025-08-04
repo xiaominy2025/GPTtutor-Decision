@@ -34,8 +34,8 @@ openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 # ============================================================================
 
 # Entity Enhancement Feature Flags
-USE_ENHANCED_ENTITIES = False  # Safe default - disable enhanced entities
-ENTITY_WEIGHT_FACTOR = 0.3     # 30% influence max when enabled
+USE_ENHANCED_ENTITIES = True   # Phase 2: Enable enhanced entities
+ENTITY_WEIGHT_FACTOR = 0.05    # 5% influence max for Phase 4.2 optimization
 GRADUAL_WEIGHT_INCREASE = True # Gradual rollout control
 
 # Word Count Enforcement Flags

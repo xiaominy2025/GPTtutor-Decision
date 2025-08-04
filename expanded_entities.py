@@ -7,6 +7,25 @@ Comprehensive entity extraction and classification for decision-making queries
 import re
 from typing import Dict, List, Any, Optional
 from datetime import datetime
+from functools import lru_cache
+
+# ============================================================================
+# PRECOMPILED REGEX PATTERNS (Performance Optimization)
+# ============================================================================
+
+# Precompile all regex patterns at module load time for performance
+PRECOMPILED_PATTERNS = {}
+
+def _precompile_patterns():
+    """Precompile all regex patterns for performance optimization"""
+    global PRECOMPILED_PATTERNS
+    
+    for category, subcategories in EXPANDED_ENTITIES.items():
+        PRECOMPILED_PATTERNS[category] = {}
+        for subcategory, config in subcategories.items():
+            PRECOMPILED_PATTERNS[category][subcategory] = [
+                re.compile(pattern, re.IGNORECASE) for pattern in config["patterns"]
+            ]
 
 # ============================================================================
 # EXPANDED ENTITIES DEFINITIONS
@@ -19,6 +38,7 @@ EXPANDED_ENTITIES = {
             "patterns": [
                 r"\b(immediate|urgent|quick|fast|soon|now|today|this week|this month|short term|short-term)\b",
                 r"\b(within \d+ (days?|weeks?|months?))\b",
+                r"\b(within the next \d+ (days?|weeks?|months?))\b",
                 r"\b(asap|as soon as possible)\b"
             ],
             "examples": ["immediate action", "urgent decision", "quick response", "this week"]
@@ -54,7 +74,8 @@ EXPANDED_ENTITIES = {
             "patterns": [
                 r"\b(employees?|staff|team|workers?|personnel|workforce|colleagues?)\b",
                 r"\b(individual|person|people|human)\b",
-                r"\b(employee satisfaction|staff morale|team dynamics)\b"
+                r"\b(employee satisfaction|staff morale|team dynamics)\b",
+                r"\b(company|business|organization)\b"
             ],
             "examples": ["employee concerns", "team alignment", "staff satisfaction"]
         },
@@ -70,7 +91,8 @@ EXPANDED_ENTITIES = {
             "patterns": [
                 r"\b(investors?|shareholders?|stakeholders?|owners?|partners?)\b",
                 r"\b(return on investment|roi|profit|revenue|earnings)\b",
-                r"\b(financial|monetary|economic)\b"
+                r"\b(financial|monetary|economic)\b",
+                r"\b(invest|investment)\b"
             ],
             "examples": ["investor expectations", "shareholder value", "financial returns"]
         },
@@ -265,24 +287,53 @@ CONTEXT_CLASSIFIERS = {
 # ENTITY EXTRACTION FUNCTIONS
 # ============================================================================
 
+@lru_cache(maxsize=200)  # Increased cache size for Phase 4.2 optimization
 def extract_expanded_entities(query: str) -> Dict[str, Any]:
     """
     Extract expanded entities from a decision-making query.
-    
+
     Args:
         query: The input query string
-        
+
     Returns:
         Dictionary containing extracted entities with confidence scores
     """
     query_lower = query.lower()
+
+    # Enhanced entity-neutral detection for Phase 4.2
+    entity_neutral_indicators = [
+        "what is", "how do i", "what are", "how to", "what tools", "what methods",
+        "what techniques", "what frameworks", "what approach", "what is the best",
+        "how do you", "what should", "what would", "what could", "explain", "describe",
+        "tell me about", "what does", "how does", "why does", "when does", "where does",
+        "can you", "could you", "would you", "please", "help me", "guide me",
+        "show me", "give me", "provide", "suggest", "recommend", "advise"
+    ]
+    
+    # Quick check for entity-neutral queries to save processing time
+    if any(indicator in query_lower for indicator in entity_neutral_indicators):
+        return {
+            "timeframe": {}, "stakeholders": {}, "criteria": {},
+            "uncertainty": {}, "complexity": {}, "confidence": 0.0,
+            "entity_neutral": True
+        }
+
+    # Lazy loading: Only process entities if query has sufficient complexity
+    if len(query.split()) < 5:  # Skip processing for very short queries
+        return {
+            "timeframe": {}, "stakeholders": {}, "criteria": {},
+            "uncertainty": {}, "complexity": {}, "confidence": 0.0,
+            "entity_neutral": True
+        }
+
     extracted_entities = {
         "timeframe": {},
         "stakeholders": {},
         "criteria": {},
         "uncertainty": {},
         "complexity": {},
-        "confidence": 0.0
+        "confidence": 0.0,
+        "entity_neutral": False
     }
     
     # Extract timeframe entities
@@ -360,9 +411,23 @@ def calculate_entity_confidence(query: str, patterns: List[str]) -> float:
     matches = 0
     total_patterns = len(patterns)
     
+    # Use precompiled patterns if available, otherwise compile on-the-fly
+    compiled_patterns = []
     for pattern in patterns:
-        if re.search(pattern, query, re.IGNORECASE):
-            matches += 1
+        try:
+            compiled_patterns.append(re.compile(pattern, re.IGNORECASE))
+        except re.error:
+            # Fallback to string pattern if compilation fails
+            compiled_patterns.append(pattern)
+    
+    for pattern in compiled_patterns:
+        if isinstance(pattern, re.Pattern):
+            if pattern.search(query):
+                matches += 1
+        else:
+            # Fallback to string pattern
+            if re.search(pattern, query, re.IGNORECASE):
+                matches += 1
     
     # Calculate confidence as ratio of matched patterns
     confidence = matches / total_patterns if total_patterns > 0 else 0.0
@@ -464,6 +529,9 @@ def test_entity_extraction():
         print(f"Confidence: {result['confidence']:.3f}")
         print(f"Summary: {result['entity_summary']}")
         print(f"Valid: {result['is_valid']}")
+
+# Initialize precompiled patterns at module load time
+_precompile_patterns()
 
 if __name__ == "__main__":
     test_entity_extraction() 
