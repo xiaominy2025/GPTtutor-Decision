@@ -79,6 +79,16 @@ EXPANDED_ENTITIES = {
             ],
             "examples": ["employee concerns", "team alignment", "staff satisfaction"]
         },
+        "career_individual": {
+            "patterns": [
+                r"\b(job offer|job offers|career choice|career decision|career path)\b",
+                r"\b(professional growth|career development|job opportunity)\b",
+                r"\b(salary|benefits|compensation|work-life balance)\b",
+                r"\b(promotion|advancement|career transition|job change)\b",
+                r"\b(employment|work|professional|career move)\b"
+            ],
+            "examples": ["job offer decision", "career choice", "professional growth"]
+        },
         "customers": {
             "patterns": [
                 r"\b(customers?|clients?|users?|consumers?|buyers?|end users?)\b",
@@ -147,6 +157,17 @@ EXPANDED_ENTITIES = {
                 r"\b(safety|security|protection|safeguard)\b"
             ],
             "examples": ["risk assessment", "threat analysis", "safety concerns"]
+        },
+        "career": {
+            "patterns": [
+                r"\b(salary|compensation|benefits|pay|earnings|income)\b",
+                r"\b(career growth|professional development|advancement|promotion)\b",
+                r"\b(work-life balance|quality of life|personal satisfaction)\b",
+                r"\b(company culture|work environment|team dynamics)\b",
+                r"\b(job security|stability|long-term prospects)\b",
+                r"\b(skills development|learning opportunities|training)\b"
+            ],
+            "examples": ["salary comparison", "career growth", "work-life balance"]
         }
     },
     
@@ -311,7 +332,10 @@ def extract_expanded_entities(query: str) -> Dict[str, Any]:
     ]
     
     # Quick check for entity-neutral queries to save processing time
-    if any(indicator in query_lower for indicator in entity_neutral_indicators):
+    # BUT: Allow career-related queries even if they contain neutral indicators
+    if any(indicator in query_lower for indicator in entity_neutral_indicators) and not any(word in query_lower for word in [
+        "job offer", "job offers", "career", "choose", "select", "decision"
+    ]):
         return {
             "timeframe": {}, "stakeholders": {}, "criteria": {},
             "uncertainty": {}, "complexity": {}, "confidence": 0.0,
@@ -319,7 +343,10 @@ def extract_expanded_entities(query: str) -> Dict[str, Any]:
         }
 
     # Lazy loading: Only process entities if query has sufficient complexity
-    if len(query.split()) < 5:  # Skip processing for very short queries
+    # BUT: Allow job offer and career-related queries even if short
+    if len(query.split()) < 5 and not any(word in query_lower for word in [
+        "job offer", "job offers", "career", "choose", "select", "decision"
+    ]):
         return {
             "timeframe": {}, "stakeholders": {}, "criteria": {},
             "uncertainty": {}, "complexity": {}, "confidence": 0.0,
@@ -353,6 +380,7 @@ def extract_expanded_entities(query: str) -> Dict[str, Any]:
                 "confidence": confidence,
                 "examples": stakeholder_data["examples"]
             }
+            print(f"[DEBUG] Found stakeholder: {stakeholder_type} with confidence {confidence}")
     
     # Extract criteria entities
     for criteria_type, criteria_data in EXPANDED_ENTITIES["criteria"].items():
@@ -362,6 +390,7 @@ def extract_expanded_entities(query: str) -> Dict[str, Any]:
                 "confidence": confidence,
                 "examples": criteria_data["examples"]
             }
+            print(f"[DEBUG] Found criteria: {criteria_type} with confidence {confidence}")
     
     # Extract uncertainty entities
     for uncertainty_type, uncertainty_data in EXPANDED_ENTITIES["uncertainty"].items():
@@ -457,13 +486,13 @@ def get_entity_summary(entities: Dict[str, Any]) -> str:
     
     # Add stakeholders
     if entities.get("stakeholders"):
-        stakeholders = [k for k, v in entities["stakeholders"].items() if v["confidence"] > 0.3]
+        stakeholders = [k for k, v in entities["stakeholders"].items() if v["confidence"] > 0.1]
         if stakeholders:
             summary_parts.append(f"stakeholders: {', '.join(stakeholders)}")
     
     # Add criteria
     if entities.get("criteria"):
-        criteria = [k for k, v in entities["criteria"].items() if v["confidence"] > 0.3]
+        criteria = [k for k, v in entities["criteria"].items() if v["confidence"] > 0.1]
         if criteria:
             summary_parts.append(f"criteria: {', '.join(criteria)}")
     

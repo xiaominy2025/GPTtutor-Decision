@@ -930,6 +930,8 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
 # 1. V1.6.3 System Prompt - ThinkPal Decision Coach
 SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
 
+IMPORTANT: You will receive context about the application field, relevant concepts, and decision entities. You MUST use this context to generate highly relevant, specific answers rather than generic responses.
+
 Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
 
 ---
@@ -1352,6 +1354,13 @@ def extract_application_field(query: str) -> str:
     if any(word in q for word in ["admission", "college", "university", "school"]):
         return "admission"
     
+    # Career & Personal Development detection - NEW FIELD
+    if any(word in q for word in ["job offer", "job offers", "career choice", "career decision", "career path", 
+                                  "career development", "professional growth", "job opportunity", "employment", 
+                                  "work-life balance", "salary", "benefits", "promotion", "advancement", 
+                                  "career transition", "job change", "career move", "professional decision"]):
+        return "career_development"
+    
     if any(word in q for word in ["relocate", "move", "relocation", "city", "country", "immigrate"]):
         return "relocation"
     
@@ -1400,6 +1409,13 @@ def context_aware_fallbacks(query: str):
             'Story in Action': "Sarah, a high school senior, compares three college offers using a weighted scoring model. She lists her priorities—academic reputation, cost, campus culture, and location. After visiting each campus and speaking with current students, she weighs the value of strong alumni networks against the appeal of lower tuition. Sarah ultimately chooses the school that best balances her career goals and financial constraints.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Decision Tree: Mapping out options and outcomes\n- Weighted Scoring Model: Comparing choices using weighted criteria"
+        }
+    if application_field == "career_development":
+        return {
+            'Strategic Thinking Lens': strategic_lens,
+            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
+            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
+            'Concepts/Tools': "- Decision Tree: Visual tool for mapping options and outcomes\n- Weighted Scoring Model: Structured comparison using multiple criteria"
         }
     if application_field == "job":
         return {
@@ -1721,8 +1737,9 @@ def process_query(query: str, course_config: dict = None) -> str:
                 concept_context += f"- {concept_name}: {definition}\n"
             user_message += concept_context + "\n"
         
-        # Add application field context
-        user_message += f"Application field: {application_field}\n\n"
+        # Add application field context with emphasis
+        user_message += f"APPLICATION FIELD: {application_field.upper()}\n"
+        user_message += f"Focus your answer specifically on {application_field} decision-making context.\n\n"
         
         # ============================================================================
         # V1.6.5.1 ENTITY CONTEXT ENHANCEMENT
@@ -1730,7 +1747,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Add entity context if entities were extracted
         if expanded_entities and entity_summary and entity_summary != "general decision":
-            entity_context = f"Decision context: {entity_summary}\n\n"
+            entity_context = f"DECISION CONTEXT: {entity_summary.upper()}\n"
             user_message += entity_context
             
             # Add specific entity details for enhanced context
