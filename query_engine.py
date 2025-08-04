@@ -576,6 +576,8 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                     allowed_concepts = ['decision tree', 'swot analysis', 'scenario analysis']
                     if concept_name == 'decision tree':
                         pattern_boost = 0.3  # Strong boost for decision tree in job decisions
+                    elif concept_name == 'monte carlo simulation':
+                        pattern_boost = -1.0  # Heavy penalty to exclude Monte Carlo
                     elif concept_name not in allowed_concepts:
                         pattern_boost = -0.5  # Heavy penalty for irrelevant concepts
                 
@@ -1413,7 +1415,7 @@ def context_aware_fallbacks(query: str):
     if application_field == "career_development":
         return {
             'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
+            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values. The decision tree he creates helps visualize potential career paths and the trade-offs between immediate financial gains and long-term professional development. This systematic approach helps Alex weigh the pros and cons of each opportunity.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Decision Tree: Visual tool for mapping options and outcomes\n- Weighted Scoring Model: Structured comparison using multiple criteria"
         }
@@ -1867,8 +1869,9 @@ def process_query(query: str, course_config: dict = None) -> str:
                     
                     # If still too short, add more content
                     if len(expanded_content.split()) < 120:
-                        additional_content = " This comprehensive analysis ensures all relevant factors are considered in the decision-making process."
+                        additional_content = " This approach ensures a well-rounded evaluation that considers both immediate benefits and long-term implications."
                         expanded_content += additional_content
+                        print(f"✅ Final expansion to {len(expanded_content.split())} words")
                         answer_raw = re.sub(
                             r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                             r'\1\n\n' + expanded_content,
@@ -1901,6 +1904,30 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Extract and validate concepts/tools
         concepts_tools = extract_tools_from_section(answer)
+        
+        # ============================================================================
+        # V1.6.5.1 CONCEPT FILTERING FOR JOB OFFER DECISIONS
+        # ============================================================================
+        
+        # Filter out irrelevant concepts for job offer decisions
+        if application_field == "career_development":
+            # Remove Monte Carlo Simulation and other irrelevant concepts
+            irrelevant_concepts = [
+                "monte carlo simulation", "monte carlo", "simulation",
+                "linear programming", "optimization", "mathematical modeling"
+            ]
+            
+            # Clean the concepts/tools section
+            for concept in irrelevant_concepts:
+                answer = re.sub(
+                    rf'{concept}.*?(?=\n|$)',
+                    '',
+                    answer,
+                    flags=re.IGNORECASE | re.DOTALL
+                )
+                # Also remove any trailing dashes or formatting
+                answer = re.sub(r'\n\s*-\s*\n', '\n', answer)
+                answer = re.sub(r'\n\s*\n\s*\n', '\n\n', answer)
         
         # ============================================================================
         # V1.6.5.1 ROLLBACK SAFETY FOR CONCEPTS
