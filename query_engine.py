@@ -1820,7 +1820,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # ============================================================================
         
         # Check Strategic Thinking Lens word count and apply conservative enforcement
-        strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer_raw, re.DOTALL | re.IGNORECASE)
+        strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer_raw, re.DOTALL | re.IGNORECASE)
         if strategic_lens_match:
             strategic_lens_content = strategic_lens_match.group(1).strip()
             strategic_lens_words = len(strategic_lens_content.split())
@@ -1833,7 +1833,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                     # Expand content conservatively to target 130 words
                     expanded_content = expand_section_content(strategic_lens_content, 130)
                     answer_raw = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + expanded_content,
                         answer_raw,
                         flags=re.DOTALL | re.IGNORECASE
@@ -1845,7 +1845,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                         additional_content = " This comprehensive analysis ensures all relevant factors are considered in the decision-making process."
                         expanded_content += additional_content
                         answer_raw = re.sub(
-                            r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*|\Z)',
+                            r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                             r'\1\n\n' + expanded_content,
                             answer_raw,
                             flags=re.DOTALL | re.IGNORECASE
@@ -1855,7 +1855,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                     # Truncate content conservatively to target 130 words
                     truncated_content = truncate_section_content(strategic_lens_content, 130)
                     answer_raw = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + truncated_content,
                         answer_raw,
                         flags=re.DOTALL | re.IGNORECASE
@@ -2012,8 +2012,8 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
         
         if ENFORCE_WORD_COUNTS:
             # Extract sections for word count validation
-            strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-            story_action_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+            strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+            story_action_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
             
             # Validate and enforce Strategic Thinking Lens word count
             if strategic_lens_match:
@@ -2025,7 +2025,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
                     # Expand content to meet minimum
                     expanded_content = expand_section_content(strategic_lens_content, STRATEGIC_LENS_MIN_WORDS)
                     answer = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + expanded_content,
                         answer,
                         flags=re.DOTALL | re.IGNORECASE
@@ -2035,7 +2035,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
                     # Truncate content to meet maximum
                     truncated_content = truncate_section_content(strategic_lens_content, STRATEGIC_LENS_MAX_WORDS)
                     answer = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + truncated_content,
                         answer,
                         flags=re.DOTALL | re.IGNORECASE
@@ -2051,7 +2051,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
                     # Expand content to meet minimum - use more aggressive target
                     expanded_content = expand_section_content(story_action_content, STORY_ACTION_MIN_WORDS + 10)  # Target 70 words
                     answer = re.sub(
-                        r'(\*\*Story in Action\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + expanded_content,
                         answer,
                         flags=re.DOTALL | re.IGNORECASE
@@ -2062,7 +2062,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
                     # Truncate content to meet maximum
                     truncated_content = truncate_section_content(story_action_content, STORY_ACTION_MAX_WORDS)
                     answer = re.sub(
-                        r'(\*\*Story in Action\*\*).*?(?=\*\*|\Z)',
+                        r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
                         r'\1\n\n' + truncated_content,
                         answer,
                         flags=re.DOTALL | re.IGNORECASE
