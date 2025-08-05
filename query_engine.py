@@ -43,8 +43,9 @@ openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 # Entity Enhancement Feature Flags - Controlled Enrichment
 USE_ENHANCED_ENTITIES = True   # Enable entity enrichment
 ENTITY_RELEVANCE_THRESHOLD = 0.7  # Only inject entities if relevance >= 0.7
+ENTITY_SOFT_THRESHOLD = 0.6   # Soft threshold for 15% score reduction
 MAX_ENTITY_INSERTIONS = 2      # Maximum 2 entity insertions per section
-ENTITY_WEIGHT_FACTOR = 0.05    # 5% influence max for Phase 4.2 optimization
+ENTITY_WEIGHT_FACTOR = 0.1     # 10% influence max for enhanced entity integration
 GRADUAL_WEIGHT_INCREASE = True # Gradual rollout control
 
 # Word Count Enforcement Flags - Target 100-140 words for Strategic Lens
@@ -79,6 +80,10 @@ _documents = None
 _file_names = None
 _model = None
 _nlp = None
+
+# OPTIMIZATION: Add simple cache for repeated queries
+_query_cache = {}
+_cache_max_size = 50  # Limit cache size to prevent memory issues
 
 def load_data_lazily():
     """Load data only when needed"""
@@ -144,7 +149,7 @@ CONCEPT_GLOSSARY = {
     "risk assessment": {"definition": "Systematic evaluation of potential threats and their impact on decision outcomes", "core": True, "aliases": ['risk evaluation', 'risk analysis', 'threat assessment']},
     "scenario planning": {"definition": "Exploring different future possibilities to prepare for uncertainty", "core": True, "aliases": ['scenario analysis', 'future planning', 'uncertainty planning']},
     "scenario analysis": {"definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making", "core": True, "aliases": ['scenario planning', 'model uncertainty', 'uncertainty modeling']},
-    "contingency planning": {"definition": "Developing backup strategies to prepare for uncertainty", "core": False, "aliases": ['backup planning', 'emergency planning', 'fallback strategies']},
+
     "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ['decision mapping', 'outcome mapping', 'tree analysis', 'decision branching']},
     "swot analysis": {"definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats", "core": True, "aliases": ['swot', 'strengths weaknesses', 'opportunities threats', 'strengths weaknesses opportunities threats', 'swot analysis']},
     "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ['monte carlo', 'simulation modeling', 'statistical simulation', 'uncertainty simulation', 'probabilistic simulation', 'simulate', 'scenarios', 'thousands', 'random sampling', 'simulate uncertainty']},
@@ -268,9 +273,7 @@ CONCEPT_DOMAINS = {
     # General decision-making concepts (can apply to multiple domains)
     "decision tree": "technical",
     "risk assessment": "technical",
-    "contingency planning": "general",
-    "grow model": "general",
-    "ooda loop": "general",
+
     "supply chain": "strategic",
     "risk management": "technical",
     "human-computer integration": "technical"
@@ -945,8 +948,7 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
         "risk analysis": "risk assessment",
         "scenario paths": "scenario planning",
         "scenario analysis": "scenario planning",
-        "contingency plans": "contingency planning",
-        "contingency strategies": "contingency planning"
+        
     }
     
     for text_phrase, concept_key in special_matches.items():
@@ -1021,34 +1023,43 @@ def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     return truncated.strip()
 
 def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
-    """Calculate optimal token limit based on input size"""
+    """Calculate optimal token count for API calls - OPTIMIZED"""
     total_input = query_length + context_length
-    if total_input > 6000:
-        return 800
+    
+    # OPTIMIZATION: Simplified token calculation for faster processing
+    if total_input > 4000:
+        return 800  # OPTIMIZATION: Reduced from 1000
     elif total_input > 3000:
-        return 1000
+        return 600  # OPTIMIZATION: Reduced from 800
+    elif total_input > 2000:
+        return 800  # OPTIMIZATION: Reduced from 1200
     else:
-        return 1200
+        return 600  # OPTIMIZATION: Reduced from 1200
 
-def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
-    """Handle API calls with retries using system/user message structure"""
+def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 2):
+    """Handle API calls with retries using system/user message structure - OPTIMIZED FOR SPEED"""
     tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message}
     ]
+    
+    # OPTIMIZATION: Reduced retries and temperature for faster processing
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                temperature=1.2,  # Increased for more variety
-                max_tokens=tokens_to_use
+                temperature=0.7,  # OPTIMIZATION: Reduced from 1.2 for faster, more consistent responses
+                max_tokens=tokens_to_use,
+                # OPTIMIZATION: Add timeout to prevent hanging
+                timeout=30
             )
             return response, None
         except Exception as e:
             if attempt < max_retries - 1:
-                time.sleep(1 * (2 ** attempt))
+                # OPTIMIZATION: Reduced backoff time
+                time.sleep(0.5 * (2 ** attempt))  # Reduced from 1 second
             else:
                 return None, str(e)
     return None, "Max retries exceeded"
@@ -1800,6 +1811,14 @@ def process_query(query: str, course_config: dict = None) -> str:
     Returns:
         Formatted ThinkPal response with all sections
     """
+    
+    # OPTIMIZATION: Check cache for identical queries
+    cache_key = f"{query}_{hash(str(course_config))}"
+    if cache_key in _query_cache:
+        if DEBUG_MODE:
+            print(f"[DEBUG] Cache hit for query: {query[:50]}...")
+        return _query_cache[cache_key]
+    
     try:
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
@@ -1816,13 +1835,25 @@ def process_query(query: str, course_config: dict = None) -> str:
         application_context = f"APPLICATION FIELD: {application_field.upper()}\n"
         application_context += f"Focus your answer specifically on {application_field} decision-making context.\n\n"
         
-        # Step 3: Controlled Entity Enrichment (Tertiary Layer)
+        # Step 3: Controlled Entity Enrichment (Tertiary Layer) - OPTIMIZED
         expanded_entities = {}
         entity_weight = 0.0
         entity_summary = ""
         entity_relevance_score = 0.0
         
-        if USE_ENHANCED_ENTITIES:
+        # OPTIMIZATION: Skip entity extraction for simple queries
+        simple_query_indicators = [
+            "what is", "how do i", "explain", "tell me about", "describe",
+            "can you", "could you", "would you", "please", "help me"
+        ]
+        
+        should_extract_entities = (
+            USE_ENHANCED_ENTITIES and 
+            len(query.split()) > 5 and  # OPTIMIZATION: Skip short queries
+            not any(indicator in query.lower() for indicator in simple_query_indicators)
+        )
+        
+        if should_extract_entities:
             try:
                 from clean_entities_static import extract_expanded_entities, get_entity_summary
                 expanded_entities = extract_expanded_entities(query)
@@ -1830,25 +1861,43 @@ def process_query(query: str, course_config: dict = None) -> str:
                 # Calculate entity relevance score
                 entity_relevance_score = expanded_entities.get("confidence", 0.0)
                 
-                # Only proceed if relevance threshold is met
+                # Tiered entity weight system implementation
                 if entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD:
+                    # High confidence - full weight (10%)
                     entity_weight = ENTITY_WEIGHT_FACTOR
                     entity_summary = get_entity_summary(expanded_entities)
                     
-                    # Log entity extraction for debugging
-                    print(f"🔍 Extracted entities: {entity_summary}")
-                    print(f"[DEBUG] Entity confidence: {entity_relevance_score:.3f}")
+                    # OPTIMIZATION: Reduced logging for performance
+                    if DEBUG_MODE:
+                        print(f"🔍 Extracted entities: {entity_summary}")
+                        print(f"[DEBUG] Entity confidence: {entity_relevance_score:.3f} (high confidence - 10% weight)")
+                elif entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
+                    # Moderate confidence - reduced weight (8.5%)
+                    entity_weight = ENTITY_WEIGHT_FACTOR * 0.85  # 15% reduction
+                    entity_summary = get_entity_summary(expanded_entities)
+                    
+                    # OPTIMIZATION: Reduced logging for performance
+                    if DEBUG_MODE:
+                        print(f"🔍 Extracted entities (soft filter): {entity_summary}")
+                        print(f"[DEBUG] Entity confidence: {entity_relevance_score:.3f} (moderate confidence - 8.5% weight)")
                 else:
-                    print(f"[DEBUG] Entity relevance below threshold: {entity_relevance_score:.3f} < {ENTITY_RELEVANCE_THRESHOLD}")
+                    # Below soft threshold - discard
+                    if DEBUG_MODE:
+                        print(f"[DEBUG] Entity relevance below soft threshold: {entity_relevance_score:.3f} < {ENTITY_SOFT_THRESHOLD}")
                     expanded_entities = {}  # Graceful fallback
                     entity_weight = 0.0
                     entity_summary = ""
                     
             except Exception as e:
-                print(f"⚠️ Entity extraction failed: {e}")
+                if DEBUG_MODE:
+                    print(f"⚠️ Entity extraction failed: {e}")
                 expanded_entities = {}  # Fallback to empty
                 entity_weight = 0.0
                 entity_summary = ""
+        else:
+            # OPTIMIZATION: Skip entity extraction for simple queries
+            if DEBUG_MODE:
+                print(f"[DEBUG] Skipping entity extraction for simple query: {query[:50]}...")
         
         # Extract concepts using semantic similarity
         concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
@@ -1861,15 +1910,22 @@ def process_query(query: str, course_config: dict = None) -> str:
         concepts = ensure_expected_concepts(concepts, query)
         
         # ============================================================================
-        # V1.6.5.1 BEHAVIORAL BIAS DETECTION AND ENHANCEMENT
+        # V1.6.5.1 BEHAVIORAL BIAS DETECTION AND ENHANCEMENT - OPTIMIZED
         # ============================================================================
         
         # Store baseline concepts for rollback safety
         baseline_concepts = [concept_name for concept_name, _ in concepts]
         
+        # OPTIMIZATION: Skip behavioral bias detection for simple queries
+        should_detect_biases = (
+            USE_ENHANCED_ENTITIES and 
+            len(query.split()) > 8 and  # OPTIMIZATION: Only for complex queries
+            any(word in query.lower() for word in ["decision", "choose", "select", "evaluate", "assess", "analyze"])
+        )
+        
         # Detect behavioral biases for strategic queries
         behavioral_biases = []
-        if USE_ENHANCED_ENTITIES:
+        if should_detect_biases:
             behavioral_biases = detect_behavioral_biases(query)
             
             # Add behavioral biases to concepts if not already present
@@ -1891,6 +1947,10 @@ def process_query(query: str, course_config: dict = None) -> str:
                         concepts.append((bias, bias_definition))
                         if DEBUG_MODE:
                             print(f"[DEBUG] Added behavioral bias: {bias}")
+        else:
+            # OPTIMIZATION: Skip bias detection for simple queries
+            if DEBUG_MODE:
+                print(f"[DEBUG] Skipping behavioral bias detection for simple query")
         
         # Detect application field for context-aware generation
         application_field = extract_application_field(query)
@@ -1917,7 +1977,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # ============================================================================
         
         # Only inject entities if relevance threshold is met and not generic
-        if (expanded_entities and entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD and 
+        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
             entity_summary and entity_summary != "general decision"):
             
             # Limited entity context injection (max 2 insertions)
@@ -1960,7 +2020,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         user_message += "4. Maintain coherent domain-first narrative structure\n"
         
         # Add entity integration instructions only if entities were injected
-        if (expanded_entities and entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD and 
+        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
             entity_summary and entity_summary != "general decision"):
             user_message += "\nENTITY INTEGRATION GUIDELINES:\n"
             user_message += "1. In Strategic Thinking Lens: Reference entities naturally in domain analysis\n"
@@ -2055,6 +2115,15 @@ def process_query(query: str, course_config: dict = None) -> str:
                 strategic_lens_content = strategic_lens_match.group(1).strip()
                 strategic_lens_words = len(strategic_lens_content.split())
                 
+                # Add alternative perspectives if conditions are met
+                if expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
+                    strategic_lens_content = add_alternative_perspectives(
+                        strategic_lens_content, expanded_entities, query, 
+                        strategic_lens_words, STRATEGIC_LENS_MAX_WORDS, "strategic_lens"
+                    )
+                    # Recalculate word count after adding alternative perspectives
+                    strategic_lens_words = len(strategic_lens_content.split())
+                
                 if strategic_lens_words < STRATEGIC_LENS_MIN_WORDS:
                     print(f"⚠️ Strategic Thinking Lens too short: {strategic_lens_words} words (min {STRATEGIC_LENS_MIN_WORDS})")
                     # Target 100-140 words with 2 well-developed paragraphs
@@ -2081,6 +2150,15 @@ def process_query(query: str, course_config: dict = None) -> str:
             if story_action_match:
                 story_action_content = story_action_match.group(1).strip()
                 story_action_words = len(story_action_content.split())
+                
+                # Add alternative scenarios if conditions are met
+                if expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
+                    story_action_content = add_alternative_perspectives(
+                        story_action_content, expanded_entities, query, 
+                        story_action_words, STORY_ACTION_MAX_WORDS, "story_action"
+                    )
+                    # Recalculate word count after adding alternative scenarios
+                    story_action_words = len(story_action_content.split())
                 
                 if story_action_words < 60:  # Check against target range minimum
                     print(f"⚠️ Story in Action too short: {story_action_words} words (target 60-80)")
@@ -2215,7 +2293,7 @@ def process_query(query: str, course_config: dict = None) -> str:
             elif any(app_keyword in concept_lower for app_keyword in [application_field.lower(), "decision", "planning"]):
                 application_concepts.append((concept_name, definition))
             # Entity concepts (only if relevance threshold met)
-            elif (expanded_entities and entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD and 
+            elif (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
                   any(entity_keyword in concept_lower for entity_keyword in ["stakeholder", "timeframe", "criteria"])):
                 entity_concepts.append((concept_name, definition))
             else:
@@ -2237,7 +2315,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                 prioritized_concepts.append(f"{concept_name}: {definition}")
         
         # Add entity concepts only if space available and relevance threshold met
-        if (expanded_entities and entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD and 
+        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
             len(prioritized_concepts) < total_cap):
             for concept_name, definition in entity_concepts[:1]:  # Max 1 entity concept
                 if len(prioritized_concepts) < total_cap:
@@ -2339,6 +2417,38 @@ def process_query(query: str, course_config: dict = None) -> str:
                     answer,
                     flags=re.DOTALL
                 )
+        
+        # ============================================================================
+        # V1.6.5.1 CONTENT PROCESSING OPTIMIZATION
+        # ============================================================================
+        
+        # OPTIMIZATION: Reduce content processing overhead for simple queries
+        is_complex_query = (
+            len(query.split()) > 10 or
+            any(word in query.lower() for word in ["complex", "multiple", "various", "different", "several"])
+        )
+        
+        # OPTIMIZATION: Skip expensive content processing for simple queries
+        if is_complex_query:
+            # Full content processing for complex queries
+            answer = enforce_thinkpal_structure(answer, query)
+            answer = ensure_proper_section_formatting(answer)
+            
+            # OPTIMIZATION: Reduce duplication checks for performance
+            if len(answer.split()) > 200:  # Only check long responses
+                answer = reduce_content_duplication(answer, set())
+        else:
+            # OPTIMIZATION: Minimal processing for simple queries
+            answer = enforce_thinkpal_structure(answer, query)
+            # Skip expensive formatting and duplication checks for simple queries
+        
+        # OPTIMIZATION: Cache the result for future identical queries
+        if len(_query_cache) >= _cache_max_size:
+            # Remove oldest entry if cache is full
+            oldest_key = next(iter(_query_cache))
+            del _query_cache[oldest_key]
+        
+        _query_cache[cache_key] = answer
         
         return answer
         
@@ -2671,7 +2781,7 @@ def reduce_content_duplication(content: str, existing_words: set) -> str:
     protected_concepts = {
         "decision tree", "utility functions", "monte carlo simulation", "sensitivity analysis",
         "linear optimization", "expected value", "risk assessment", "swot analysis",
-        "scenario analysis", "scenario planning", "contingency planning", "batna",
+        "scenario analysis", "scenario planning", "batna",
         "reservation point", "zopa", "supply chain", "risk management", "leadership assessment",
         "cognitive behaviors", "judgment intuitive bias", "negotiation term sheet",
         "value creation", "risk tolerance assessment", "human-computer integration",
@@ -2918,22 +3028,22 @@ def ensure_expected_concepts(concepts: List[Tuple[str, str]], query: str) -> Lis
         },
         "negotiation": {
             "supplier": ["batna", "zopa", "negotiation strategy"],
-            "deal": ["batna", "risk assessment", "contingency planning"],
+            "deal": ["batna", "risk assessment"],
             "value": ["value creation", "integrative negotiation", "negotiation strategy"],
             "salary": ["reservation point", "batna", "negotiation strategy"],
             "negotiate": ["batna", "zopa", "negotiation strategy"],
             "terms": ["batna", "zopa", "negotiation strategy"],
-            "alternative": ["batna", "risk assessment", "contingency planning"]
+            "alternative": ["batna", "risk assessment"]
         },
         "risk": {
             "product": ["risk assessment", "scenario analysis", "market analysis"],
             "R&D": ["monte carlo simulation", "risk assessment", "expected value"],
             "demand": ["monte carlo simulation", "scenario analysis", "forecasting"],
-            "business": ["scenario analysis", "risk assessment", "contingency planning"],
+            "business": ["scenario analysis", "risk assessment"],
             "assess": ["risk assessment", "scenario analysis", "market analysis"],
             "probability": ["monte carlo simulation", "risk assessment", "expected value"],
             "uncertainty": ["monte carlo simulation", "scenario analysis", "forecasting"],
-            "worst-case": ["scenario analysis", "risk assessment", "contingency planning"]
+            "worst-case": ["scenario analysis", "risk assessment"]
         },
         "behavioral": {
             "cognitive": ["cognitive behaviors", "judgment intuitive bias", "group dynamics"],
@@ -3012,6 +3122,235 @@ def ensure_expected_concepts(concepts: List[Tuple[str, str]], query: str) -> Lis
             concepts = concepts[:4]
     
     return concepts
+
+# ============================================================================
+# V1.6.5.1 ALTERNATIVE PERSPECTIVE ENHANCEMENT
+# ============================================================================
+
+def get_entity_categories(expanded_entities: dict) -> List[str]:
+    """
+    Extract unique entity categories from expanded entities.
+    
+    Args:
+        expanded_entities: Dictionary of extracted entities
+        
+    Returns:
+        List of unique entity categories
+    """
+    if not expanded_entities:
+        return []
+    
+    categories = set()
+    for category, entities in expanded_entities.items():
+        if isinstance(entities, dict) and entities:  # Check if category has entities
+            categories.add(category)
+    
+    return list(categories)
+
+def generate_alternative_perspective_strategic_lens(expanded_entities: dict, query: str) -> str:
+    """
+    Generate alternative perspective for Strategic Thinking Lens based on entity categories.
+    
+    Args:
+        expanded_entities: Dictionary of extracted entities
+        query: Original query for context
+        
+    Returns:
+        Alternative perspective sentence or empty string
+    """
+    if not expanded_entities:
+        return ""
+    
+    entity_categories = get_entity_categories(expanded_entities)
+    
+    # Need at least 2 different entity categories for alternative perspective
+    if len(entity_categories) < 2:
+        return ""
+    
+    # Map entity categories to alternative perspectives
+    category_perspectives = {
+        "Timeframe": [
+            "An alternative perspective is to consider the long-term implications rather than immediate outcomes.",
+            "An alternative perspective is to evaluate the timing and sequencing of decisions.",
+            "An alternative perspective is to balance short-term urgency with strategic patience."
+        ],
+        "Stakeholder": [
+            "An alternative perspective is to prioritize stakeholder alignment over individual interests.",
+            "An alternative perspective is to consider the broader organizational impact.",
+            "An alternative perspective is to balance competing stakeholder needs systematically."
+        ],
+        "Criteria": [
+            "An alternative perspective is to focus on qualitative factors beyond quantitative metrics.",
+            "An alternative perspective is to consider intangible benefits and risks.",
+            "An alternative perspective is to evaluate success criteria from multiple angles."
+        ],
+        "Uncertainty": [
+            "An alternative perspective is to embrace uncertainty as an opportunity for innovation.",
+            "An alternative perspective is to develop multiple scenarios rather than single-point forecasts.",
+            "An alternative perspective is to build flexibility into the decision framework."
+        ],
+        "Risk": [
+            "An alternative perspective is to view risk as a catalyst for strategic advantage.",
+            "An alternative perspective is to balance risk mitigation with opportunity capture.",
+            "An alternative perspective is to consider the risk of inaction versus action."
+        ]
+    }
+    
+    # Select the most relevant categories for the query
+    query_lower = query.lower()
+    relevant_categories = []
+    
+    for category in entity_categories:
+        if category in category_perspectives:
+            relevant_categories.append(category)
+    
+    if len(relevant_categories) >= 2:
+        # Select the first two relevant categories
+        selected_categories = relevant_categories[:2]
+        
+        # Generate perspective based on the combination
+        if "Timeframe" in selected_categories and "Stakeholder" in selected_categories:
+            return "An alternative perspective is to align stakeholder interests with appropriate time horizons."
+        elif "Criteria" in selected_categories and "Uncertainty" in selected_categories:
+            return "An alternative perspective is to adapt evaluation criteria to handle uncertainty effectively."
+        elif "Risk" in selected_categories and "Stakeholder" in selected_categories:
+            return "An alternative perspective is to balance stakeholder risk tolerance with strategic objectives."
+        else:
+            # Use the first category's perspective
+            category = selected_categories[0]
+            perspectives = category_perspectives[category]
+            return perspectives[0]  # Return the first perspective for consistency
+    
+    return ""
+
+def generate_alternative_scenario_story_action(expanded_entities: dict, query: str) -> str:
+    """
+    Generate alternative scenario for Story in Action based on entity categories.
+    
+    Args:
+        expanded_entities: Dictionary of extracted entities
+        query: Original query for context
+        
+    Returns:
+        Alternative scenario sentence or empty string
+    """
+    if not expanded_entities:
+        return ""
+    
+    entity_categories = get_entity_categories(expanded_entities)
+    
+    # Need at least 2 different entity categories for alternative scenario
+    if len(entity_categories) < 2:
+        return ""
+    
+    # Map entity categories to alternative scenarios
+    category_scenarios = {
+        "Timeframe": [
+            "Alternatively, a more patient approach could yield better long-term results despite short-term challenges.",
+            "Alternatively, accelerating the timeline might capture first-mover advantages in this situation.",
+            "Alternatively, phasing the implementation could balance urgency with thoroughness."
+        ],
+        "Stakeholder": [
+            "Alternatively, focusing on a different stakeholder group might reveal unexpected opportunities.",
+            "Alternatively, bringing in additional stakeholders could provide fresh perspectives.",
+            "Alternatively, prioritizing internal stakeholders over external ones might be more strategic."
+        ],
+        "Criteria": [
+            "Alternatively, using different success metrics might change the optimal decision.",
+            "Alternatively, considering non-financial criteria could lead to better outcomes.",
+            "Alternatively, weighting criteria differently might reveal overlooked options."
+        ],
+        "Uncertainty": [
+            "Alternatively, embracing the uncertainty could lead to more innovative solutions.",
+            "Alternatively, developing contingency plans might reduce the perceived risk.",
+            "Alternatively, gathering more information might not be worth the delay."
+        ],
+        "Risk": [
+            "Alternatively, taking calculated risks might be necessary for breakthrough results.",
+            "Alternatively, risk-averse approaches might miss significant opportunities.",
+            "Alternatively, sharing risks with partners could enable more ambitious goals."
+        ]
+    }
+    
+    # Select the most relevant categories for the query
+    query_lower = query.lower()
+    relevant_categories = []
+    
+    for category in entity_categories:
+        if category in category_scenarios:
+            relevant_categories.append(category)
+    
+    if len(relevant_categories) >= 2:
+        # Select the first two relevant categories
+        selected_categories = relevant_categories[:2]
+        
+        # Generate scenario based on the combination
+        if "Timeframe" in selected_categories and "Stakeholder" in selected_categories:
+            return "Alternatively, a phased approach involving key stakeholders at each stage could balance speed with buy-in."
+        elif "Criteria" in selected_categories and "Uncertainty" in selected_categories:
+            return "Alternatively, using adaptive criteria that evolve with changing circumstances might be more effective."
+        elif "Risk" in selected_categories and "Stakeholder" in selected_categories:
+            return "Alternatively, involving stakeholders in risk assessment might reveal acceptable risk levels."
+        else:
+            # Use the first category's scenario
+            category = selected_categories[0]
+            scenarios = category_scenarios[category]
+            return scenarios[0]  # Return the first scenario for consistency
+    
+    return ""
+
+def add_alternative_perspectives(content: str, expanded_entities: dict, query: str, 
+                               current_words: int, max_words: int, section_type: str) -> str:
+    """
+    Add alternative perspectives to content based on entity categories and word count.
+    
+    Args:
+        content: Original content
+        expanded_entities: Dictionary of extracted entities
+        query: Original query for context
+        current_words: Current word count
+        max_words: Maximum allowed words
+        section_type: "strategic_lens" or "story_action"
+        
+    Returns:
+        Content with alternative perspectives added (if applicable)
+    """
+    if not expanded_entities:
+        return content
+    
+    entity_categories = get_entity_categories(expanded_entities)
+    
+    # Check if we have enough entity variety (at least 2 different categories)
+    if len(entity_categories) < 2:
+        return content
+    
+    # Calculate available word budget
+    available_words = max_words - current_words
+    
+    if section_type == "strategic_lens":
+        # Strategic Thinking Lens rules: <120 words OR at least 2 entities from different categories
+        if current_words < 120 or len(entity_categories) >= 2:
+            alternative_perspective = generate_alternative_perspective_strategic_lens(expanded_entities, query)
+            if alternative_perspective and len(alternative_perspective.split()) <= available_words:
+                # Add the alternative perspective before the last sentence
+                sentences = content.split('. ')
+                if len(sentences) > 1:
+                    # Insert before the last sentence
+                    sentences.insert(-1, alternative_perspective)
+                    return '. '.join(sentences)
+                else:
+                    # If only one sentence, append
+                    return content + ' ' + alternative_perspective
+    
+    elif section_type == "story_action":
+        # Story in Action rules: at least 2 entities from different categories
+        if len(entity_categories) >= 2:
+            alternative_scenario = generate_alternative_scenario_story_action(expanded_entities, query)
+            if alternative_scenario and len(alternative_scenario.split()) <= available_words:
+                # Add the alternative scenario at the end
+                return content + ' ' + alternative_scenario
+    
+    return content
 
 # Main execution for testing
 if __name__ == "__main__":
