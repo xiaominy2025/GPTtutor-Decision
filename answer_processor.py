@@ -21,7 +21,8 @@ class AnswerProcessor:
         self.sections = {
             "strategic_thinking": {"emoji": "🧠", "title": "Strategic Thinking Lens"},
             "story_action": {"emoji": "📘", "title": "Story in Action"},
-            "deeper_questions": {"emoji": "💬", "title": "Want to Go Deeper?"}
+            "followup_prompts": {"emoji": "💬", "title": "Follow-up Prompts"},
+            "concepts_tools": {"emoji": "🔧", "title": "Concepts/Tools"}
         }
     
     def parse_answer(self, answer: str) -> Dict[str, Any]:
@@ -53,10 +54,28 @@ class AnswerProcessor:
     
     def _extract_section(self, answer: str, emoji: str) -> Optional[str]:
         """Extract content from a specific section"""
-        pattern = rf'\*\*{emoji}\s*([^*]+)\*\*(.*?)(?=\*\*[^🧠📘💬]|$)'
-        match = re.search(pattern, answer, re.DOTALL | re.IGNORECASE)
-        if match:
-            return match.group(2).strip()
+        # Find the section title based on emoji
+        section_title = None
+        for section_key, section_info in self.sections.items():
+            if section_info["emoji"] == emoji:
+                section_title = section_info["title"]
+                break
+        
+        if not section_title:
+            return None
+        
+        # Pattern 1: With emoji (old format)
+        pattern1 = rf'\*\*{emoji}\s*([^*]+)\*\*(.*?)(?=\*\*[^🧠📘💬🔧]|$)'
+        match1 = re.search(pattern1, answer, re.DOTALL | re.IGNORECASE)
+        
+        # Pattern 2: Without emoji (current format)
+        pattern2 = rf'\*\*{section_title}\*\*(.*?)(?=\*\*[^🧠📘💬🔧]|$)'
+        match2 = re.search(pattern2, answer, re.DOTALL | re.IGNORECASE)
+        
+        if match1:
+            return match1.group(2).strip()
+        elif match2:
+            return match2.group(1).strip()
         return None
     
     def _extract_tooltips(self, answer: str) -> Dict[str, str]:
