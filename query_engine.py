@@ -29,43 +29,6 @@ openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
 openai_max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
 openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 
-
-# ============================================================================
-# V1.6.5.1 STATIC ENTITIES INTEGRATION
-# ============================================================================
-# Using static clean_entities.json for production entity enrichment
-# No runtime filtering - all entities are pre-approved and optimized
-# See clean_entities.json for the complete list of 255 approved entities
-# ============================================================================
-# V1.6.5.1 FEATURE FLAGS - DOMAIN-DRIVEN LOGIC HIERARCHY
-# ============================================================================
-
-# Entity Enhancement Feature Flags - Controlled Enrichment
-USE_ENHANCED_ENTITIES = True   # Enable entity enrichment
-ENTITY_RELEVANCE_THRESHOLD = 0.7  # Only inject entities if relevance >= 0.7
-ENTITY_SOFT_THRESHOLD = 0.6   # Soft threshold for 15% score reduction
-MAX_ENTITY_INSERTIONS = 2      # Maximum 2 entity insertions per section
-ENTITY_WEIGHT_FACTOR = 0.1     # 10% influence max for enhanced entity integration
-GRADUAL_WEIGHT_INCREASE = True # Gradual rollout control
-
-# Word Count Enforcement Flags - Target 100-140 words for Strategic Lens
-ENFORCE_WORD_COUNTS = True     # Enable word count limits
-STRATEGIC_LENS_MIN_WORDS = 100 # Minimum words for Strategic Thinking Lens (target 100-140)
-STRATEGIC_LENS_MAX_WORDS = 160 # Maximum words for Strategic Thinking Lens (increased to allow complete sentences)
-STORY_ACTION_MIN_WORDS = 40    # Minimum words for Story in Action
-STORY_ACTION_MAX_WORDS = 80    # Maximum words for Story in Action
-
-# Quality Control Flags
-ENFORCE_DUPLICATION_LIMITS = True  # Enable duplication rate limits
-MAX_DUPLICATION_RATE = 0.08        # Maximum 8% duplication (normal tests)
-MAX_DUPLICATION_RATE_STRESS = 0.10 # Maximum 10% duplication (stress tests)
-ENFORCE_CLARITY_THRESHOLDS = True  # Enable clarity score validation
-MIN_CLARITY_SCORE = 0.6            # Minimum clarity score threshold
-MIN_CLARITY_SCORE_STRESS = 0.5     # Minimum clarity score for stress tests
-
-# Debug and Enhancement Flags
-DEBUG_MODE = True  # Enable debug logging for behavioral bias detection and rollback
-
 if not openai_api_key:
     print("❌ Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
@@ -80,10 +43,6 @@ _documents = None
 _file_names = None
 _model = None
 _nlp = None
-
-# OPTIMIZATION: Add simple cache for repeated queries
-_query_cache = {}
-_cache_max_size = 50  # Limit cache size to prevent memory issues
 
 def load_data_lazily():
     """Load data only when needed"""
@@ -149,8 +108,8 @@ CONCEPT_GLOSSARY = {
     "risk assessment": {"definition": "Systematic evaluation of potential threats and their impact on decision outcomes", "core": True, "aliases": ['risk evaluation', 'risk analysis', 'threat assessment']},
     "scenario planning": {"definition": "Exploring different future possibilities to prepare for uncertainty", "core": True, "aliases": ['scenario analysis', 'future planning', 'uncertainty planning']},
     "scenario analysis": {"definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making", "core": True, "aliases": ['scenario planning', 'model uncertainty', 'uncertainty modeling']},
-
-    "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ['decision mapping', 'outcome mapping', 'tree analysis', 'decision branching']},
+    "contingency planning": {"definition": "Developing backup strategies to prepare for uncertainty", "core": False, "aliases": ['backup planning', 'emergency planning', 'fallback strategies']},
+    "decision tree": {"definition": "A visual tool that maps out different options and their potential outcomes", "core": True, "aliases": ['decision mapping', 'option tree', 'outcome mapping', 'tree analysis', 'decision branching']},
     "swot analysis": {"definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats", "core": True, "aliases": ['swot', 'strengths weaknesses', 'opportunities threats', 'strengths weaknesses opportunities threats', 'swot analysis']},
     "monte carlo simulation": {"definition": "A statistical modeling tool that uses random sampling to simulate thousands of potential outcomes under uncertainty for risk analysis and production planning", "core": True, "aliases": ['monte carlo', 'simulation modeling', 'statistical simulation', 'uncertainty simulation', 'probabilistic simulation', 'simulate', 'scenarios', 'thousands', 'random sampling', 'simulate uncertainty']},
     "sensitivity analysis": {"definition": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions", "core": True, "aliases": ['sensitivity testing', 'what-if analysis', 'parameter analysis', 'change parameters', 'different values', 'affects outcome', 'test different inputs', 'parameter sensitivity', 'what if']},
@@ -160,8 +119,7 @@ CONCEPT_GLOSSARY = {
     "batna": {"definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached", "core": True, "aliases": ['best alternative', 'walk away option', 'negotiation alternative', 'reservation alternative', 'best alternative to negotiated agreement', 'best option if no deal', 'alternative to agreement']},
     "reservation point": {"definition": "The least favorable outcome acceptable before walking away from a negotiation", "core": True, "aliases": ['walk away point', 'minimum acceptable', 'bottom line', 'walk-away point', 'minimum outcome', 'least acceptable', 'walk away', 'reservation point']},
     "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ['zone of agreement', 'negotiation zone', 'agreement zone', 'bargaining zone', 'possible agreement', 'negotiation', 'zone of possible agreement', 'agreement range']},
-    "supply chain": {"definition": "The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer", "core": True, "aliases": ['supply network', 'logistics network', 'procurement network', 'distribution network']},
-    "risk management": {"definition": "The process of identifying, assessing, and controlling threats to an organization's capital and earnings", "core": True, "aliases": ['risk assessment', 'risk control', 'threat management', 'risk mitigation']},
+    "supply chain risk management": {"definition": "Identifying and mitigating risks in procurement and distribution", "core": False, "aliases": ['supply chain', 'procurement risk', 'distribution risk']},
     "leadership assessment": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": False, "aliases": ['leadership evaluation', 'leadership skills', 'management assessment']},
     "cognitive behaviors": {"definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias", "core": True, "aliases": ['cognitive behavior', 'thinking patterns', 'mental models', 'cognitive bias']},
     "judgment intuitive bias": {"definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously", "core": True, "aliases": ['cognitive bias', 'judgment bias', 'thinking errors', 'decision bias']},
@@ -273,9 +231,10 @@ CONCEPT_DOMAINS = {
     # General decision-making concepts (can apply to multiple domains)
     "decision tree": "technical",
     "risk assessment": "technical",
-
-    "supply chain": "strategic",
-    "risk management": "technical",
+    "contingency planning": "general",
+    "grow model": "general",
+    "ooda loop": "general",
+    "supply chain risk management": "general",
     "human-computer integration": "technical"
 }
 
@@ -310,80 +269,39 @@ def detect_course_concept_domains(query: str) -> dict:
         'individual', 'group', 'social', 'interpersonal', 'communication',
         'behave', 'behaving', 'behaved', 'psychologic', 'cognitively', 'judge', 'judging',
         'lead', 'leading', 'led', 'motivate', 'motivating', 'motivated', 'feel', 'feeling',
-        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating'
+        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating',
+        # Manager and workplace relationship keywords
+        'manager', 'managers', 'boss', 'supervisor', 'supervisors', 'colleague', 'colleagues',
+        'workplace', 'office', 'professional', 'professionally', 'work', 'working',
+        'critique', 'critiques', 'criticism', 'criticisms', 'feedback', 'unfair', 'fair',
+        'approach', 'approaching', 'situation', 'circumstance', 'circumstances',
+        'relationship', 'relationships', 'interpersonal', 'communication', 'communicate',
+        'response', 'respond', 'responding', 'react', 'reacting', 'reaction', 'reactions'
     ]
     for keyword in behavioral_keywords:
         if keyword in query_lower:
             course_concept_domains['behavioral'] += 1
     
-    # Technical/analytical indicators
+    # Technical/analytical indicators (FOCUSED - only truly technical terms)
     technical_keywords = [
-        'model', 'modeling', 'modeled', 'simulation', 'simulate', 'simulating', 'simulated',
-        'forecast', 'forecasting', 'forecasted', 'optimization', 'optimize', 'optimizing', 
-        'optimized', 'optimum', 'optimization strategy', 'optimization strategies',
-        'maximization', 'maximize', 'maximizing', 'maximized', 'maximum', 'minimization', 
-        'minimize', 'minimizing', 'minimized', 'minimum', 'simulation strategy', 'simulation strategies',
-        'analysis', 'analyze', 'analyzing', 'analyzed', 'analytical',
-        'data', 'statistical', 'statistics', 'mathematical', 'mathematics',
-        'algorithm', 'algorithms', 'uncertainty', 'uncertain', 'uncertainties', 'probability', 
-        'probabilistic', 'probable', 'calculate', 'calculation', 'calculating', 'calculated',
-        'compute', 'computation', 'computing', 'computed', 'numerical', 'numeric',
-        'assess', 'assessment', 'assessing', 'assessed', 'evaluate', 'evaluation', 
-        'evaluating', 'evaluated', 'measure', 'measurement', 'measuring', 'measured',
-        'determine', 'determining', 'determined', 'estimate', 'estimating', 'estimated',
-        'predict', 'predicting', 'predicted', 'prediction', 'predictions',
-        'production', 'demand', 'storage', 'capacity', 'inventory', 'supply chain',
-        'operations', 'operational', 'manufacturing', 'logistics', 'distribution',
-        # Technical implementation keywords
-        'implement', 'implementation', 'implementing', 'implemented', 'deploy', 'deployment',
-        'deploying', 'deployed', 'install', 'installation', 'installing', 'installed',
-        'configure', 'configuration', 'configuring', 'configured', 'setup', 'set up',
-        'integrate', 'integration', 'integrating', 'integrated', 'develop', 'development',
-        'developing', 'developed', 'build', 'building', 'built', 'create', 'creating', 'created',
-        'design', 'designing', 'designed', 'architecture', 'architectural', 'system', 'systems',
-        'technical', 'technically', 'technology', 'technological', 'digital', 'automation',
-        'automated', 'automate', 'automating', 'programming', 'program', 'programmed',
-        'coding', 'code', 'coded', 'software', 'hardware', 'infrastructure', 'platform',
-        # Enhanced technical keywords for analysis and evaluation
-        'choose', 'choosing', 'chose', 'chosen', 'choice', 'choices', 'select', 'selecting', 'selected',
-        'compare', 'comparing', 'compared', 'comparison', 'compare options', 'compare alternatives',
-        'option', 'options', 'alternative', 'alternatives', 'approach', 'approaches',
-        'method', 'methods', 'methodology', 'methodologies', 'technique', 'techniques',
-        'tool', 'tools', 'framework', 'frameworks', 'process', 'processes', 'procedure', 'procedures',
-        'strategy', 'strategies', 'strategic', 'strategically', 'plan', 'planning', 'planned',
-        'decision', 'decisions', 'decide', 'deciding', 'decided', 'decision-making', 'decision making',
-        'evaluate', 'evaluating', 'evaluated', 'evaluation', 'assess', 'assessing', 'assessed', 'assessment',
-        'analyze', 'analyzing', 'analyzed', 'analysis', 'analytical', 'analytically',
-        'examine', 'examining', 'examined', 'examination', 'investigate', 'investigating', 'investigated',
-        'study', 'studying', 'studied', 'research', 'researching', 'researched',
-        'test', 'testing', 'tested', 'experiment', 'experimenting', 'experimented',
-        'trial', 'trials', 'pilot', 'piloting', 'piloted', 'prototype', 'prototyping', 'prototyped',
-        'launch', 'launching', 'launched', 'release', 'releasing', 'released', 'deploy', 'deploying', 'deployed',
-        'product', 'products', 'service', 'services', 'solution', 'solutions',
-        'project', 'projects', 'initiative', 'initiatives', 'campaign', 'campaigns',
-        'visualize', 'visualizing', 'visualized', 'visualization', 'visual', 'visually',
-        'map', 'mapping', 'mapped', 'diagram', 'diagrams', 'chart', 'charts', 'graph', 'graphs',
-        'tree', 'trees', 'flow', 'flows', 'flowchart', 'flowcharts', 'structure', 'structures',
-        'model', 'modeling', 'modeled', 'models', 'framework', 'frameworks',
-        'matrix', 'matrices', 'grid', 'grids', 'table', 'tables', 'list', 'lists',
-        'categorize', 'categorizing', 'categorized', 'classification', 'classify', 'classifying', 'classified',
-        'organize', 'organizing', 'organized', 'organization', 'structure', 'structuring', 'structured',
-        'prioritize', 'prioritizing', 'prioritized', 'priority', 'priorities', 'rank', 'ranking', 'ranked',
-        'score', 'scoring', 'scored', 'rating', 'ratings', 'rate', 'rating', 'rated',
-        'weight', 'weighting', 'weighted', 'weighted analysis', 'weighted evaluation',
-        'criteria', 'criterion', 'factor', 'factors', 'consideration', 'considerations',
-        'metric', 'metrics', 'measure', 'measures', 'measuring', 'measured', 'measurement',
-        'performance', 'perform', 'performing', 'performed', 'efficiency', 'effective', 'effectiveness',
-        'cost', 'costs', 'costing', 'costed', 'benefit', 'benefits', 'beneficial',
-        'risk', 'risks', 'risky', 'uncertainty', 'uncertain', 'uncertainties',
-        'probability', 'probable', 'probabilistic', 'likely', 'likelihood',
-        'scenario', 'scenarios', 'outcome', 'outcomes', 'result', 'results',
-        'impact', 'impacts', 'effect', 'effects', 'consequence', 'consequences',
-        'timeline', 'timelines', 'schedule', 'schedules', 'timing', 'time', 'timing',
-        'resource', 'resources', 'budget', 'budgets', 'funding', 'fund', 'funds',
-        'team', 'teams', 'staff', 'personnel', 'expertise', 'skills', 'capabilities',
-        'technology', 'technological', 'technical', 'technically', 'digital', 'automation',
-        'platform', 'platforms', 'system', 'systems', 'infrastructure', 'architecture'
+        'simulation', 'simulate', 'simulating', 'simulated',
+        'forecast', 'forecasting', 'forecasted', 
+        'optimization', 'optimize', 'optimizing', 'optimized',
+        'maximization', 'maximize', 'maximizing', 'maximized',
+        'minimization', 'minimize', 'minimizing', 'minimized',
+        'algorithm', 'algorithms', 'mathematical', 'mathematics',
+        'calculate', 'calculation', 'calculating', 'calculated',
+        'compute', 'computation', 'computing', 'computed',
+        'production', 'demand', 'storage', 'capacity', 'inventory',
+        'operations', 'operational', 'manufacturing', 'logistics',
+        'data', 'statistical', 'statistics', 'numerical', 'numeric',
+        'uncertainty', 'uncertain', 'uncertainties', 'probability', 
+        'probabilistic', 'probable', 'scenario', 'scenarios',
+        'model', 'modeling', 'modeled', 'models',
+        'visualize', 'visualizing', 'visualized', 'visualization',
+        'map', 'mapping', 'mapped', 'diagram', 'diagrams',
+        'chart', 'charts', 'graph', 'graphs', 'tree', 'trees',
+        'flow', 'flows', 'flowchart', 'flowcharts'
     ]
     for keyword in technical_keywords:
         if keyword in query_lower:
@@ -462,11 +380,8 @@ def detect_query_domain(query: str) -> str:
     Returns: 'behavioral', 'technical', 'strategic', 'negotiation', or 'general'
     """
     domains = detect_course_concept_domains(query)
-    # Return the domain with the highest score, or 'general' if empty
-    if domains:
-        return max(domains, key=domains.get)
-    else:
-        return 'general'
+    # Return the domain with the highest score
+    return max(domains, key=domains.get)
 
 def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = None) -> List[Tuple[str, str]]:
     """
@@ -491,12 +406,16 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # Detect multiple domains for better concept filtering
-        query_domains = detect_course_concept_domains(query)
+        # Use semantic domain detection for more accurate classification
+        query_domains = detect_domain_semantic(query)
         if query_domains:
+            # Only use the strongest domain to avoid broadening perspectives
             primary_domain = max(query_domains, key=query_domains.get)
+            # Convert to single-domain format to prevent multi-domain broadening
+            query_domains = {primary_domain: query_domains[primary_domain]}
         else:
             primary_domain = 'general'
+            query_domains = {}
         
         # Generate embedding for the query
         query_embedding = model.encode([query])
@@ -536,8 +455,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         is_choice_query = any(word in query_lower for word in [
             'choose', 'choosing', 'choice', 'choices', 'select', 'selecting', 'selection',
             'option', 'options', 'alternative', 'alternatives', 'between', 'versus', 'vs',
-            'which', 'what', 'how to choose', 'how to select', 'evaluate options', 'compare options',
-            'job offer', 'job offers', 'career choice', 'career decision'
+            'which', 'what', 'how to choose', 'how to select', 'evaluate options', 'compare options'
         ])
         
         # Enhanced pattern recognition for better concept selection
@@ -576,7 +494,9 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Define concept-pattern relationships for boosting
                 concept_patterns = {
                     'decision tree': ['comparison', 'planning'],
+     
                     'swot analysis': ['analysis', 'planning'],
+                    'monte carlo simulation': ['risk', 'forecasting'],
                     'scenario analysis': ['risk', 'planning'],
                     'linear optimization': ['optimization', 'analysis'],
                     'sensitivity analysis': ['analysis', 'risk'],
@@ -588,17 +508,6 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                     'moving average': ['forecasting', 'analysis'],
                     'regression': ['forecasting', 'analysis']
                 }
-                
-                # For job offer decisions, exclude complex concepts
-                if is_choice_query and any(word in query_lower for word in ['job offer', 'job offers', 'career choice', 'career decision']):
-                    # Only allow simple, relevant concepts for job decisions
-                    allowed_concepts = ['decision tree', 'swot analysis', 'scenario analysis']
-                    if concept_name == 'decision tree':
-                        pattern_boost = 0.3  # Strong boost for decision tree in job decisions
-                    elif concept_name == 'monte carlo simulation':
-                        pattern_boost = -1.0  # Heavy penalty to exclude Monte Carlo
-                    elif concept_name not in allowed_concepts:
-                        pattern_boost = -0.5  # Heavy penalty for irrelevant concepts
                 
                 # Check if this concept should be boosted based on detected patterns
                 if concept_name in concept_patterns:
@@ -626,7 +535,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic penalty
             score -= generic_penalty
             
-            if score > 0.20:  # Lower threshold to capture more concepts (reinstated from V1.6.5)
+            if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -646,7 +555,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                     domain_multiplier = 1.2  # Boost decision tree for visualization queries
                 # Special handling for choice queries - boost decision tree
                 elif is_choice_query and concept_name == "decision tree":
-                    domain_multiplier = 2.0  # Very strong boost for decision tree in choice queries
+                    domain_multiplier = 1.4  # Strong boost for decision tree in choice queries
                 elif query_domains:  # If specific domains are detected
                     if concept_domain in query_domains:
                         # Concept domain is detected in query - use weighted score
@@ -662,7 +571,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                         # The stronger the domain signals, the more we penalize general concepts
                         strongest_domain_score = max(query_domains.values())
                         if strongest_domain_score > 0.5:  # Strong domain signal
-                            domain_multiplier = 0.6  # Significant penalty (reinstated from V1.6.5)
+                            domain_multiplier = 0.6  # Significant penalty
                         elif strongest_domain_score > 0.3:  # Moderate domain signal
                             domain_multiplier = 0.7  # Moderate penalty
                         else:  # Weak domain signal
@@ -713,23 +622,62 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             primary_score = sorted_domains[0][1]
             
             if primary_score > 0.8:  # Single domain - use higher threshold
-                primary_threshold = 0.50
-                secondary_threshold = 0.40
-                core_threshold = 0.35
+                primary_threshold = 0.35  # Lowered from 0.50
+                secondary_threshold = 0.25  # Lowered from 0.40
+                core_threshold = 0.20  # Lowered from 0.35
             else:  # Multi-domain - use proper thresholds
-                primary_threshold = 0.50  # Primary domain concepts
-                secondary_threshold = 0.40  # Secondary domain concepts
-                core_threshold = 0.35  # Core concepts just under threshold
+                primary_threshold = 0.35  # Lowered from 0.50
+                secondary_threshold = 0.25  # Lowered from 0.40
+                core_threshold = 0.20  # Lowered from 0.35
         else:  # General query - use higher threshold
-            primary_threshold = 0.50
-            secondary_threshold = 0.40
-            core_threshold = 0.35
+            primary_threshold = 0.35  # Lowered from 0.50
+            secondary_threshold = 0.25  # Lowered from 0.40
+            core_threshold = 0.20  # Lowered from 0.35
         
         # Filter to only high-quality concepts with appropriate threshold
         high_quality_concepts = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= primary_threshold]
         
         # Check if we have core concepts that are just under the threshold but should be included
         core_concepts_under_threshold = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= core_threshold and is_core and score < primary_threshold]
+        
+        # Add concept relevance validation
+        def is_concept_relevant_to_query(concept_name: str, query: str, concept_domain: str) -> bool:
+            """Validate if a concept is actually relevant to the query."""
+            query_lower = query.lower()
+            
+            # Domain-specific relevance checks
+            if concept_domain == 'behavioral':
+                # For behavioral queries, ensure concepts relate to human behavior/psychology
+                behavioral_keywords = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response']
+                if any(keyword in query_lower for keyword in behavioral_keywords):
+                    # Mental accounting is about money - not relevant for workplace feedback
+                    if concept_name == 'mental accounting':
+                        return False
+                    # Framing bias is about how options are presented - very relevant for critiques
+                    if concept_name == 'framing bias':
+                        return True
+                    # Other behavioral concepts are generally relevant
+                    return True
+            
+            return True  # Default to relevant for other domains
+        
+        # Apply relevance filtering
+        relevant_concepts = []
+        for name, definition, score, is_core in high_quality_concepts:
+            concept_domain = CONCEPT_DOMAINS.get(name, 'general')
+            if is_concept_relevant_to_query(name, query, concept_domain):
+                relevant_concepts.append((name, definition, score, is_core))
+        
+        # If we don't have enough relevant concepts, include some from under threshold
+        if len(relevant_concepts) < 2:
+            for name, definition, score, is_core in core_concepts_under_threshold:
+                concept_domain = CONCEPT_DOMAINS.get(name, 'general')
+                if is_concept_relevant_to_query(name, query, concept_domain):
+                    relevant_concepts.append((name, definition, score, is_core))
+                    if len(relevant_concepts) >= 3:
+                        break
+        
+        high_quality_concepts = relevant_concepts
         
         # Smart domain-based concept selection with proper allocation rules
         selected_concepts = []
@@ -738,15 +686,22 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Sort domains by score (highest first)
             sorted_domains = sorted(query_domains.items(), key=lambda x: x[1], reverse=True)
             
-            # Check if this is effectively a single domain (one domain has >80% weight)
+            # Check if this is effectively a single domain (one domain has >60% weight)
             primary_domain = sorted_domains[0][0]
             primary_score = sorted_domains[0][1]
             
-            if primary_score > 0.8:  # Single domain (one domain dominates)
+            if primary_score > 0.5:  # Single domain (one domain dominates)
                 # Single domain: up to 3 concepts from primary domain
                 domain_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
                                  if CONCEPT_DOMAINS.get(name, 'general') == primary_domain][:3]
                 selected_concepts = domain_concepts
+                
+                # If we don't have enough concepts, add more from primary domain
+                if len(selected_concepts) < 3:
+                    additional_primary = [(name, definition) for name, definition, score, is_core in concept_scores 
+                                        if score >= core_threshold and CONCEPT_DOMAINS.get(name, 'general') == primary_domain 
+                                        and (name, definition) not in selected_concepts][:3-len(selected_concepts)]
+                    selected_concepts.extend(additional_primary)
                 
                 # Special case: For visualization queries, include decision tree if it's not already selected
                 if is_visualization_query:
@@ -775,7 +730,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 
                 # Get up to 1 concept from each additional domain (>= secondary_threshold)
                 for domain_name, domain_score in sorted_domains[1:]:
-                    if domain_score > 0.1:  # Only include domains with meaningful weight
+                    if domain_score > 0.15:  # Only include domains with meaningful weight
                         domain_concepts = [(name, definition) for name, definition, score, is_core in concept_scores 
                                          if score >= secondary_threshold and CONCEPT_DOMAINS.get(name, 'general') == domain_name][:1]
                         selected_concepts.extend(domain_concepts)
@@ -783,6 +738,13 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Enforce hard total cap of 4 tooltips maximum
                 if len(selected_concepts) > 4:
                     selected_concepts = selected_concepts[:4]
+                
+                # If we don't have enough concepts, add more from primary domain
+                if len(selected_concepts) < 4:
+                    additional_primary = [(name, definition) for name, definition, score, is_core in concept_scores 
+                                        if score >= core_threshold and CONCEPT_DOMAINS.get(name, 'general') == primary_domain 
+                                        and (name, definition) not in selected_concepts][:4-len(selected_concepts)]
+                    selected_concepts.extend(additional_primary)
                 
                 # Special case: For choice queries, include decision tree if it's not already selected
                 if is_choice_query:
@@ -814,11 +776,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                         selected_concepts.append((name, definition))
                         break
         
-        # Clamp concept count: enforce 2-3 domain-relevant concepts, hard cap of 4
-        if len(selected_concepts) > 4:
-            selected_concepts = selected_concepts[:4]  # Hard cap of 4 concepts
-        
-        # Ensure minimum of 2 concepts, prefer 2-3 domain-relevant concepts
+        # Fallback: if insufficient high-quality concepts, use top concepts regardless of domain
         if len(selected_concepts) < 2:
             if core_concepts_under_threshold:
                 # Include core concepts that are just under threshold
@@ -836,14 +794,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             else:
                 selected_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
         
-        # Prefer 2-3 concepts over 4 when possible
-        if len(selected_concepts) == 4:
-            # If we have 4 concepts, try to reduce to 3 by removing the weakest
-            if selected_concepts:
-                # Keep only the top 3 concepts
-                selected_concepts = selected_concepts[:3]
-        
-        # Deduplicate selected concepts by name (case-insensitive) - aggressive deduplication
+        # Deduplicate selected concepts by name (case-insensitive)
         seen_names = set()
         deduplicated_concepts = []
         for name, definition in selected_concepts:
@@ -948,7 +899,8 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
         "risk analysis": "risk assessment",
         "scenario paths": "scenario planning",
         "scenario analysis": "scenario planning",
-        
+        "contingency plans": "contingency planning",
+        "contingency strategies": "contingency planning"
     }
     
     for text_phrase, concept_key in special_matches.items():
@@ -961,21 +913,19 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
 # 1. V1.6.3 System Prompt - ThinkPal Decision Coach
 SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
 
-IMPORTANT: You will receive context about the application field, relevant concepts, and decision entities. You MUST use this context to generate highly relevant, specific answers rather than generic responses.
-
 Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
 
 ---
 
 **Strategic Thinking Lens**
 
-This is the analytical core. Write **two well-developed paragraphs with a total length of 90-140 words**. You MUST write at least 90 words and no more than 140 words. Use diverse vocabulary and avoid repeating the same phrases or concepts. This section should cover **1–3 relevant domains**, include **tradeoffs**, and be approximately **50% of the answer**. Avoid overloading with bullets or headers. Do **not** use literal framework terms like "strategic mindset" or "human behavior awareness." Instead, express those ideas naturally (e.g. "thinking long-term," "anticipating stakeholder reactions," etc.). Focus on strategic thinking, analytical tools, and human behavior awareness relevant to the query.
+This is the analytical core. Write **2 well-developed paragraphs** (around **120–160 words**). This section should cover **1–3 relevant domains**, include **tradeoffs**, and be approximately **50% of the answer**. Avoid overloading with bullets or headers. Do **not** use literal framework terms like "strategic mindset" or "human behavior awareness." Instead, express those ideas naturally (e.g. "thinking long-term," "anticipating stakeholder reactions," etc.). Focus on strategic thinking, analytical tools, and human behavior awareness relevant to the query.
 
 ---
 
 **Story in Action**
 
-Provide a short 3–4 sentence example (60-80 words). Must mirror the ideas in the Strategic Thinking Lens without being longer or more detailed. Create a concrete scenario that demonstrates the strategic thinking principles discussed above. Use sequential flow ("First... then... finally...") and include specific details that make the example vivid and actionable.
+Provide a short 3–4 sentence example. Must mirror the ideas in the Strategic Thinking Lens without being longer or more detailed.
 
 ---
 
@@ -993,6 +943,8 @@ Concept Name: Short definition
 Concept Name: Short definition
 
 Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
+
+IMPORTANT: Use ONLY the exact definitions provided in the context. Do NOT invent new definitions or modify existing ones. If a concept is provided in the context, use its exact definition.
 
 If the query is narrow or course-specific concepts do not apply, include broader decision-making concepts such as: Stakeholder Alignment, Strategic Framing, or Risk Assessment.
 
@@ -1023,43 +975,34 @@ def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     return truncated.strip()
 
 def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
-    """Calculate optimal token count for API calls - OPTIMIZED"""
+    """Calculate optimal token limit based on input size"""
     total_input = query_length + context_length
-    
-    # OPTIMIZATION: Simplified token calculation for faster processing
-    if total_input > 4000:
-        return 800  # OPTIMIZATION: Reduced from 1000
+    if total_input > 6000:
+        return 800
     elif total_input > 3000:
-        return 600  # OPTIMIZATION: Reduced from 800
-    elif total_input > 2000:
-        return 800  # OPTIMIZATION: Reduced from 1200
+        return 1000
     else:
-        return 600  # OPTIMIZATION: Reduced from 1200
+        return 1200
 
-def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 2):
-    """Handle API calls with retries using system/user message structure - OPTIMIZED FOR SPEED"""
+def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
+    """Handle API calls with retries using system/user message structure"""
     tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_message}
     ]
-    
-    # OPTIMIZATION: Reduced retries and temperature for faster processing
     for attempt in range(max_retries):
         try:
             response = client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
-                temperature=0.7,  # OPTIMIZATION: Reduced from 1.2 for faster, more consistent responses
-                max_tokens=tokens_to_use,
-                # OPTIMIZATION: Add timeout to prevent hanging
-                timeout=30
+                temperature=1.2,  # Increased for more variety
+                max_tokens=tokens_to_use
             )
             return response, None
         except Exception as e:
             if attempt < max_retries - 1:
-                # OPTIMIZATION: Reduced backoff time
-                time.sleep(0.5 * (2 ** attempt))  # Reduced from 1 second
+                time.sleep(1 * (2 ** attempt))
             else:
                 return None, str(e)
     return None, "Max retries exceeded"
@@ -1235,7 +1178,7 @@ def generate_fallback_concepts(query: str) -> List[str]:
         "uncertainty": ["Scenario Analysis: Exploring different future possibilities to prepare for uncertainty", "Risk Assessment: Systematic evaluation of potential threats and their impact"],
         "strategy": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Competitive Analysis: Understanding your position relative to alternatives and competitors"],
         "team": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Leadership Assessment: Evaluating leadership styles and their impact on team decisions"],
-        "supply": ["Supply Chain: The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer", "Risk Management: The process of identifying, assessing, and controlling threats to an organization's capital and earnings", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
+        "supply": ["Supply Chain Risk Management: Identifying and mitigating risks in procurement and distribution", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
         "management": ["Leadership Assessment: Evaluating leadership styles and their impact on organizational decisions", "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives"]
     }
     
@@ -1299,90 +1242,7 @@ def deduplicate_concepts(concepts_section: str) -> str:
         if len(deduplicated_lines) >= 5:
             break
     
-    return '\n'.join(deduplicated_lines)
-
-def improve_concepts_tools_section(concepts_section: str, query: str) -> str:
-    """
-    Improve Concepts/Tools section by ensuring 2-4 unique, relevant concepts.
-    Remove irrelevant concepts (e.g., simulation for job/career queries).
-    
-    Args:
-        concepts_section: Original Concepts/Tools section
-        query: Original query for relevance checking
-        
-    Returns:
-        Improved Concepts/Tools section
-    """
-    lines = [line.strip() for line in concepts_section.strip().split('\n') if line.strip()]
-    query_lower = query.lower()
-    
-    # Define irrelevant concept patterns for different query types
-    irrelevant_patterns = {
-        # Job/career queries shouldn't have technical concepts
-        "job_career": ["simulation", "monte carlo", "linear programming", "optimization", "forecasting", "scenario analysis"],
-        # Technical queries shouldn't have behavioral concepts
-        "technical": ["cognitive bias", "anchoring bias", "confirmation bias", "framing bias", "prospect theory"],
-        # Negotiation queries shouldn't have technical concepts
-        "negotiation": ["simulation", "monte carlo", "linear programming", "optimization", "forecasting"],
-        # Strategic queries shouldn't have technical concepts unless relevant
-        "strategic": ["simulation", "monte carlo", "linear programming"] if "optimization" not in query_lower else []
-    }
-    
-    # Determine query type
-    query_type = None
-    if any(word in query_lower for word in ["job", "career", "salary", "offer", "employment"]):
-        query_type = "job_career"
-    elif any(word in query_lower for word in ["optimization", "linear programming", "simulation", "forecasting"]):
-        query_type = "technical"
-    elif any(word in query_lower for word in ["negotiation", "bargaining", "deal", "agreement"]):
-        query_type = "negotiation"
-    elif any(word in query_lower for word in ["strategy", "competitive", "market", "positioning"]):
-        query_type = "strategic"
-    
-    # Filter out irrelevant concepts
-    relevant_lines = []
-    for line in lines:
-        if ':' not in line:
-            continue
-            
-        concept_name = line.split(':', 1)[0].strip().lower()
-        
-        # Check if concept is irrelevant for this query type
-        is_irrelevant = False
-        if query_type and query_type in irrelevant_patterns:
-            for pattern in irrelevant_patterns[query_type]:
-                if pattern in concept_name:
-                    is_irrelevant = True
-                    break
-        
-        if not is_irrelevant:
-            relevant_lines.append(line)
-    
-    # Ensure we have 2-4 unique concepts
-    if len(relevant_lines) < 2:
-        # Add relevant fallback concepts based on query type
-        if query_type == "job_career":
-            fallback_concepts = ["Decision Tree: Visual tool for mapping options and outcomes", "SWOT Analysis: Framework for identifying strengths, weaknesses, opportunities, and threats", "Risk Assessment: Systematic evaluation of potential threats and their impact"]
-        elif query_type == "technical":
-            fallback_concepts = ["Analytical Methods", "Data-Driven Decision Making", "Systematic Analysis"]
-        elif query_type == "negotiation":
-            fallback_concepts = ["BATNA Analysis", "Value Creation", "Interest-Based Negotiation"]
-        elif query_type == "strategic":
-            fallback_concepts = ["Strategic Analysis", "Competitive Positioning", "Market Assessment"]
-        else:
-            fallback_concepts = ["Decision Frameworks", "Systematic Analysis", "Value Assessment"]
-        
-        # Add fallback concepts that aren't already present
-        existing_concepts = [line.split(':', 1)[0].strip().lower() for line in relevant_lines]
-        for concept in fallback_concepts:
-            if concept.lower() not in existing_concepts and len(relevant_lines) < 4:
-                relevant_lines.append(f"{concept}: Relevant framework for this decision context.")
-    
-    # Limit to maximum 4 concepts
-    if len(relevant_lines) > 4:
-        relevant_lines = relevant_lines[:4]
-    
-    return '\n'.join(relevant_lines) 
+    return '\n'.join(deduplicated_lines) 
 
 def extract_application_field(query: str) -> str:
     """Infer the application field/type from the query for context-aware answer generation."""
@@ -1477,13 +1337,6 @@ def extract_application_field(query: str) -> str:
     if any(word in q for word in ["admission", "college", "university", "school"]):
         return "admission"
     
-    # Career & Personal Development detection - NEW FIELD
-    if any(word in q for word in ["job offer", "job offers", "career choice", "career decision", "career path", 
-                                  "career development", "professional growth", "job opportunity", "employment", 
-                                  "work-life balance", "salary", "benefits", "promotion", "advancement", 
-                                  "career transition", "job change", "career move", "professional decision"]):
-        return "career_development"
-    
     if any(word in q for word in ["relocate", "move", "relocation", "city", "country", "immigrate"]):
         return "relocation"
     
@@ -1533,19 +1386,12 @@ def context_aware_fallbacks(query: str):
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Decision Tree: Mapping out options and outcomes\n- Weighted Scoring Model: Comparing choices using weighted criteria"
         }
-    if application_field == "career_development":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values. The decision tree he creates helps visualize potential career paths and the trade-offs between immediate financial gains and long-term professional development. This systematic approach helps Alex weigh the pros and cons of each opportunity.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Decision Tree: Visual tool for mapping options and outcomes"
-        }
     if application_field == "job":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Decision Matrix: Structured option comparison"
+            'Concepts/Tools': "- Weighted Scoring Model: Structured option comparison\n- Pros and Cons List: Simple evaluation of positives and negatives"
         }
     if application_field == "startup":
         return {
@@ -1667,21 +1513,21 @@ def context_aware_fallbacks(query: str):
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- PESTEL Analysis: Political, Economic, Social, Technological, Environmental, Legal factors\n- Cultural Intelligence: Adapting to local contexts"
         }
-    # Conservative general fallback - only add domain-specific concepts
+    # General fallback - but try to infer context from the query
     # For follow-up questions about trade-offs, objectives, etc., use strategic context
     if any(word in query.lower() for word in ["trade-off", "trade-offs", "trade off", "trade offs", "objectives", "goals", "priorities", "options", "alternatives", "choices"]):
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "A strategic decision-maker systematically evaluates their options by creating a comprehensive framework. They identify key criteria, research alternatives thoroughly, and use analytical tools to compare trade-offs. After weighing both immediate impacts and long-term consequences, they make an informed choice that balances competing priorities and aligns with their strategic objectives.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, "strategic"),
-            'Concepts/Tools': "- Decision Matrix: Comparing alternatives systematically"
+            'Concepts/Tools': "- Strategic Framing: Structuring the decision problem clearly\n- Trade-off Analysis: Comparing competing priorities systematically"
         }
     else:
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Someone facing a complex decision creates a systematic framework to evaluate their options. They list their priorities, research available alternatives, and use structured tools to compare trade-offs. After considering both immediate consequences and long-term implications, they make a well-informed choice that balances multiple competing factors and aligns with their core values.",
             'Follow-up Prompts': ["- What are your main objectives?", "- What trade-offs exist between your options?"],
-            'Concepts/Tools': "- Decision Matrix: Comparing alternatives systematically"
+            'Concepts/Tools': "- Decision Matrix: Comparing alternatives systematically\n- Pros and Cons List: Evaluating positives and negatives"
         }
 
 def generate_course_domain_strategic_lens(query: str, course_domain: str, application_field: str = None) -> str:
@@ -1769,37 +1615,6 @@ def generate_domain_aware_fallback_questions(query: str, domain: str) -> list:
     
     return questions
 
-
-
-def ensure_distinct_story_content(strategic_content: str, story_content: str, query: str = "") -> str:
-    """
-    Ensure Story in Action content is distinct from Strategic Thinking Lens content.
-    
-    Args:
-        strategic_content: Content from Strategic Thinking Lens
-        story_content: Original Story in Action content
-        query: Original query for domain-specific story generation
-        
-    Returns:
-        Distinct Story content
-    """
-    # Extract key phrases from strategic content to avoid repetition
-    strategic_phrases = [
-        "mentor", "career trajectory", "five-year", "skills you'll develop",
-        "dream role", "write down your thoughts", "clarify your priorities",
-        "trusted mentor", "consider how this role fits", "long-term",
-        "growth potential", "personal values", "strategic choice", "mentor advice",
-        "career path", "professional development", "skill building", "consider how",
-        "think about", "reflect on", "evaluate", "analyze", "approach", "lens"
-    ]
-    
-    # Check if story content contains too many strategic phrases
-    story_lower = story_content.lower()
-    strategic_phrase_count = sum(1 for phrase in strategic_phrases if phrase in story_lower)
-    
-    # ALWAYS use domain-specific stories to ensure distinct content
-    return generate_diverse_story_content(query)
-
 def process_query(query: str, course_config: dict = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
@@ -1811,146 +1626,12 @@ def process_query(query: str, course_config: dict = None) -> str:
     Returns:
         Formatted ThinkPal response with all sections
     """
-    
-    # OPTIMIZATION: Check cache for identical queries
-    cache_key = f"{query}_{hash(str(course_config))}"
-    if cache_key in _query_cache:
-        if DEBUG_MODE:
-            print(f"[DEBUG] Cache hit for query: {query[:50]}...")
-        return _query_cache[cache_key]
-    
     try:
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # ============================================================================
-        # V1.6.5.1 DOMAIN-DRIVEN LOGIC HIERARCHY
-        # ============================================================================
-        
-        # Step 1: Primary Domain Detection (Always First)
-        domain = detect_query_domain(query)
-        application_field = extract_application_field(query)
-        
-        # Step 2: Application Field Context (Secondary Bridge)
-        application_context = f"APPLICATION FIELD: {application_field.upper()}\n"
-        application_context += f"Focus your answer specifically on {application_field} decision-making context.\n\n"
-        
-        # Step 3: Controlled Entity Enrichment (Tertiary Layer) - OPTIMIZED
-        expanded_entities = {}
-        entity_weight = 0.0
-        entity_summary = ""
-        entity_relevance_score = 0.0
-        
-        # OPTIMIZATION: Skip entity extraction for simple queries
-        simple_query_indicators = [
-            "what is", "how do i", "explain", "tell me about", "describe",
-            "can you", "could you", "would you", "please", "help me"
-        ]
-        
-        should_extract_entities = (
-            USE_ENHANCED_ENTITIES and 
-            len(query.split()) > 5 and  # OPTIMIZATION: Skip short queries
-            not any(indicator in query.lower() for indicator in simple_query_indicators)
-        )
-        
-        if should_extract_entities:
-            try:
-                from clean_entities_static import extract_expanded_entities, get_entity_summary
-                expanded_entities = extract_expanded_entities(query)
-                
-                # Calculate entity relevance score
-                entity_relevance_score = expanded_entities.get("confidence", 0.0)
-                
-                # Tiered entity weight system implementation
-                if entity_relevance_score >= ENTITY_RELEVANCE_THRESHOLD:
-                    # High confidence - full weight (10%)
-                    entity_weight = ENTITY_WEIGHT_FACTOR
-                    entity_summary = get_entity_summary(expanded_entities)
-                    
-                    # OPTIMIZATION: Reduced logging for performance
-                    if DEBUG_MODE:
-                        print(f"🔍 Extracted entities: {entity_summary}")
-                        print(f"[DEBUG] Entity confidence: {entity_relevance_score:.3f} (high confidence - 10% weight)")
-                elif entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
-                    # Moderate confidence - reduced weight (8.5%)
-                    entity_weight = ENTITY_WEIGHT_FACTOR * 0.85  # 15% reduction
-                    entity_summary = get_entity_summary(expanded_entities)
-                    
-                    # OPTIMIZATION: Reduced logging for performance
-                    if DEBUG_MODE:
-                        print(f"🔍 Extracted entities (soft filter): {entity_summary}")
-                        print(f"[DEBUG] Entity confidence: {entity_relevance_score:.3f} (moderate confidence - 8.5% weight)")
-                else:
-                    # Below soft threshold - discard
-                    if DEBUG_MODE:
-                        print(f"[DEBUG] Entity relevance below soft threshold: {entity_relevance_score:.3f} < {ENTITY_SOFT_THRESHOLD}")
-                    expanded_entities = {}  # Graceful fallback
-                    entity_weight = 0.0
-                    entity_summary = ""
-                    
-            except Exception as e:
-                if DEBUG_MODE:
-                    print(f"⚠️ Entity extraction failed: {e}")
-                expanded_entities = {}  # Fallback to empty
-                entity_weight = 0.0
-                entity_summary = ""
-        else:
-            # OPTIMIZATION: Skip entity extraction for simple queries
-            if DEBUG_MODE:
-                print(f"[DEBUG] Skipping entity extraction for simple query: {query[:50]}...")
-        
         # Extract concepts using semantic similarity
         concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
-        
-        # ============================================================================
-        # V1.6.5.1 PHASE 4.3: ENSURE EXPECTED CONCEPTS
-        # ============================================================================
-        
-        # Ensure expected concepts are included based on domain requirements
-        concepts = ensure_expected_concepts(concepts, query)
-        
-        # ============================================================================
-        # V1.6.5.1 BEHAVIORAL BIAS DETECTION AND ENHANCEMENT - OPTIMIZED
-        # ============================================================================
-        
-        # Store baseline concepts for rollback safety
-        baseline_concepts = [concept_name for concept_name, _ in concepts]
-        
-        # OPTIMIZATION: Skip behavioral bias detection for simple queries
-        should_detect_biases = (
-            USE_ENHANCED_ENTITIES and 
-            len(query.split()) > 8 and  # OPTIMIZATION: Only for complex queries
-            any(word in query.lower() for word in ["decision", "choose", "select", "evaluate", "assess", "analyze"])
-        )
-        
-        # Detect behavioral biases for strategic queries
-        behavioral_biases = []
-        if should_detect_biases:
-            behavioral_biases = detect_behavioral_biases(query)
-            
-            # Add behavioral biases to concepts if not already present
-            for bias in behavioral_biases:
-                if bias not in baseline_concepts:
-                    # Find bias definition in CONCEPT_GLOSSARY
-                    bias_lower = bias.lower()
-                    bias_definition = None
-                    
-                    for concept_key, concept_data in CONCEPT_GLOSSARY.items():
-                        if bias_lower in concept_key or bias_lower.replace(' ', '') in concept_key.replace(' ', ''):
-                            if isinstance(concept_data, dict):
-                                bias_definition = concept_data["definition"]
-                            else:
-                                bias_definition = concept_data
-                            break
-                    
-                    if bias_definition:
-                        concepts.append((bias, bias_definition))
-                        if DEBUG_MODE:
-                            print(f"[DEBUG] Added behavioral bias: {bias}")
-        else:
-            # OPTIMIZATION: Skip bias detection for simple queries
-            if DEBUG_MODE:
-                print(f"[DEBUG] Skipping behavioral bias detection for simple query")
         
         # Detect application field for context-aware generation
         application_field = extract_application_field(query)
@@ -1968,71 +1649,11 @@ def process_query(query: str, course_config: dict = None) -> str:
                 concept_context += f"- {concept_name}: {definition}\n"
             user_message += concept_context + "\n"
         
-        # Add application field context (domain-driven priority)
-        user_message += f"APPLICATION FIELD: {application_field.upper()}\n"
-        user_message += f"Focus your answer specifically on {application_field} decision-making context.\n\n"
+        # Add application field context
+        user_message += f"Application field: {application_field}\n\n"
         
-        # ============================================================================
-        # V1.6.5.1 CONTROLLED ENTITY ENRICHMENT (Tertiary Layer)
-        # ============================================================================
-        
-        # Only inject entities if relevance threshold is met and not generic
-        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
-            entity_summary and entity_summary != "general decision"):
-            
-            # Limited entity context injection (max 2 insertions)
-            entity_insertions = 0
-            
-            # Add primary entity context
-            entity_context = f"DECISION CONTEXT: {entity_summary.upper()}\n"
-            user_message += entity_context
-            entity_insertions += 1
-            
-            # Add specific entity details (limited to 1 additional insertion)
-            if entity_insertions < MAX_ENTITY_INSERTIONS:
-                if expanded_entities.get("stakeholders"):
-                    stakeholders = [k for k, v in expanded_entities["stakeholders"].items() if v["confidence"] > 0.3]
-                    if stakeholders:
-                        user_message += f"Key stakeholders: {', '.join(stakeholders)}\n"
-                        entity_insertions += 1
-                
-                if entity_insertions < MAX_ENTITY_INSERTIONS and expanded_entities.get("criteria"):
-                    criteria = [k for k, v in expanded_entities["criteria"].items() if v["confidence"] > 0.3]
-                    if criteria:
-                        user_message += f"Primary criteria: {', '.join(criteria)}\n"
-                        entity_insertions += 1
-            
-            user_message += "\n"
-            print(f"[DEBUG] Entity insertions: {entity_insertions}/{MAX_ENTITY_INSERTIONS}")
-        else:
-            # Graceful fallback to domain + application fields
-            print(f"[DEBUG] No entities injected - using domain-driven approach")
-        
-        # ============================================================================
-        # V1.6.5.1 DOMAIN-DRIVEN INSTRUCTION ENFORCEMENT
-        # ============================================================================
-        
-        # Ensure domain-driven approach is maintained
-        user_message += "\n\nDOMAIN-DRIVEN INSTRUCTIONS:\n"
-        user_message += "1. Prioritize domain-specific frameworks and concepts\n"
-        user_message += "2. Use application field context to guide analysis\n"
-        user_message += "3. Integrate entities naturally only if highly relevant\n"
-        user_message += "4. Maintain coherent domain-first narrative structure\n"
-        
-        # Add entity integration instructions only if entities were injected
-        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
-            entity_summary and entity_summary != "general decision"):
-            user_message += "\nENTITY INTEGRATION GUIDELINES:\n"
-            user_message += "1. In Strategic Thinking Lens: Reference entities naturally in domain analysis\n"
-            user_message += "2. In Story in Action: Create examples that reflect entity context\n"
-            user_message += "3. In Follow-up Prompts: Ask questions considering entity dimensions\n"
-            user_message += "4. Do NOT explicitly mention entity types - integrate naturally\n"
-        
-        # Add analytical tools context
-        tools_context = "Available analytical tools:\n"
-        for tool_name, tool_def in ANALYTICAL_TOOLS[:5]:  # Limit to top 5 tools
-            tools_context += f"- {tool_name}: {tool_def}\n"
-        user_message += tools_context + "\n"
+        # Note: Removed analytical tools injection to prevent inappropriate inclusion
+        # of analytical methods in Strategic Thinking Lens
         
         # Make API call
         response, error = robust_api_call(
@@ -2050,341 +1671,11 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Extract response content
         answer_raw = response.choices[0].message.content.strip()
         
-        # ============================================================================
-        # V1.6.5.1 CONSERVATIVE WORD COUNT ENFORCEMENT
-        # ============================================================================
-        # V1.6.5.1 CONSOLIDATED WORD COUNT ENFORCEMENT
-        # ============================================================================
-        
-        # Ensure proper structure first
+        # Ensure proper structure
         answer = enforce_thinkpal_structure(answer_raw, query)
-        
-        # ============================================================================
-        # V1.6.5.1 DUPLICATION REDUCTION
-        # ============================================================================
-        
-        # Reduce duplication in the entire answer
-        if ENFORCE_DUPLICATION_LIMITS:
-            # Extract all content for duplication analysis
-            all_content = answer.lower()
-            words = all_content.split()
-            
-            # Calculate duplication rate
-            word_counts = {}
-            for word in words:
-                if len(word) > 3:  # Only count words longer than 3 characters
-                    word_counts[word] = word_counts.get(word, 0) + 1
-            
-            total_words = len([w for w in words if len(w) > 3])
-            duplicated_words = sum(count - 1 for count in word_counts.values() if count > 1)
-            duplication_rate = duplicated_words / total_words if total_words > 0 else 0
-            
-            if duplication_rate > MAX_DUPLICATION_RATE:
-                print(f"⚠️ High duplication rate detected: {duplication_rate:.3f} (threshold: {MAX_DUPLICATION_RATE})")
-                
-                # Apply duplication reduction to each section
-                strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-                if strategic_lens_match:
-                    strategic_content = strategic_lens_match.group(1).strip()
-                    reduced_content = reduce_content_duplication(strategic_content, set())
-                    answer = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + reduced_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-                
-                story_action_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-                if story_action_match:
-                    story_content = story_action_match.group(1).strip()
-                    reduced_content = reduce_content_duplication(story_content, set())
-                    answer = re.sub(
-                        r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + reduced_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-        
-        if ENFORCE_WORD_COUNTS:
-            # Extract sections for word count validation
-            strategic_lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-            story_action_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-            
-            # Validate and enforce Strategic Thinking Lens word count
-            if strategic_lens_match:
-                strategic_lens_content = strategic_lens_match.group(1).strip()
-                strategic_lens_words = len(strategic_lens_content.split())
-                
-                # Add alternative perspectives if conditions are met
-                if expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
-                    strategic_lens_content = add_alternative_perspectives(
-                        strategic_lens_content, expanded_entities, query, 
-                        strategic_lens_words, STRATEGIC_LENS_MAX_WORDS, "strategic_lens"
-                    )
-                    # Recalculate word count after adding alternative perspectives
-                    strategic_lens_words = len(strategic_lens_content.split())
-                
-                if strategic_lens_words < STRATEGIC_LENS_MIN_WORDS:
-                    print(f"⚠️ Strategic Thinking Lens too short: {strategic_lens_words} words (min {STRATEGIC_LENS_MIN_WORDS})")
-                    # Target 100-140 words with 2 well-developed paragraphs
-                    target_words = max(120, STRATEGIC_LENS_MIN_WORDS + 20)  # Target 120-140 words for better sentence completion
-                    expanded_content = expand_strategic_lens_content(strategic_lens_content, target_words, query)
-                    answer = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + expanded_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-                elif strategic_lens_words > STRATEGIC_LENS_MAX_WORDS:
-                    print(f"⚠️ Strategic Thinking Lens too long: {strategic_lens_words} words (max {STRATEGIC_LENS_MAX_WORDS})")
-                    # Truncate content to meet maximum
-                    truncated_content = truncate_section_content(strategic_lens_content, STRATEGIC_LENS_MAX_WORDS)
-                    answer = re.sub(
-                        r'(\*\*Strategic Thinking Lens\*\*).*?(?=\*\*Story in Action\*\*|\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + truncated_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-            
-            # Validate and enforce Story in Action word count
-            if story_action_match:
-                story_action_content = story_action_match.group(1).strip()
-                story_action_words = len(story_action_content.split())
-                
-                # Add alternative scenarios if conditions are met
-                if expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD:
-                    story_action_content = add_alternative_perspectives(
-                        story_action_content, expanded_entities, query, 
-                        story_action_words, STORY_ACTION_MAX_WORDS, "story_action"
-                    )
-                    # Recalculate word count after adding alternative scenarios
-                    story_action_words = len(story_action_content.split())
-                
-                if story_action_words < 60:  # Check against target range minimum
-                    print(f"⚠️ Story in Action too short: {story_action_words} words (target 60-80)")
-                    # Expand content to meet minimum - target 70-75 words for better control
-                    target_words = min(75, max(70, 60 + 10))  # Target 70-75 words
-                    expanded_content = expand_section_content(story_action_content, target_words, query)
-                    
-                    # Apply duplication reduction to story content
-                    strategic_content = ""
-                    if strategic_lens_match:
-                        strategic_content = strategic_lens_match.group(1).strip()
-                    
-                    # Use diverse story generation to reduce duplication
-                    diverse_story = generate_diverse_story_content(query)
-                    if len(diverse_story.split()) >= 60:  # Ensure minimum word count
-                        expanded_content = diverse_story
-                    
-                    answer = re.sub(
-                        r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + expanded_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-                    print(f"✅ Story in Action expanded to {len(expanded_content.split())} words")
-                elif story_action_words > STORY_ACTION_MAX_WORDS:
-                    print(f"⚠️ Story in Action too long: {story_action_words} words (max {STORY_ACTION_MAX_WORDS})")
-                    # Truncate content to meet maximum
-                    truncated_content = truncate_section_content(story_action_content, STORY_ACTION_MAX_WORDS)
-                    answer = re.sub(
-                        r'(\*\*Story in Action\*\*).*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                        r'\1\n\n' + truncated_content,
-                        answer,
-                        flags=re.DOTALL | re.IGNORECASE
-                    )
-        
-        # ============================================================================
-        # V1.6.5.1 SECTION FORMATTING ENFORCEMENT
-        # ============================================================================
-        
-        # Ensure proper spacing between sections
-        answer = re.sub(r'\*\*Story in Action\*\*', r'\n\n**Story in Action**', answer)
-        answer = re.sub(r'\*\*Follow-up Prompts\*\*', r'\n\n**Follow-up Prompts**', answer)
-        answer = re.sub(r'\*\*Concepts/Tools\*\*', r'\n\n**Concepts/Tools**', answer)
         
         # Extract and validate concepts/tools
         concepts_tools = extract_tools_from_section(answer)
-        
-        # ============================================================================
-        # V1.6.5.1 CONCEPT FILTERING FOR JOB OFFER DECISIONS
-        # ============================================================================
-        
-        # Filter out irrelevant concepts for job offer decisions
-        if application_field == "career_development":
-            # Remove Monte Carlo Simulation and other irrelevant concepts
-            irrelevant_concepts = [
-                "monte carlo simulation", "monte carlo", "simulation",
-                "linear programming", "optimization", "mathematical modeling"
-            ]
-            
-            # Clean the concepts/tools section
-            for concept in irrelevant_concepts:
-                answer = re.sub(
-                    rf'{concept}.*?(?=\n|$)',
-                    '',
-                    answer,
-                    flags=re.IGNORECASE | re.DOTALL
-                )
-                # Also remove any trailing dashes or formatting
-                answer = re.sub(r'\n\s*-\s*\n', '\n', answer)
-                answer = re.sub(r'\n\s*\n\s*\n', '\n\n', answer)
-        
-        # ============================================================================
-        # V1.6.5.1 ROLLBACK SAFETY FOR CONCEPTS
-        # ============================================================================
-        
-        # If enhanced entities are disabled, ensure we use baseline concepts
-        if not USE_ENHANCED_ENTITIES and 'baseline_concepts' in locals():
-            if DEBUG_MODE:
-                print(f"[DEBUG] Rollback mode: Using baseline concepts: {baseline_concepts}")
-            
-            # Replace concepts section with baseline concepts
-            baseline_concepts_formatted = []
-            for concept_name in baseline_concepts:
-                # Find definition for baseline concept
-                concept_definition = None
-                for concept_key, concept_data in CONCEPT_GLOSSARY.items():
-                    if concept_name.lower() in concept_key or concept_name.lower().replace(' ', '') in concept_key.replace(' ', ''):
-                        if isinstance(concept_data, dict):
-                            concept_definition = concept_data["definition"]
-                        else:
-                            concept_definition = concept_data
-                        break
-                
-                if concept_definition:
-                    baseline_concepts_formatted.append(f"{concept_name}: {concept_definition}")
-            
-            if baseline_concepts_formatted:
-                # Replace concepts section with baseline concepts
-                answer = re.sub(
-                    r'\*\*Concepts/Tools\*\*.*?(?=\*\*|\Z)',
-                    f'**Concepts/Tools**\n\n' + '\n'.join(baseline_concepts_formatted),
-                    answer,
-                    flags=re.DOTALL
-                )
-        
-        # ============================================================================
-        # V1.6.5.1 DOMAIN-DRIVEN CONCEPTS PRIORITIZATION
-        # ============================================================================
-        
-        # Prioritize domain and application field concepts in Concepts/Tools
-        domain_concepts = []
-        application_concepts = []
-        entity_concepts = []
-        
-        # Extract current concepts from answer
-        current_concepts = []
-        concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL)
-        if concepts_match:
-            concepts_content = concepts_match.group(1).strip()
-            # Parse existing concepts
-            concept_lines = re.findall(r'^([^:\n]+?):\s*([^\n]+)$', concepts_content, re.MULTILINE)
-            current_concepts = [(concept_name.strip(), definition.strip()) for concept_name, definition in concept_lines]
-        
-        # Categorize concepts by priority
-        for concept_name, definition in current_concepts:
-            concept_lower = concept_name.lower()
-            
-            # Domain concepts (highest priority)
-            if any(domain_keyword in concept_lower for domain_keyword in [domain.lower(), "strategy", "analysis", "framework"]):
-                domain_concepts.append((concept_name, definition))
-            # Application field concepts (second priority)
-            elif any(app_keyword in concept_lower for app_keyword in [application_field.lower(), "decision", "planning"]):
-                application_concepts.append((concept_name, definition))
-            # Entity concepts (only if relevance threshold met)
-            elif (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
-                  any(entity_keyword in concept_lower for entity_keyword in ["stakeholder", "timeframe", "criteria"])):
-                entity_concepts.append((concept_name, definition))
-            else:
-                # Other concepts (lowest priority)
-                domain_concepts.append((concept_name, definition))
-        
-        # Rebuild concepts section with priority order (max 4-5 total)
-        prioritized_concepts = []
-        total_cap = 5
-        
-        # Add domain concepts first (up to 3)
-        for concept_name, definition in domain_concepts[:3]:
-            if len(prioritized_concepts) < total_cap:
-                prioritized_concepts.append(f"{concept_name}: {definition}")
-        
-        # Add application field concepts (up to 2)
-        for concept_name, definition in application_concepts[:2]:
-            if len(prioritized_concepts) < total_cap:
-                prioritized_concepts.append(f"{concept_name}: {definition}")
-        
-        # Add entity concepts only if space available and relevance threshold met
-        if (expanded_entities and entity_relevance_score >= ENTITY_SOFT_THRESHOLD and 
-            len(prioritized_concepts) < total_cap):
-            for concept_name, definition in entity_concepts[:1]:  # Max 1 entity concept
-                if len(prioritized_concepts) < total_cap:
-                    prioritized_concepts.append(f"{concept_name}: {definition}")
-        
-        # Update concepts section with prioritized concepts
-        if prioritized_concepts:
-            answer = re.sub(
-                r'(\*\*Concepts/Tools\*\*).*?(?=\*\*|\Z)',
-                r'\1\n\n' + '\n'.join(prioritized_concepts),
-                answer,
-                flags=re.DOTALL
-            )
-            print(f"[DEBUG] Prioritized concepts: {len(prioritized_concepts)} total")
-        
-        # ============================================================================
-        # V1.6.5.1 BEHAVIORAL BIAS ENFORCEMENT
-        # ============================================================================
-        
-        # If enhanced entities are enabled and behavioral biases were detected, ensure they appear in output
-        if USE_ENHANCED_ENTITIES and 'behavioral_biases' in locals() and behavioral_biases:
-            if DEBUG_MODE:
-                print(f"[DEBUG] Enforcing behavioral biases in output: {behavioral_biases}")
-            
-            # Extract current concepts from answer
-            current_concepts = []
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL)
-            if concepts_match:
-                concepts_content = concepts_match.group(1).strip()
-                # Parse existing concepts
-                concept_lines = re.findall(r'^([^:\n]+?):\s*([^\n]+)$', concepts_content, re.MULTILINE)
-                current_concepts = [concept_name.strip() for concept_name, _ in concept_lines]
-            
-            # Add missing behavioral biases
-            missing_biases = []
-            for bias in behavioral_biases:
-                if bias not in current_concepts:
-                    # Find bias definition
-                    bias_definition = None
-                    for concept_key, concept_data in CONCEPT_GLOSSARY.items():
-                        if bias.lower() in concept_key or bias.lower().replace(' ', '') in concept_key.replace(' ', ''):
-                            if isinstance(concept_data, dict):
-                                bias_definition = concept_data["definition"]
-                            else:
-                                bias_definition = concept_data
-                            break
-                    
-                    if bias_definition:
-                        missing_biases.append(f"{bias}: {bias_definition}")
-            
-            # Add missing biases to concepts section
-            if missing_biases:
-                if concepts_match:
-                    # Add to existing concepts section
-                    new_concepts_content = concepts_content + '\n' + '\n'.join(missing_biases)
-                    answer = re.sub(
-                        r'(\*\*Concepts/Tools\*\*).*?(?=\*\*|\Z)',
-                        r'\1\n\n' + new_concepts_content,
-                        answer,
-                        flags=re.DOTALL
-                    )
-                else:
-                    # Create new concepts section
-                    answer = re.sub(
-                        r'(\*\*Follow-up Prompts\*\*.*?)(?=\*\*|\Z)',
-                        r'\1\n\n**Concepts/Tools**\n\n' + '\n'.join(missing_biases) + '\n\n',
-                        answer,
-                        flags=re.DOTALL
-                    )
         
         # If no valid concepts extracted, use fallback
         if not concepts_tools:
@@ -2397,58 +1688,6 @@ def process_query(query: str, course_config: dict = None) -> str:
                     answer,
                     flags=re.DOTALL
                 )
-        
-        # ============================================================================
-        # V1.6.5.1 DEDUPLICATION ENFORCEMENT
-        # ============================================================================
-        
-        if ENFORCE_DUPLICATION_LIMITS:
-            # Apply deduplication and improvement to Concepts/Tools section
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL)
-            if concepts_match:
-                concepts_content = concepts_match.group(1).strip()
-                deduplicated_concepts = deduplicate_concepts(concepts_content)
-                improved_concepts = improve_concepts_tools_section(deduplicated_concepts, query)
-                
-                # Replace with improved content
-                answer = re.sub(
-                    r'\*\*Concepts/Tools\*\*.*?(?=\*\*|\Z)',
-                    f'**Concepts/Tools**\n\n{improved_concepts}',
-                    answer,
-                    flags=re.DOTALL
-                )
-        
-        # ============================================================================
-        # V1.6.5.1 CONTENT PROCESSING OPTIMIZATION
-        # ============================================================================
-        
-        # OPTIMIZATION: Reduce content processing overhead for simple queries
-        is_complex_query = (
-            len(query.split()) > 10 or
-            any(word in query.lower() for word in ["complex", "multiple", "various", "different", "several"])
-        )
-        
-        # OPTIMIZATION: Skip expensive content processing for simple queries
-        if is_complex_query:
-            # Full content processing for complex queries
-            answer = enforce_thinkpal_structure(answer, query)
-            answer = ensure_proper_section_formatting(answer)
-            
-            # OPTIMIZATION: Reduce duplication checks for performance
-            if len(answer.split()) > 200:  # Only check long responses
-                answer = reduce_content_duplication(answer, set())
-        else:
-            # OPTIMIZATION: Minimal processing for simple queries
-            answer = enforce_thinkpal_structure(answer, query)
-            # Skip expensive formatting and duplication checks for simple queries
-        
-        # OPTIMIZATION: Cache the result for future identical queries
-        if len(_query_cache) >= _cache_max_size:
-            # Remove oldest entry if cache is full
-            oldest_key = next(iter(_query_cache))
-            del _query_cache[oldest_key]
-        
-        _query_cache[cache_key] = answer
         
         return answer
         
@@ -2467,7 +1706,6 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
        re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE) and \
        re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE) and \
        re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
-        
         return answer
     
     # If not, generate fallback content
@@ -2479,18 +1717,10 @@ def format_fallback_response(fallback_content: dict) -> str:
     sections = []
     
     if 'Strategic Thinking Lens' in fallback_content:
-        content = fallback_content['Strategic Thinking Lens'].strip()
-        # Ensure proper ending punctuation
-        if not content.endswith('.') and not content.endswith('!') and not content.endswith('?'):
-            content += '.'
-        sections.append(f"**Strategic Thinking Lens**\n\n{content}")
+        sections.append(f"**Strategic Thinking Lens**\n\n{fallback_content['Strategic Thinking Lens']}")
     
     if 'Story in Action' in fallback_content:
-        content = fallback_content['Story in Action'].strip()
-        # Ensure proper ending punctuation
-        if not content.endswith('.') and not content.endswith('!') and not content.endswith('?'):
-            content += '.'
-        sections.append(f"**Story in Action**\n\n{content}")
+        sections.append(f"**Story in Action**\n\n{fallback_content['Story in Action']}")
     
     if 'Follow-up Prompts' in fallback_content:
         prompts = fallback_content['Follow-up Prompts']
@@ -2505,852 +1735,231 @@ def format_fallback_response(fallback_content: dict) -> str:
     
     return '\n\n'.join(sections)
 
-def ensure_proper_section_formatting(answer: str) -> str:
-    """Ensure proper section formatting with correct endings and spacing."""
-    
-    # Ensure proper spacing between sections
-    answer = re.sub(r'\*\*Story in Action\*\*', r'\n\n**Story in Action**', answer)
-    answer = re.sub(r'\*\*Follow-up Prompts\*\*', r'\n\n**Follow-up Prompts**', answer)
-    answer = re.sub(r'\*\*Concepts/Tools\*\*', r'\n\n**Concepts/Tools**', answer)
-    
-    return answer
-
-def expand_section_content(content: str, target_words: int, query: str = "") -> str:
+def detect_domain_semantic(query: str) -> dict:
     """
-    Expand content to meet minimum word count requirements with domain-specific content.
-    
-    Args:
-        content: Original content
-        target_words: Target word count
-        query: Original query for context awareness
+    Detect query domain using semantic similarity with domain-specific reference texts.
+    More accurate than keyword-based detection.
+    """
+    try:
+        # Load data lazily
+        index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-    Returns:
-        Expanded content with domain-specific enrichments
-    """
-    current_words = len(content.split())
-    
-    if current_words >= target_words:
-        return content
-    
-    # Check if content has already been expanded (prevent multiple expansions)
-    if "This systematic evaluation will help ensure" in content or "Taking time to consider all factors" in content:
-        # Content already expanded, just truncate if needed
-        if len(content.split()) > target_words:
-            words = content.split()
-            return " ".join(words[:target_words])
-        return content
-    
-    # Determine domain and decision type
-    query_lower = query.lower()
-    
-    # Personal decision keywords
-    personal_keywords = ["job", "career", "personal", "life", "family", "work-life", "salary", "benefits", "growth", "development", "opportunity", "choice", "decision", "offer", "position", "role", "company", "employer", "work", "professional", "advancement", "promotion"]
-    
-    # Organizational decision keywords  
-    organizational_keywords = ["business", "company", "organization", "enterprise", "corporate", "management", "strategy", "operations", "production", "capacity", "efficiency", "optimization", "stakeholder", "shareholder", "profit", "revenue", "market", "competitive"]
-    
-    personal_score = sum(1 for keyword in personal_keywords if keyword in query_lower)
-    organizational_score = sum(1 for keyword in organizational_keywords if keyword in query_lower)
-    is_personal_decision = personal_score > organizational_score
-    
-    # Get existing content to avoid repetition
-    existing_content = content.lower()
-    
-    # Domain-specific expansions for personal decisions
-    personal_expansions = [
-        "Consider how this choice aligns with your long-term career aspirations and personal values.",
-        "Evaluate the total compensation package beyond just salary, including benefits and growth potential.",
-        "Think about the organizational culture and how it matches your working style and values.",
-        "Consider the work environment and how this role fits into your broader life goals.",
-        "Examine the company's stability and how this position prepares you for future advancement."
-    ]
-    
-    # Domain-specific expansions for organizational decisions
-    organizational_expansions = [
-        "Analyze the strategic implications and how this decision supports your organization's mission.",
-        "Consider the resource requirements and implementation timeline for each option.",
-        "Evaluate the impact on different stakeholders and how to communicate the rationale effectively.",
-        "Assess the market conditions and competitive landscape that might affect this decision.",
-        "Think about the operational implications and change management challenges involved."
-    ]
-    
-    # Select appropriate expansion based on decision type
-    if is_personal_decision:
-        # Try to find expansion with minimal overlap
-        best_expansion = personal_expansions[0]
-        min_overlap = 100
-        for expansion in personal_expansions:
-            overlap = sum(1 for word in expansion.lower().split()[:5] if word in existing_content)
-            if overlap < min_overlap:
-                min_overlap = overlap
-                best_expansion = expansion
-        selected_expansion = best_expansion
-    else:
-        # Try to find expansion with minimal overlap
-        best_expansion = organizational_expansions[0]
-        min_overlap = 100
-        for expansion in organizational_expansions:
-            overlap = sum(1 for word in expansion.lower().split()[:5] if word in existing_content)
-            if overlap < min_overlap:
-                min_overlap = overlap
-                best_expansion = expansion
-        selected_expansion = best_expansion
-    
-    # Combine original content with selected expansion
-    expanded_content = content + " " + selected_expansion
-    
-    # If still too short, add minimal domain-specific content
-    if len(expanded_content.split()) < target_words:
-        if is_personal_decision:
-            additional_content = "This decision will significantly impact your professional trajectory and personal fulfillment."
-        else:
-            additional_content = "This choice will affect your organization's competitive position and operational efficiency."
-        
-        if not any(word in expanded_content.lower() for word in additional_content.lower().split()[:4]):
-            expanded_content += " " + additional_content
-    
-    # ENFORCE WORD COUNT LIMITS - truncate if over target
-    if len(expanded_content.split()) > target_words:
-        words = expanded_content.split()
-        expanded_content = " ".join(words[:target_words])
-    
-    return expanded_content
-
-def expand_strategic_lens_content(content: str, target_words: int, query: str = "") -> str:
-    """
-    Expand Strategic Thinking Lens content with domain-specific content.
-    V1.6.5.1: Enforce quality over length, disable retries for padding.
-    
-    Args:
-        content: Original Strategic Thinking Lens content
-        target_words: Target word count (100-140 words preferred)
-        query: Original query for context awareness
-        
-    Returns:
-        Expanded content with domain-specific insights
-    """
-    current_words = len(content.split())
-    
-    # V1.6.5.1: Prefer quality over length - accept 100-140 words without padding
-    if current_words >= 100 and current_words <= 140:
-        return content
-    
-    # V1.6.5.1: Always expand if under 100 words to meet minimum requirement
-    if current_words < 100:
-        # Force expansion to meet minimum word count
-        pass
-    
-    # V1.6.5.1: Remove template expansions to avoid filler content
-    # Instead, let the content be naturally generated without artificial expansions
-    # If content is too short, it's better to have concise, specific content than generic filler
-    
-    if current_words < target_words:
-        # Only expand if the content is significantly short (less than 80% of target)
-        if current_words < (target_words * 0.8):
-            # Instead of using template expansions, suggest regenerating with better prompts
-            # For now, return the original content to avoid filler
-            if DEBUG_MODE:
-                print(f"⚠️ Content too short ({current_words} words) but avoiding template expansions")
-            return content
-        else:
-            # Content is close to target, accept as is
-            return content
-    
-    return content
-    
-    # If content is between 90-100 words, accept it as is to avoid duplication
-    return content
-
-def truncate_section_content(content: str, target_words: int) -> str:
-    """
-    Truncate content to meet maximum word count requirements.
-    
-    Args:
-        content: Original content
-        target_words: Target word count
-        
-    Returns:
-        Truncated content
-    """
-    words = content.split()
-    
-    if len(words) <= target_words:
-        return content
-    
-    # Keep the first target_words words
-    truncated_words = words[:target_words]
-    
-    # Ensure we end with a complete sentence
-    truncated_content = " ".join(truncated_words)
-    
-    # If we cut in the middle of a sentence, try to find a better break point
-    if not truncated_content.endswith(('.', '!', '?')):
-        # Find the last sentence boundary
-        sentences = re.split(r'([.!?])', truncated_content)
-        if len(sentences) > 2:
-            # Reconstruct up to the last complete sentence
-            truncated_content = "".join(sentences[:-2]) + sentences[-2]
-    
-    return truncated_content
-
-# ============================================================================
-# V1.6.5.1 BEHAVIORAL BIAS DETECTION
-# ============================================================================
-
-def detect_behavioral_biases(query: str) -> List[str]:
-    """
-    Detect behavioral biases based on query content.
-    
-    Args:
-        query: The user's query text
-        
-    Returns:
-        List of behavioral bias concepts to add
-    """
-    query_lower = query.lower()
-    behavioral_biases = []
-    
-    # Behavioral bias mapping
-    behavioral_bias_map = {
-        "legacy project": ["Status Quo Bias", "Sunk Cost Fallacy", "Escalation of Commitment"],
-        "continue": ["Status Quo Bias"],
-        "past investment": ["Sunk Cost Fallacy"],
-        "already committed": ["Escalation of Commitment"],
-        "sunk cost": ["Sunk Cost Fallacy"],
-        "status quo": ["Status Quo Bias"],
-        "escalation": ["Escalation of Commitment"],
-        "keep going": ["Escalation of Commitment"],
-        "stick with": ["Status Quo Bias"],
-        "maintain": ["Status Quo Bias"],
-        "preserve": ["Status Quo Bias"],
-        "don't change": ["Status Quo Bias"],
-        "invested too much": ["Sunk Cost Fallacy"],
-        "can't quit now": ["Escalation of Commitment"],
-        "too far to turn back": ["Escalation of Commitment"]
-    }
-    
-    # Check for behavioral bias triggers
-    for trigger, biases in behavioral_bias_map.items():
-        if trigger in query_lower:
-            for bias in biases:
-                if bias not in behavioral_biases:
-                    behavioral_biases.append(bias)
-    
-    # Clamp to 2 biases per response - choose the most contextually relevant
-    if len(behavioral_biases) > 2:
-        # Prioritize biases that are more specific to the query context
-        prioritized_biases = []
-        for bias in behavioral_biases:
-            if any(trigger in query_lower for trigger in ["sunk cost", "invested", "past investment"]):
-                if bias == "Sunk Cost Fallacy":
-                    prioritized_biases.append(bias)
-            elif any(trigger in query_lower for trigger in ["status quo", "maintain", "preserve"]):
-                if bias == "Status Quo Bias":
-                    prioritized_biases.append(bias)
-            elif any(trigger in query_lower for trigger in ["escalation", "continue", "keep going"]):
-                if bias == "Escalation of Commitment":
-                    prioritized_biases.append(bias)
-        
-        # If we don't have 2 prioritized biases, add the remaining ones
-        for bias in behavioral_biases:
-            if bias not in prioritized_biases and len(prioritized_biases) < 2:
-                prioritized_biases.append(bias)
-        
-        behavioral_biases = prioritized_biases[:2]  # Hard cap at 2
-    
-    if DEBUG_MODE and behavioral_biases:
-        print(f"[DEBUG] Behavioral biases detected: {behavioral_biases}")
-    
-    return behavioral_biases
-
-# Add this function after the existing functions
-def reduce_content_duplication(content: str, existing_words: set) -> str:
-    """
-    Reduce duplication by replacing common repetitive phrases with more diverse alternatives.
-    V1.6.5.1: Added protection for concept terminology to prevent incorrect replacements.
-    
-    Args:
-        content: Original content
-        existing_words: Set of words already used in other sections
-        
-    Returns:
-        Content with reduced duplication
-    """
-    
-    # V1.6.5.1: Define protected concept terminology that should NEVER be replaced
-    protected_concepts = {
-        "decision tree", "utility functions", "monte carlo simulation", "sensitivity analysis",
-        "linear optimization", "expected value", "risk assessment", "swot analysis",
-        "scenario analysis", "scenario planning", "batna",
-        "reservation point", "zopa", "supply chain", "risk management", "leadership assessment",
-        "cognitive behaviors", "judgment intuitive bias", "negotiation term sheet",
-        "value creation", "risk tolerance assessment", "human-computer integration",
-        "competitive advantage analysis", "value chain analysis", "investigative negotiation",
-        "seasonal analysis", "regression", "moving average", "semi-quantitative forecast",
-        "profitability analysis", "prospect theory", "solver-based simulation",
-        "confirmation bias", "anchoring bias", "framing bias", "representative heuristic",
-        "endowment effect", "status quo bias", "escalation of commitment", "mental accounting",
-        "game theory", "winner's curse", "integrative negotiation", "distributive negotiation",
-        "porter's five forces", "cost leadership", "differentiation strategy", "portfolio management",
-        "qualitative forecasting", "regression forecasting", "seasonal forecasting",
-        "integer optimization", "aggregate planning", "analytical solver",
-        "integrated optimization & simulation", "automated simulation models"
-    }
-    
-    # V1.6.5.1: Create a list of protected phrases that should not be replaced
-    protected_phrases = set()
-    for concept in protected_concepts:
-        protected_phrases.add(concept.lower())
-        # Also protect individual words that are part of concept names
-        for word in concept.split():
-            if len(word) > 3:  # Only protect meaningful words
-                protected_phrases.add(word.lower())
-    
-    # Common repetitive phrases and their alternatives
-    replacements = {
-        "consider how": "evaluate whether",
-        "think about": "reflect on",
-        "reflect on": "examine",
-        "evaluate": "assess",
-        "assess": "analyze",
-        "analyze": "review",
-        "review": "examine",
-        "examine": "investigate",
-        "investigate": "explore",
-        "explore": "consider",
-        "approach": "method",
-        "method": "strategy",
-        "strategy": "technique",
-        "technique": "approach",
-        "decision": "choice",
-        "choice": "selection",
-        "selection": "option",
-        "option": "alternative",
-        "alternative": "possibility",
-        "possibility": "opportunity",
-        "opportunity": "chance",
-        "chance": "prospect",
-        "prospect": "potential",
-        "capacity": "ability",
-        "ability": "skill",
-        "skill": "expertise",
-        "expertise": "knowledge",
-        "knowledge": "understanding",
-        "understanding": "comprehension",
-        "comprehension": "grasp",
-        "grasp": "mastery",
-        "mastery": "proficiency",
-        "proficiency": "competence"
-    }
-    
-    # V1.6.5.1: Apply replacements to reduce repetition, but protect concept terminology
-    for old_phrase, new_phrase in replacements.items():
-        if old_phrase in content.lower():
-            # Check if this replacement would affect protected concept terminology
-            should_replace = True
-            
-            # Check if the old phrase is part of any protected concept
-            if old_phrase in protected_phrases:
-                should_replace = False
-            else:
-                # Check if replacing this phrase would break any protected concepts
-                for protected_concept in protected_concepts:
-                    if old_phrase in protected_concept.lower():
-                        # Check if the replacement would change the protected concept
-                        test_replacement = protected_concept.lower().replace(old_phrase, new_phrase)
-                        if test_replacement != protected_concept.lower():
-                            should_replace = False
-                            break
-            
-            if should_replace:
-                # Replace the phrase (case-insensitive)
-                content = re.sub(r'\b' + re.escape(old_phrase) + r'\b', new_phrase, content, flags=re.IGNORECASE)
-    
-    # Remove excessive repetition of common words
-    words = content.split()
-    word_counts = {}
-    for word in words:
-        if len(word) > 3:  # Only count words longer than 3 characters
-            word_counts[word.lower()] = word_counts.get(word.lower(), 0) + 1
-    
-    # V1.6.5.1: If a word appears more than 3 times, replace some instances (but protect concept terminology)
-    for word, count in word_counts.items():
-        if count > 3:
-            # Find synonyms for overused words
-            synonyms = {
-                "consider": ["evaluate", "examine", "assess", "review"],
-                "think": ["reflect", "contemplate", "ponder", "deliberate"],
-                "decision": ["choice", "selection", "option", "alternative"],
-                "strategy": ["approach", "method", "technique", "plan"],
-                "analysis": ["assessment", "evaluation", "examination", "review"],
-                "important": ["critical", "essential", "vital", "crucial"],
-                "factor": ["element", "component", "aspect", "consideration"],
-                "approach": ["method", "strategy", "technique", "procedure"],
-                "evaluate": ["assess", "analyze", "examine", "review"],
-                "consider": ["examine", "assess", "review", "contemplate"]
-            }
-            
-            if word in synonyms:
-                # V1.6.5.1: Check if this word is part of protected concept terminology
-                is_protected = word in protected_phrases
-                
-                if not is_protected:
-                    # Check if this word is part of any protected concept
-                    for protected_concept in protected_concepts:
-                        if word in protected_concept.lower().split():
-                            is_protected = True
-                            break
-                
-                if not is_protected:
-                    # Replace some instances with synonyms
-                    synonym_list = synonyms[word]
-                    replacement_count = min(count - 2, len(synonym_list))  # Keep at least 2 instances
-                    
-                    for i in range(replacement_count):
-                        if i < len(synonym_list):
-                            # Replace the word (case-insensitive)
-                            content = re.sub(r'\b' + re.escape(word) + r'\b', synonym_list[i], content, count=1, flags=re.IGNORECASE)
-    
-    return content
-
-def generate_diverse_story_content(query: str) -> str:
-    """
-    Generate diverse story content based on query domain to avoid repetition.
-    
-    Args:
-        query: Original query for domain detection
-        
-    Returns:
-        Diverse story content
-    """
-    query_lower = query.lower()
-    
-    # Domain-specific story templates with concrete, sequential details
-    if any(word in query_lower for word in ["bias", "cognitive", "psychology", "behavior"]):
-        stories = [
-            "A marketing director named Sarah noticed her team consistently favored familiar campaign strategies. First, she implemented a structured decision process requiring three alternative approaches. Then, she assigned a 'devil's advocate' role in meetings. Finally, the team discovered innovative solutions they had previously overlooked, leading to a 25% increase in campaign performance.",
-            "Alex, a product manager, observed confirmation bias during user research. First, he required evidence for all assumptions. Then, he introduced diverse user testing groups. Finally, the team identified critical usability issues that had been overlooked, resulting in improved product adoption rates.",
-            "Maria, a finance analyst, recognized anchoring bias in budget discussions. First, she collected independent estimates from multiple departments. Then, she implemented a systematic review process. Finally, the company achieved more accurate financial projections and better resource allocation."
-        ]
-    elif any(word in query_lower for word in ["strategy", "competitive", "market", "positioning"]):
-        stories = [
-            "David, a startup founder, faced intense competition from established players. First, he conducted thorough competitive analysis using Porter's Five Forces. Then, he identified an underserved market segment with specific needs. Finally, the company achieved rapid growth by focusing on this niche, achieving 40% market share within 18 months.",
-            "Lisa, a business development director, evaluated three market entry strategies. First, she analyzed regulatory environments and competitive landscapes. Then, she assessed resource requirements and risk factors. Finally, she chose the approach that led to successful market penetration within six months.",
-            "John, a strategic planner, analyzed his company's competitive positioning. First, he mapped out competitor strengths and weaknesses. Then, he identified differentiation opportunities through customer service innovation. Finally, the company improved market share by 15% through targeted strategic initiatives."
-        ]
-    elif any(word in query_lower for word in ["optimization", "linear", "programming", "forecasting", "simulation"]):
-        stories = [
-            "Emma, an operations manager, used linear programming to optimize production scheduling. First, she created a mathematical model considering capacity constraints and demand forecasts. Then, she incorporated cost factors and quality standards. Finally, the solution reduced production costs by 15% while maintaining quality standards.",
-            "Alex, a supply chain analyst, implemented Monte Carlo simulation for demand forecasting. First, he modeled various scenarios including seasonal variations. Then, he incorporated market uncertainties and supply chain disruptions. Finally, the improved forecasts led to better inventory management and 30% reduction in stockouts.",
-            "Maria, a logistics coordinator, applied optimization techniques to route planning. First, she developed an algorithm minimizing transportation costs. Then, she incorporated delivery deadlines and vehicle capacity constraints. Finally, the new routing system saved 20% on logistics expenses while improving delivery reliability."
-        ]
-    elif any(word in query_lower for word in ["negotiation", "bargaining", "bargain", "deal", "agreement"]):
-        stories = [
-            "Sarah, a procurement manager, prepared for a critical supplier negotiation. First, she thoroughly researched her BATNA and the supplier's alternatives. Then, she identified potential value-creation opportunities and mutual interests. Finally, she developed a strategy that satisfied both parties' needs, achieving 12% cost reduction.",
-            "David, a sales director, used principled negotiation techniques during a major contract discussion. First, he focused on interests rather than positions. Then, he explored multiple options for mutual gain. Finally, the resulting agreement exceeded both parties' initial expectations by 18%.",
-            "Lisa, a partnership manager, successfully negotiated a joint venture. First, she understood the other party's underlying concerns and constraints. Then, she proposed creative solutions addressing both companies' strategic objectives. Finally, the partnership created 25% more value than initially projected."
-        ]
-    elif any(word in query_lower for word in ["risk", "uncertainty", "probability", "scenario"]):
-        stories = [
-            "Tom, a risk manager, assessed the risks of launching a new product. First, he identified potential threats and opportunities using scenario analysis. Then, he developed contingency plans for worst-case scenarios. Finally, the systematic approach helped the company launch successfully with minimal disruption.",
-            "Anna, a project manager, evaluated uncertainty in demand forecasts. First, she used Monte Carlo simulation to model various scenarios. Then, she identified key variables affecting outcomes. Finally, the improved forecasting accuracy led to better resource allocation and reduced waste.",
-            "Carlos, a financial analyst, modeled investment portfolio uncertainty. First, he analyzed historical volatility patterns. Then, he stress-tested different market scenarios. Finally, the portfolio achieved better risk-adjusted returns while maintaining target performance levels."
-        ]
-    elif any(word in query_lower for word in ["investment", "financial", "money", "portfolio"]):
-        stories = [
-            "Rachel, an investment advisor, helped a client evaluate retirement options. First, she assessed the client's risk tolerance and time horizon. Then, she compared different investment vehicles and their expected returns. Finally, the client achieved a diversified portfolio that matched their long-term goals.",
-            "Michael, a portfolio manager, analyzed emerging market investment risks. First, he conducted thorough country risk assessments. Then, he evaluated currency exposure and political stability factors. Finally, the portfolio achieved 15% returns while managing downside risk effectively.",
-            "Jennifer, a financial planner, evaluated different retirement investment options. First, she analyzed tax implications and withdrawal strategies. Then, she compared fees and historical performance data. Finally, the client chose a strategy that maximized after-tax returns over their retirement horizon."
-        ]
-    else:
-        # General decision-making stories with concrete details
-        stories = [
-            "Sarah, a marketing director, faced this exact dilemma when choosing between a Fortune 500 company offering $120K and a Series A startup offering $85K with equity. First, she created a detailed spreadsheet comparing total compensation packages. Then, she conducted 15 informational interviews to understand company cultures. Finally, she chose the startup for its innovative culture and rapid career advancement potential.",
-            "Alex, a senior software engineer, received two compelling offers: a stable corporate role at $130K and a fintech startup at $110K with stock options. First, Alex built a decision tree mapping potential career trajectories. Then, he projected financial scenarios including equity value. Finally, the startup's cutting-edge technology and mentorship program swayed the decision despite the initial salary difference.",
-            "Maria, a project manager with 8 years of experience, evaluated three opportunities using a weighted scoring matrix. First, she identified key criteria including team dynamics and organizational culture. Then, she researched each company's values and professional development programs. Finally, she selected the role that best matched her leadership style and long-term career aspirations."
-        ]
-    
-    # Return the first story (for consistency, but with domain-specific content)
-    return stories[0]
-
-def ensure_expected_concepts(concepts: List[Tuple[str, str]], query: str) -> List[Tuple[str, str]]:
-    """
-    Ensure expected concepts are included based on domain-specific requirements.
-    
-    Args:
-        concepts: Current list of (concept_name, definition) tuples
-        query: Original query for domain detection
-        
-    Returns:
-        Updated list with expected concepts included
-    """
-    query_lower = query.lower()
-    concept_names = [name.lower() for name, _ in concepts]
-    
-    # Domain-specific expected concepts mapping with better matching
-    expected_concepts_map = {
-        "career": {
-            "job": ["decision tree", "weighted scoring", "career planning"],
-            "salary": ["batna", "zopa", "negotiation strategy"],
-            "promotion": ["decision tree", "risk assessment", "stakeholder alignment"],
-            "startup": ["swot analysis", "risk assessment", "career planning"],
-            "offer": ["decision tree", "weighted scoring", "career planning"],
-            "negotiating": ["batna", "zopa", "negotiation strategy"],
-            "choose": ["decision tree", "weighted scoring", "career planning"]
-        },
-        "strategy": {
-            "competitive": ["porter's five forces", "competitive analysis", "strategic positioning"],
-            "market": ["swot analysis", "risk assessment", "market analysis"],
-            "pricing": ["competitive analysis", "market analysis", "profitability analysis"],
-            "positioning": ["risk assessment", "swot analysis", "market analysis"],
-            "expand": ["swot analysis", "risk assessment", "market analysis"],
-            "international": ["swot analysis", "risk assessment", "market analysis"],
-            "entry": ["risk assessment", "swot analysis", "market analysis"]
-        },
-        "operations": {
-            "supply chain": ["linear optimization", "supply chain", "risk management", "cost analysis"],
-            "resources": ["linear optimization", "resource planning", "project management"],
-            "production": ["aggregate planning", "capacity planning", "optimization"],
-            "forecasting": ["seasonal analysis", "moving average", "forecasting"],
-            "optimize": ["linear optimization", "supply chain", "risk management", "cost analysis"],
-            "allocate": ["linear optimization", "resource planning", "project management"],
-            "capacity": ["aggregate planning", "capacity planning", "optimization"],
-            "seasonal": ["seasonal analysis", "moving average", "forecasting"]
-        },
-        "financial": {
-            "investment": ["risk assessment", "portfolio management", "investment analysis"],
-            "retirement": ["decision tree", "risk tolerance assessment", "portfolio management"],
-            "acquisition": ["value chain analysis", "profitability analysis", "risk assessment"],
-            "portfolio": ["monte carlo simulation", "risk assessment", "portfolio management"],
-            "investing": ["risk assessment", "portfolio management", "investment analysis"],
-            "stocks": ["risk assessment", "portfolio management", "investment analysis"],
-            "value": ["value chain analysis", "profitability analysis", "risk assessment"]
-        },
-        "negotiation": {
-            "supplier": ["batna", "zopa", "negotiation strategy"],
-            "deal": ["batna", "risk assessment"],
-            "value": ["value creation", "integrative negotiation", "negotiation strategy"],
-            "salary": ["reservation point", "batna", "negotiation strategy"],
-            "negotiate": ["batna", "zopa", "negotiation strategy"],
-            "terms": ["batna", "zopa", "negotiation strategy"],
-            "alternative": ["batna", "risk assessment"]
-        },
-        "risk": {
-            "product": ["risk assessment", "scenario analysis", "market analysis"],
-            "R&D": ["monte carlo simulation", "risk assessment", "expected value"],
-            "demand": ["monte carlo simulation", "scenario analysis", "forecasting"],
-            "business": ["scenario analysis", "risk assessment"],
-            "assess": ["risk assessment", "scenario analysis", "market analysis"],
-            "probability": ["monte carlo simulation", "risk assessment", "expected value"],
-            "uncertainty": ["monte carlo simulation", "scenario analysis", "forecasting"],
-            "worst-case": ["scenario analysis", "risk assessment"]
-        },
-        "behavioral": {
-            "cognitive": ["cognitive behaviors", "judgment intuitive bias", "group dynamics"],
-            "failing": ["escalation of commitment", "sunk cost fallacy", "cognitive bias"],
-            "anchoring": ["anchoring bias", "cognitive behaviors", "pricing strategy"],
-            "groupthink": ["cognitive behaviors", "group dynamics", "leadership assessment"],
-            "bias": ["cognitive behaviors", "judgment intuitive bias", "group dynamics"],
-            "psychology": ["cognitive behaviors", "judgment intuitive bias", "group dynamics"],
-            "continue": ["escalation of commitment", "sunk cost fallacy", "cognitive bias"]
-        },
-        "technology": {
-            "AI": ["technology assessment", "risk assessment", "cost-benefit analysis"],
-            "platform": ["competitive analysis", "decision tree", "technology assessment"],
-            "automation": ["profitability analysis", "cost-benefit analysis", "risk assessment"],
-            "innovation": ["portfolio management", "decision tree", "project prioritization"],
-            "adopt": ["technology assessment", "risk assessment", "cost-benefit analysis"],
-            "evaluate": ["competitive analysis", "decision tree", "technology assessment"],
-            "ROI": ["profitability analysis", "cost-benefit analysis", "risk assessment"]
-        },
-        "sustainability": {
-            "profitability": ["stakeholder alignment", "value creation", "sustainability assessment"],
-            "climate": ["risk assessment", "scenario analysis", "strategic planning"],
-            "suppliers": ["supply chain", "risk management", "stakeholder alignment", "ESG assessment"],
-            "renewable": ["profitability analysis", "risk assessment", "investment analysis"],
-            "environmental": ["stakeholder alignment", "value creation", "sustainability assessment"],
-            "ESG": ["supply chain", "risk management", "stakeholder alignment", "ESG assessment"],
-            "business case": ["profitability analysis", "risk assessment", "investment analysis"]
-        },
-        "global": {
-            "currency": ["risk assessment", "hedging strategies", "international finance"],
-            "outsourcing": ["cost-benefit analysis", "supply chain", "risk management", "decision tree"],
-            "market entry": ["market analysis", "risk assessment", "strategic planning"],
-            "political": ["risk assessment", "scenario analysis", "international finance"],
-            "international": ["risk assessment", "hedging strategies", "international finance"],
-            "trade-offs": ["cost-benefit analysis", "supply chain", "risk management", "decision tree"],
-            "emerging": ["market analysis", "risk assessment", "strategic planning"]
+        # Domain reference texts (representative examples for each domain)
+        domain_references = {
+            'behavioral': [
+                "how to deal with unfair criticism from manager",
+                "handling workplace conflicts and interpersonal issues",
+                "managing team dynamics and human behavior",
+                "dealing with biased feedback and workplace relationships",
+                "handling difficult conversations with colleagues",
+                "managing emotions and reactions in professional settings"
+            ],
+            'technical': [
+                "optimizing production capacity using mathematical models",
+                "forecasting demand with statistical analysis",
+                "simulation modeling for risk assessment",
+                "linear programming for resource allocation",
+                "data analysis and statistical modeling",
+                "mathematical optimization and algorithms"
+            ],
+            'strategic': [
+                "developing long-term business strategy",
+                "competitive positioning and market analysis",
+                "strategic planning and corporate decisions",
+                "business expansion and growth strategy",
+                "competitive advantage and market positioning",
+                "strategic decision making for organizations"
+            ],
+            'negotiation': [
+                "negotiating deals and agreements",
+                "bargaining strategies and tactics",
+                "contract negotiations and settlements",
+                "negotiation techniques and approaches",
+                "deal-making and agreement processes",
+                "negotiation frameworks and methods"
+            ]
         }
-    }
-    
-    # Detect domain and specific context
-    detected_domain = None
-    detected_context = None
-    
-    for domain, contexts in expected_concepts_map.items():
-        for context, expected_concepts in contexts.items():
-            if context in query_lower:
-                detected_domain = domain
-                detected_context = context
-                break
-        if detected_domain:
-            break
-    
-    if detected_domain and detected_context:
-        expected_concepts = expected_concepts_map[detected_domain][detected_context]
         
-        # Add missing expected concepts
-        for expected_concept in expected_concepts:
-            if expected_concept.lower() not in concept_names:
-                # Find the concept definition in CONCEPT_GLOSSARY
-                concept_definition = None
-                for concept_key, concept_data in CONCEPT_GLOSSARY.items():
-                    if expected_concept.lower() in concept_key.lower():
-                        if isinstance(concept_data, dict):
-                            concept_definition = concept_data["definition"]
-                        else:
-                            concept_definition = concept_data
-                        break
-                
-                if concept_definition:
-                    # Add the expected concept at the beginning
-                    concepts.insert(0, (expected_concept, concept_definition))
-                    concept_names.insert(0, expected_concept.lower())
+        # Generate embeddings for query and domain references
+        query_embedding = model.encode([query])
         
-        # Ensure we don't exceed 4 concepts total
-        if len(concepts) > 4:
-            concepts = concepts[:4]
-    
-    return concepts
+        domain_scores = {}
+        
+        for domain, references in domain_references.items():
+            # Encode all reference texts for this domain
+            reference_embeddings = model.encode(references)
+            
+            # Calculate similarities between query and all references
+            similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
+            
+            # Take the maximum similarity as the domain score
+            max_similarity = similarities.max().item()
+            domain_scores[domain] = max_similarity
+        
+        # Normalize scores to sum to 1.0
+        total_score = sum(domain_scores.values())
+        if total_score > 0:
+            domain_scores = {domain: score / total_score for domain, score in domain_scores.items()}
+        
+        return domain_scores
+        
+    except Exception as e:
+        print(f"Error in semantic domain detection: {e}")
+        # Fallback to keyword-based detection
+        return detect_course_concept_domains(query)
 
-# ============================================================================
-# V1.6.5.1 ALTERNATIVE PERSPECTIVE ENHANCEMENT
-# ============================================================================
-
-def get_entity_categories(expanded_entities: dict) -> List[str]:
+def unified_semantic_extraction(query: str) -> dict:
     """
-    Extract unique entity categories from expanded entities.
-    
-    Args:
-        expanded_entities: Dictionary of extracted entities
+    Unified semantic extraction system for consistent domain, application field, 
+    concept, and entity extraction using semantic similarity.
+    """
+    try:
+        # Load data lazily
+        index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-    Returns:
-        List of unique entity categories
-    """
-    if not expanded_entities:
-        return []
-    
-    categories = set()
-    for category, entities in expanded_entities.items():
-        if isinstance(entities, dict) and entities:  # Check if category has entities
-            categories.add(category)
-    
-    return list(categories)
-
-def generate_alternative_perspective_strategic_lens(expanded_entities: dict, query: str) -> str:
-    """
-    Generate alternative perspective for Strategic Thinking Lens based on entity categories.
-    
-    Args:
-        expanded_entities: Dictionary of extracted entities
-        query: Original query for context
+        # 1. SEMANTIC DOMAIN DETECTION
+        domain_scores = detect_domain_semantic(query)
+        primary_domain = max(domain_scores, key=domain_scores.get) if domain_scores else 'general'
         
-    Returns:
-        Alternative perspective sentence or empty string
+        # 2. SEMANTIC APPLICATION FIELD DETECTION
+        application_field = extract_application_field_semantic(query, model)
+        
+        # 3. SEMANTIC CONCEPT SELECTION
+        concepts = get_top_ranked_concepts(query, top_k=3)
+        
+        # 4. SEMANTIC ENTITY EXTRACTION
+        entities = extract_entities_semantic(query, model, nlp)
+        
+        return {
+            'domain': primary_domain,
+            'domain_scores': domain_scores,
+            'application_field': application_field,
+            'concepts': concepts,
+            'entities': entities
+        }
+        
+    except Exception as e:
+        print(f"Error in unified semantic extraction: {e}")
+        # Fallback to individual methods
+        return {
+            'domain': 'general',
+            'domain_scores': {},
+            'application_field': extract_application_field(query),
+            'concepts': get_top_ranked_concepts(query, top_k=3),
+            'entities': {}
+        }
+
+def extract_application_field_semantic(query: str, model) -> str:
     """
-    if not expanded_entities:
-        return ""
-    
-    entity_categories = get_entity_categories(expanded_entities)
-    
-    # Need at least 2 different entity categories for alternative perspective
-    if len(entity_categories) < 2:
-        return ""
-    
-    # Map entity categories to alternative perspectives
-    category_perspectives = {
-        "Timeframe": [
-            "An alternative perspective is to consider the long-term implications rather than immediate outcomes.",
-            "An alternative perspective is to evaluate the timing and sequencing of decisions.",
-            "An alternative perspective is to balance short-term urgency with strategic patience."
+    Extract application field using semantic similarity instead of keyword matching.
+    """
+    # Application field reference texts
+    application_references = {
+        'leadership': [
+            "managing teams and people",
+            "handling workplace conflicts",
+            "dealing with employee issues",
+            "managing difficult conversations",
+            "leadership and management",
+            "workplace relationships"
         ],
-        "Stakeholder": [
-            "An alternative perspective is to prioritize stakeholder alignment over individual interests.",
-            "An alternative perspective is to consider the broader organizational impact.",
-            "An alternative perspective is to balance competing stakeholder needs systematically."
+        'startup': [
+            "starting a new business",
+            "entrepreneurship and innovation",
+            "product development and launch",
+            "business model and strategy",
+            "startup growth and scaling",
+            "venture and entrepreneurship"
         ],
-        "Criteria": [
-            "An alternative perspective is to focus on qualitative factors beyond quantitative metrics.",
-            "An alternative perspective is to consider intangible benefits and risks.",
-            "An alternative perspective is to evaluate success criteria from multiple angles."
+        'marketing': [
+            "customer and market analysis",
+            "brand and positioning strategy",
+            "marketing campaigns and promotion",
+            "customer acquisition and retention",
+            "market research and analysis",
+            "advertising and promotion"
         ],
-        "Uncertainty": [
-            "An alternative perspective is to embrace uncertainty as an opportunity for innovation.",
-            "An alternative perspective is to develop multiple scenarios rather than single-point forecasts.",
-            "An alternative perspective is to build flexibility into the decision framework."
+        'operations': [
+            "production and manufacturing",
+            "supply chain and logistics",
+            "operational efficiency",
+            "process optimization",
+            "inventory and capacity management",
+            "operational planning"
         ],
-        "Risk": [
-            "An alternative perspective is to view risk as a catalyst for strategic advantage.",
-            "An alternative perspective is to balance risk mitigation with opportunity capture.",
-            "An alternative perspective is to consider the risk of inaction versus action."
+        'finance': [
+            "financial analysis and planning",
+            "investment and portfolio management",
+            "budgeting and cost control",
+            "financial decision making",
+            "investment strategies",
+            "financial risk management"
+        ],
+        'negotiation': [
+            "deal making and agreements",
+            "contract negotiations",
+            "bargaining and settlements",
+            "negotiation strategies",
+            "agreement processes",
+            "deal negotiations"
         ]
     }
     
-    # Select the most relevant categories for the query
-    query_lower = query.lower()
-    relevant_categories = []
+    # Generate embeddings and calculate similarities
+    query_embedding = model.encode([query])
     
-    for category in entity_categories:
-        if category in category_perspectives:
-            relevant_categories.append(category)
+    field_scores = {}
+    for field, references in application_references.items():
+        reference_embeddings = model.encode(references)
+        similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
+        max_similarity = similarities.max().item()
+        field_scores[field] = max_similarity
     
-    if len(relevant_categories) >= 2:
-        # Select the first two relevant categories
-        selected_categories = relevant_categories[:2]
-        
-        # Generate perspective based on the combination
-        if "Timeframe" in selected_categories and "Stakeholder" in selected_categories:
-            return "An alternative perspective is to align stakeholder interests with appropriate time horizons."
-        elif "Criteria" in selected_categories and "Uncertainty" in selected_categories:
-            return "An alternative perspective is to adapt evaluation criteria to handle uncertainty effectively."
-        elif "Risk" in selected_categories and "Stakeholder" in selected_categories:
-            return "An alternative perspective is to balance stakeholder risk tolerance with strategic objectives."
-        else:
-            # Use the first category's perspective
-            category = selected_categories[0]
-            perspectives = category_perspectives[category]
-            return perspectives[0]  # Return the first perspective for consistency
-    
-    return ""
+    # Return the field with highest similarity
+    return max(field_scores, key=field_scores.get) if field_scores else 'general'
 
-def generate_alternative_scenario_story_action(expanded_entities: dict, query: str) -> str:
+def extract_entities_semantic(query: str, model, nlp) -> dict:
     """
-    Generate alternative scenario for Story in Action based on entity categories.
-    
-    Args:
-        expanded_entities: Dictionary of extracted entities
-        query: Original query for context
-        
-    Returns:
-        Alternative scenario sentence or empty string
+    Extract entities using both NLP and semantic similarity for better accuracy.
     """
-    if not expanded_entities:
-        return ""
+    # Use spaCy for basic entity extraction
+    doc = nlp(query)
+    entities = {}
     
-    entity_categories = get_entity_categories(expanded_entities)
+    # Extract named entities
+    for ent in doc.ents:
+        entities[ent.text] = {
+            'type': ent.label_,
+            'confidence': 0.8,  # spaCy confidence
+            'method': 'nlp'
+        }
     
-    # Need at least 2 different entity categories for alternative scenario
-    if len(entity_categories) < 2:
-        return ""
-    
-    # Map entity categories to alternative scenarios
-    category_scenarios = {
-        "Timeframe": [
-            "Alternatively, a more patient approach could yield better long-term results despite short-term challenges.",
-            "Alternatively, accelerating the timeline might capture first-mover advantages in this situation.",
-            "Alternatively, phasing the implementation could balance urgency with thoroughness."
-        ],
-        "Stakeholder": [
-            "Alternatively, focusing on a different stakeholder group might reveal unexpected opportunities.",
-            "Alternatively, bringing in additional stakeholders could provide fresh perspectives.",
-            "Alternatively, prioritizing internal stakeholders over external ones might be more strategic."
-        ],
-        "Criteria": [
-            "Alternatively, using different success metrics might change the optimal decision.",
-            "Alternatively, considering non-financial criteria could lead to better outcomes.",
-            "Alternatively, weighting criteria differently might reveal overlooked options."
-        ],
-        "Uncertainty": [
-            "Alternatively, embracing the uncertainty could lead to more innovative solutions.",
-            "Alternatively, developing contingency plans might reduce the perceived risk.",
-            "Alternatively, gathering more information might not be worth the delay."
-        ],
-        "Risk": [
-            "Alternatively, taking calculated risks might be necessary for breakthrough results.",
-            "Alternatively, risk-averse approaches might miss significant opportunities.",
-            "Alternatively, sharing risks with partners could enable more ambitious goals."
-        ]
+    # Use semantic similarity to identify domain-specific entities
+    domain_entities = {
+        'behavioral': ['manager', 'team', 'colleague', 'employee', 'stakeholder'],
+        'technical': ['model', 'algorithm', 'system', 'data', 'analysis'],
+        'strategic': ['strategy', 'plan', 'approach', 'method', 'framework'],
+        'negotiation': ['deal', 'agreement', 'contract', 'settlement', 'proposal']
     }
     
-    # Select the most relevant categories for the query
-    query_lower = query.lower()
-    relevant_categories = []
+    # Check for domain-specific entities using semantic similarity
+    query_embedding = model.encode([query])
     
-    for category in entity_categories:
-        if category in category_scenarios:
-            relevant_categories.append(category)
-    
-    if len(relevant_categories) >= 2:
-        # Select the first two relevant categories
-        selected_categories = relevant_categories[:2]
+    for domain, entity_list in domain_entities.items():
+        entity_embeddings = model.encode(entity_list)
+        similarities = util.pytorch_cos_sim(query_embedding, entity_embeddings)[0]
         
-        # Generate scenario based on the combination
-        if "Timeframe" in selected_categories and "Stakeholder" in selected_categories:
-            return "Alternatively, a phased approach involving key stakeholders at each stage could balance speed with buy-in."
-        elif "Criteria" in selected_categories and "Uncertainty" in selected_categories:
-            return "Alternatively, using adaptive criteria that evolve with changing circumstances might be more effective."
-        elif "Risk" in selected_categories and "Stakeholder" in selected_categories:
-            return "Alternatively, involving stakeholders in risk assessment might reveal acceptable risk levels."
-        else:
-            # Use the first category's scenario
-            category = selected_categories[0]
-            scenarios = category_scenarios[category]
-            return scenarios[0]  # Return the first scenario for consistency
+        for i, entity in enumerate(entity_list):
+            similarity = similarities[i].item()
+            if similarity > 0.3:  # Threshold for entity detection
+                entities[entity] = {
+                    'type': 'DOMAIN_ENTITY',
+                    'confidence': similarity,
+                    'method': 'semantic',
+                    'domain': domain
+                }
     
-    return ""
-
-def add_alternative_perspectives(content: str, expanded_entities: dict, query: str, 
-                               current_words: int, max_words: int, section_type: str) -> str:
-    """
-    Add alternative perspectives to content based on entity categories and word count.
-    
-    Args:
-        content: Original content
-        expanded_entities: Dictionary of extracted entities
-        query: Original query for context
-        current_words: Current word count
-        max_words: Maximum allowed words
-        section_type: "strategic_lens" or "story_action"
-        
-    Returns:
-        Content with alternative perspectives added (if applicable)
-    """
-    if not expanded_entities:
-        return content
-    
-    entity_categories = get_entity_categories(expanded_entities)
-    
-    # Check if we have enough entity variety (at least 2 different categories)
-    if len(entity_categories) < 2:
-        return content
-    
-    # Calculate available word budget
-    available_words = max_words - current_words
-    
-    if section_type == "strategic_lens":
-        # Strategic Thinking Lens rules: <120 words OR at least 2 entities from different categories
-        if current_words < 120 or len(entity_categories) >= 2:
-            alternative_perspective = generate_alternative_perspective_strategic_lens(expanded_entities, query)
-            if alternative_perspective and len(alternative_perspective.split()) <= available_words:
-                # Add the alternative perspective before the last sentence
-                sentences = content.split('. ')
-                if len(sentences) > 1:
-                    # Insert before the last sentence
-                    sentences.insert(-1, alternative_perspective)
-                    return '. '.join(sentences)
-                else:
-                    # If only one sentence, append
-                    return content + ' ' + alternative_perspective
-    
-    elif section_type == "story_action":
-        # Story in Action rules: at least 2 entities from different categories
-        if len(entity_categories) >= 2:
-            alternative_scenario = generate_alternative_scenario_story_action(expanded_entities, query)
-            if alternative_scenario and len(alternative_scenario.split()) <= available_words:
-                # Add the alternative scenario at the end
-                return content + ' ' + alternative_scenario
-    
-    return content
+    return entities
 
 # Main execution for testing
 if __name__ == "__main__":

@@ -27,7 +27,7 @@ class TooltipManager:
             "swot analysis": "A framework that helps identify strengths, weaknesses, opportunities, and threats to assess your situation comprehensively.",
             "cost-benefit analysis": "A systematic approach to compare the pros and cons of different options by weighing their advantages and disadvantages.",
             "expected utility": "A method for calculating the value of different scenarios when dealing with uncertainty and multiple possible outcomes.",
-            "ooda loop": "A decision cycle (Observe, Orient, Decide, Act) that helps you stay agile and responsive in fast-changing situations.",
+        
             "bounded rationality": "The recognition that good decisions don't require perfect information when time or information is limited.",
             "prospect theory": "Shows how people often value avoiding losses more than achieving gains when evaluating options.",
             "anchoring bias": "The tendency to rely too heavily on the first piece of information when making decisions.",

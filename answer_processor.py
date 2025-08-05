@@ -90,7 +90,7 @@ class AnswerProcessor:
             # Check if this looks like a tooltip (framework name)
             if any(framework.lower() in match.lower() for framework in [
                 "decision tree", "swot", "cost-benefit", "expected utility",
-                "ooda loop", "bounded rationality", "prospect theory"
+                "bounded rationality", "prospect theory"
             ]):
                 tooltips[match] = ""  # Placeholder for tooltip content
         
