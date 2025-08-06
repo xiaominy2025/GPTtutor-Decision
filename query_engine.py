@@ -508,7 +508,6 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Define concept-pattern relationships for boosting
                 concept_patterns = {
                     'decision tree': ['comparison', 'planning'],
-     
                     'swot analysis': ['analysis', 'planning'],
                     'monte carlo simulation': ['risk', 'forecasting'],
                     'scenario analysis': ['risk', 'planning'],
@@ -537,17 +536,17 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             query_lower = query.lower()
             
             # Check for critique/feedback related keywords (negative presentation)
-            critique_keywords = ['critique', 'criticism', 'feedback', 'unfair', 'unjust', 'negative', 'manager', 'employee', 'workplace']
+            critique_keywords = ['critique', 'criticism', 'feedback', 'unfair', 'unjust', 'negative', 'manager', 'employee', 'workplace', 'boss', 'bad news']
             if any(keyword in query_lower for keyword in critique_keywords):
                 # Boost framing bias for critique-related queries (positive vs negative presentation)
                 if concept_name == 'framing bias':
-                    behavioral_boost = 0.25  # Significant boost - critiques involve negative presentation
+                    behavioral_boost = 0.35  # Increased boost for critique-related queries
                 # Boost confirmation bias for critique-related queries
                 elif concept_name == 'confirmation bias':
-                    behavioral_boost = 0.20  # Moderate boost
+                    behavioral_boost = 0.30  # Increased boost
                 # Boost anchoring bias for workplace feedback
                 elif concept_name == 'anchoring bias':
-                    behavioral_boost = 0.15  # Light boost
+                    behavioral_boost = 0.25  # Increased boost
                 # Penalize mental accounting for critique-related queries (not money-related)
                 elif concept_name == 'mental accounting':
                     behavioral_boost = -0.30  # Significant penalty - critiques are not about money
@@ -585,7 +584,8 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic penalty
             score -= generic_penalty
             
-            if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
+            # LOWER THRESHOLD: Changed from 0.20 to 0.15 to capture more concepts
+            if score > 0.15:  # Lower threshold to capture more concepts
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -733,7 +733,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Domain-specific relevance checks
             if concept_domain == 'behavioral':
                 # For behavioral queries, ensure concepts relate to human behavior/psychology
-                behavioral_keywords = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response', 'unfair', 'unjust']
+                behavioral_keywords = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response', 'unfair', 'unjust', 'boss', 'bad news']
                 if any(keyword in query_lower for keyword in behavioral_keywords):
                     # Mental accounting is about money - not relevant for workplace feedback
                     if concept_name == 'mental accounting':
@@ -1113,26 +1113,30 @@ def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: i
     # Calculate target length based on domain count
     target_length = min(150, 100 + (domain_count - 1) * 25)
     
-    # Create merge prompt with improved instructions
-    merge_prompt = f"""You are refining an educational response for a master's-level student.
+    # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
+    prompt = f"""
+You're an expert instructor helping graduate students practice strategic decision-making.
 
-Lens Draft (reasoning):
+Below are two drafts:
+1. A strategic thinking explanation for the query
+2. An illustrative story or scenario aligned with that explanation
+
+Your task is to revise and merge these into a single, cohesive answer. The result will be displayed under the section: **Strategic Thinking Lens**.
+
+✅ Do NOT add section headers or markdown titles like "Strategic Reasoning" or "Concrete Example."
+✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
+✅ Write ONLY the narrative content without any formatting headers
+✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
+✅ Use a clear, professional tone appropriate for graduate-level learners.
+✅ Keep the response concise (ideally two well-developed paragraphs).
+✅ Avoid repetition or superficial elaboration.
+
+Lens Draft:
 {lens_text}
 
-Story Draft (example seed):
+Story Draft:
 {story_text}
-
-Task:
-1. Combine these into ONE cohesive section called "Strategic Thinking Lens".
-2. Organize the output into two parts:
-   - Part 1: Strategic reasoning (1–2 paragraphs, covering frameworks and analysis).
-   - Part 2: A concrete example (1–2 paragraphs) starting with a connector such as "For example,", "For instance,", or "Consider this scenario:".
-3. If the Story Draft is too short, expand it slightly to illustrate the reasoning.
-4. Do not repeat definitions; use the story to show concepts in action.
-5. Write clearly and professionally for a decision-making course.
-6. Aim for about {target_length} words total, but prioritize clarity over exact length.
-
-Please merge these into a single, cohesive Strategic Thinking Lens:"""
+"""
 
     try:
         # Call GPT-3.5 for merging
@@ -1140,7 +1144,7 @@ Please merge these into a single, cohesive Strategic Thinking Lens:"""
         response, error = robust_api_call(
             client=client,
             system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
-            user_message=merge_prompt,
+            user_message=prompt,
             max_tokens=300
         )
         end_time = time.time()
@@ -1154,6 +1158,14 @@ Please merge these into a single, cohesive Strategic Thinking Lens:"""
         
         # Extract merged content
         merged_content = response.choices[0].message.content.strip()
+        
+        # ✅ Clean up redundant headers in merged_content from GPT output
+        merged_content = re.sub(
+            r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
+            '',
+            merged_content.strip(),
+            flags=re.IGNORECASE
+        )
         
         # Log success
         tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
@@ -1904,15 +1916,45 @@ def process_query(query: str, course_config: dict = None) -> str:
                     "A professional systematically evaluates their options using structured decision-making tools. They consider both immediate impacts and long-term consequences, ultimately making a choice that balances competing priorities and aligns with their strategic objectives.")
             
             # Merge Lens and Story using GPT-3.5
-            merged_lens = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
+            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
             
-            # Replace the original Lens with merged version
+            # ✅ Clean up redundant headers in merged_content from GPT output
+            merged_content = re.sub(
+                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
+                '',
+                merged_content.strip(),
+                flags=re.IGNORECASE
+            )
+            
+            # Clean up old Strategic Thinking Lens section from the original answer
             answer = re.sub(
-                r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*|\Z)',
-                f'\n\n**Strategic Thinking Lens**\n\n{merged_lens}\n\n',
+                r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
+                '',
                 answer,
                 flags=re.DOTALL | re.IGNORECASE
             )
+
+            # Sanitize the merged content in case it still starts with a header (just to be safe)
+            merged_content = re.sub(
+                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
+                '',
+                merged_content.strip(),
+                flags=re.IGNORECASE
+            )
+
+            # Inject clean Strategic Thinking Lens section
+            answer = f"**Strategic Thinking Lens**\n\n{merged_content.strip()}\n\n" + answer
+            
+            # POST-PROCESSING: Remove Part 1/Part 2 subheaders and format connectors as italic
+            answer = re.sub(r'\*\*Part \d+:[^*]*\*\*', '', answer)
+            
+            # Strip stray bold/italic around connectors first
+            answer = re.sub(r'[*_]+(For (?:example|instance)[^,:]*,?)[*_]+', r'\1', answer)
+            answer = re.sub(r'[*_]+(Consider this scenario:?)[*_]+', r'\1', answer)
+            
+            # Reapply italics consistently
+            answer = re.sub(r'(For (?:example|instance)[^,:]*,?)', r'*\1*', answer)
+            answer = re.sub(r'(Consider this scenario:?)', r'*\1*', answer)
             
             # Remove the original Story section to prevent duplication
             answer = re.sub(
@@ -2115,72 +2157,146 @@ def unified_semantic_extraction(query: str) -> dict:
 
 def extract_application_field_semantic(query: str, model) -> str:
     """
-    Extract application field using semantic similarity instead of keyword matching.
+    Hybrid semantic + keyword-based application field detection.
+    Returns: the most relevant field with fallback to keyword logic if semantic confidence is low.
     """
-    # Application field reference texts
+    # Application field reference texts for semantic matching
     application_references = {
-        'leadership': [
-            "managing teams and people",
-            "handling workplace conflicts",
-            "dealing with employee issues",
-            "managing difficult conversations",
-            "leadership and management",
-            "workplace relationships"
+        'finance': [
+            "financial analysis and planning",
+            "investment and portfolio management",
+            "budgeting and cost control",
+            "financial decision making",
+            "investment strategies"
         ],
         'startup': [
             "starting a new business",
             "entrepreneurship and innovation",
             "product development and launch",
             "business model and strategy",
-            "startup growth and scaling",
-            "venture and entrepreneurship"
+            "scaling a venture"
         ],
         'marketing': [
-            "customer and market analysis",
-            "brand and positioning strategy",
-            "marketing campaigns and promotion",
-            "customer acquisition and retention",
-            "market research and analysis",
-            "advertising and promotion"
+            "customer acquisition strategy",
+            "brand positioning and loyalty",
+            "advertising and promotion",
+            "market segmentation",
+            "pricing strategy"
         ],
         'operations': [
-            "production and manufacturing",
-            "supply chain and logistics",
-            "operational efficiency",
-            "process optimization",
-            "inventory and capacity management",
-            "operational planning"
+            "production planning and capacity",
+            "supply chain optimization",
+            "demand forecasting",
+            "logistics and inventory management"
         ],
-        'finance': [
-            "financial analysis and planning",
-            "investment and portfolio management",
-            "budgeting and cost control",
-            "financial decision making",
-            "investment strategies",
-            "financial risk management"
+        'project_management': [
+            "managing project timelines",
+            "stakeholder alignment in projects",
+            "milestones and deliverables",
+            "critical path analysis"
         ],
-        'negotiation': [
-            "deal making and agreements",
-            "contract negotiations",
-            "bargaining and settlements",
-            "negotiation strategies",
-            "agreement processes",
-            "deal negotiations"
+        'leadership': [
+            "managing teams and conflicts",
+            "leadership and organizational culture",
+            "handling interpersonal issues",
+            "facilitating team decision making"
+        ],
+        'risk_management': [
+            "risk mitigation strategies",
+            "scenario analysis and resilience",
+            "volatility and contingency planning"
+        ],
+        'education': [
+            "choosing a university program",
+            "career impact of degrees",
+            "education decisions and ROI"
+        ],
+        'sustainability': [
+            "corporate ESG strategy",
+            "environmental responsibility in business",
+            "long-term sustainability trade-offs"
+        ],
+        'job': [
+            "choosing between job offers",
+            "career decision making",
+            "evaluating employment options"
+        ],
+        'health': [
+            "deciding on health insurance",
+            "wellness and healthcare trade-offs",
+            "mental and physical well-being"
+        ],
+        'ethics': [
+            "ethical decision making in organizations",
+            "values-driven choices",
+            "moral dilemmas in leadership"
+        ],
+        'relocation': [
+            "moving to a new city for work",
+            "geographic relocation trade-offs",
+            "family and career balance in relocation"
+        ],
+        'business': [
+            "strategic decision making in business",
+            "organizational decision making",
+            "bias in executive decisions",
+            "managerial judgment and planning"
         ]
     }
-    
-    # Generate embeddings and calculate similarities
+
+    # Encode query
     query_embedding = model.encode([query])
-    
     field_scores = {}
-    for field, references in application_references.items():
-        reference_embeddings = model.encode(references)
-        similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
-        max_similarity = similarities.max().item()
-        field_scores[field] = max_similarity
-    
-    # Return the field with highest similarity
-    return max(field_scores, key=field_scores.get) if field_scores else 'general'
+
+    for field, examples in application_references.items():
+        example_embeddings = model.encode(examples)
+        similarity = util.pytorch_cos_sim(query_embedding, example_embeddings)[0].max().item()
+        field_scores[field] = similarity
+
+    # Get best semantic match
+    semantic_field = max(field_scores, key=field_scores.get)
+    semantic_score = field_scores[semantic_field]
+
+    # Keyword-based fallback scoring (lightweight)
+    def extract_application_field_keywords(query: str) -> Tuple[str, float]:
+        q = query.lower()
+        field_keywords = {
+            'finance': ["invest", "investment", "portfolio", "finance", "budget", "cost", "financial", "return"],
+            'startup': ["startup", "entrepreneur", "founder", "launch", "venture"],
+            'business': ["business strategy", "business decision", "business impact", "business risk", "managerial", "executive", "corporate"],
+            'marketing': ["marketing", "customer", "brand", "advertising", "promotion", "sales"],
+            'operations': ["production", "capacity", "supply chain", "forecast", "manufacturing"],
+            'project_management': ["project", "milestone", "timeline", "deadline", "deliverable", "scope"],
+            'leadership': ["team", "leader", "conflict", "organizational culture", "staff"],
+            'risk_management': ["risk", "mitigation", "contingency", "volatility", "hazard"],
+            'education': ["degree", "course", "certification", "university", "education"],
+            'sustainability': ["sustainability", "esg", "green", "carbon", "environmental"],
+            'relocation': ["relocate", "move", "immigration", "city", "country"],
+            'job': ["job", "position", "employment", "offer", "career", "hiring"],
+            'health': ["health", "wellness", "insurance", "medical", "mental"],
+            'ethics': ["ethics", "moral", "values", "integrity", "responsibility"]
+        }
+
+        best_field = "general"
+        max_matches = 0
+        for field, keywords in field_keywords.items():
+            matches = sum(1 for word in keywords if word in q)
+            if matches > max_matches:
+                best_field = field
+                max_matches = matches
+
+        keyword_score = min(max_matches / 5.0, 1.0)  # Normalize
+        return best_field, keyword_score
+
+    keyword_field, keyword_score = extract_application_field_keywords(query)
+
+    # Final decision: semantic vs keyword
+    if max(semantic_score, keyword_score) < 0.5:
+        return 'general'
+    elif keyword_score > semantic_score:
+        return keyword_field
+    else:
+        return semantic_field
 
 def extract_entities_semantic(query: str, model, nlp) -> dict:
     """
