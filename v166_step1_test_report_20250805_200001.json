@@ -1,0 +1,329 @@
+{
+  "test_summary": {
+    "functional_tests": "15/15",
+    "quality_tests": "3/3",
+    "length_compliance": "2/3",
+    "regression_tests": "2/2"
+  },
+  "performance_metrics": {
+    "total_queries": 15,
+    "avg_response_time": 5.245283317565918,
+    "success_rate": 100.0,
+    "fallback_rate": 0.0,
+    "total_time": 78.67924976348877
+  },
+  "detailed_results": {
+    "functional_tests": [
+      {
+        "query": "Should I accept this job offer?",
+        "domain_count": 1,
+        "status": "PASS",
+        "lens_words": 104,
+        "has_connector": true,
+        "response_time": 8.238340616226196,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How do I choose between two investment options?",
+        "domain_count": 1,
+        "status": "PASS",
+        "lens_words": 177,
+        "has_connector": true,
+        "response_time": 6.145518064498901,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What's the best approach for this career decision?",
+        "domain_count": 1,
+        "status": "PASS",
+        "lens_words": 85,
+        "has_connector": true,
+        "response_time": 4.4225404262542725,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How should I evaluate this business opportunity?",
+        "domain_count": 1,
+        "status": "PASS",
+        "lens_words": 125,
+        "has_connector": true,
+        "response_time": 7.2648210525512695,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What factors should I consider for this personal decision?",
+        "domain_count": 1,
+        "status": "PASS",
+        "lens_words": 111,
+        "has_connector": true,
+        "response_time": 3.933732509613037,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How should I negotiate this contract while considering technical requirements?",
+        "domain_count": 2,
+        "status": "PASS",
+        "lens_words": 141,
+        "has_connector": true,
+        "response_time": 5.379478931427002,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What's the best strategy for market entry with limited resources?",
+        "domain_count": 2,
+        "status": "PASS",
+        "lens_words": 132,
+        "has_connector": true,
+        "response_time": 4.796577453613281,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How do I optimize production while managing team conflicts?",
+        "domain_count": 2,
+        "status": "PASS",
+        "lens_words": 94,
+        "has_connector": true,
+        "response_time": 3.381202220916748,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What approach should I take for this investment decision with risk considerations?",
+        "domain_count": 2,
+        "status": "PASS",
+        "lens_words": 107,
+        "has_connector": true,
+        "response_time": 4.385882139205933,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How should I handle this business decision with stakeholder concerns?",
+        "domain_count": 2,
+        "status": "PASS",
+        "lens_words": 134,
+        "has_connector": true,
+        "response_time": 5.170090436935425,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How do I optimize our production schedule while managing team conflicts and market demands?",
+        "domain_count": 3,
+        "status": "PASS",
+        "lens_words": 78,
+        "has_connector": true,
+        "response_time": 3.7932286262512207,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What's the best strategy for entering a new market with technical constraints and competitive pressures?",
+        "domain_count": 3,
+        "status": "PASS",
+        "lens_words": 128,
+        "has_connector": true,
+        "response_time": 6.164865970611572,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How should I approach this negotiation with technical requirements and stakeholder alignment?",
+        "domain_count": 3,
+        "status": "PASS",
+        "lens_words": 111,
+        "has_connector": true,
+        "response_time": 6.220522880554199,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "What's the optimal approach for this investment decision considering market volatility and team dynamics?",
+        "domain_count": 3,
+        "status": "PASS",
+        "lens_words": 113,
+        "has_connector": true,
+        "response_time": 4.088775157928467,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      },
+      {
+        "query": "How do I balance operational efficiency with team morale and strategic positioning?",
+        "domain_count": 3,
+        "status": "PASS",
+        "lens_words": 109,
+        "has_connector": true,
+        "response_time": 5.293673276901245,
+        "sections_present": [
+          "lens",
+          "story",
+          "prompts",
+          "concepts"
+        ]
+      }
+    ],
+    "quality_tests": [
+      {
+        "query": "How should I approach this business decision?",
+        "has_connector": true,
+        "used_connector": "For instance,",
+        "repeated_phrases": [],
+        "has_flow": true,
+        "lens_length": 770
+      },
+      {
+        "query": "What's the best strategy for market entry?",
+        "has_connector": true,
+        "used_connector": "For example,",
+        "repeated_phrases": [],
+        "has_flow": true,
+        "lens_length": 981
+      },
+      {
+        "query": "How do I optimize operations while managing conflicts?",
+        "has_connector": true,
+        "used_connector": "For example,",
+        "repeated_phrases": [],
+        "has_flow": true,
+        "lens_length": 938
+      }
+    ],
+    "length_compliance": [
+      {
+        "domain_count": 1,
+        "query": "Should I accept this job offer?",
+        "actual_words": 96,
+        "expected_range": [
+          90,
+          120
+        ],
+        "is_compliant": true,
+        "status": "PASS"
+      },
+      {
+        "domain_count": 2,
+        "query": "How should I negotiate this contract while considering technical requirements?",
+        "actual_words": 120,
+        "expected_range": [
+          115,
+          135
+        ],
+        "is_compliant": true,
+        "status": "PASS"
+      },
+      {
+        "domain_count": 3,
+        "query": "How do I optimize production while managing team conflicts and market demands?",
+        "actual_words": 121,
+        "expected_range": [
+          135,
+          150
+        ],
+        "is_compliant": false,
+        "status": "FAIL"
+      }
+    ],
+    "fallback_tests": [
+      {
+        "query": "How should I approach this decision?",
+        "has_fallback_pattern": false,
+        "lens_length": 584,
+        "status": "PASS"
+      },
+      {
+        "query": "What's the best strategy for this situation?",
+        "has_fallback_pattern": false,
+        "lens_length": 828,
+        "status": "PASS"
+      }
+    ],
+    "performance_metrics": {
+      "total_queries": 15,
+      "avg_response_time": 5.245283317565918,
+      "success_rate": 100.0,
+      "fallback_rate": 0.0,
+      "total_time": 78.67924976348877
+    },
+    "regression_tests": [
+      {
+        "query": "How should I approach this business decision?",
+        "missing_sections": [],
+        "prompts_valid": true,
+        "concepts_valid": true,
+        "status": "PASS"
+      },
+      {
+        "query": "What's the best strategy for market entry?",
+        "missing_sections": [],
+        "prompts_valid": true,
+        "concepts_valid": true,
+        "status": "PASS"
+      }
+    ]
+  },
+  "timestamp": "2025-08-05T20:00:01.397369",
+  "version": "V1.6.6 Step 1"
+}

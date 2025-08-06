@@ -1,0 +1,1379 @@
+{
+  "timestamp": "20250804_164122",
+  "total_queries": 40,
+  "domain_stats": {
+    "career": {
+      "count": 4,
+      "scores": [
+        0.7366666666666667,
+        0.8733333333333333,
+        0.71,
+        0.6766666666666666
+      ],
+      "avg_score": 0.7491666666666666,
+      "issues": [
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Missing expected concepts: ['weighted scoring', 'career planning']",
+        "Missing expected concepts: ['decision tree']",
+        "Missing expected concepts: ['swot analysis', 'risk assessment', 'career planning']",
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Missing expected concepts: ['batna', 'negotiation strategy']"
+      ]
+    },
+    "strategy": {
+      "count": 4,
+      "scores": [
+        0.8366666666666667,
+        0.655,
+        0.74,
+        0.64
+      ],
+      "avg_score": 0.7179166666666666,
+      "issues": [
+        "Missing expected concepts: ['competitive analysis', 'strategic positioning']",
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Missing expected concepts: ['swot analysis', 'risk assessment', 'market analysis']",
+        "Repeated phrase: 'long-term'",
+        "Missing expected concepts: ['competitive analysis', 'market analysis', 'profitability analysis']",
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Missing expected concepts: ['risk assessment', 'swot analysis', 'market analysis']"
+      ]
+    },
+    "operations": {
+      "count": 4,
+      "scores": [
+        0.8291666666666666,
+        0.65,
+        0.8958333333333333,
+        0.8058333333333333
+      ],
+      "avg_score": 0.7952083333333333,
+      "issues": [
+        "Missing expected concepts: ['supply chain risk management', 'cost analysis']",
+        "Missing expected concepts: ['linear optimization', 'resource planning', 'project management']",
+        "Missing expected concepts: ['capacity planning']",
+        "Missing expected concepts: ['moving average']",
+        "Repeated phrase: 'long-term'"
+      ]
+    },
+    "financial": {
+      "count": 4,
+      "scores": [
+        0.58,
+        0.71,
+        0.7766666666666666,
+        0.7766666666666666
+      ],
+      "avg_score": 0.7108333333333333,
+      "issues": [
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Missing expected concepts: ['risk assessment', 'portfolio management', 'investment analysis']",
+        "Missing expected concepts: ['decision tree', 'risk tolerance assessment', 'portfolio management']",
+        "Missing expected concepts: ['value chain analysis', 'profitability analysis']",
+        "Missing expected concepts: ['monte carlo simulation', 'risk assessment']"
+      ]
+    },
+    "negotiation": {
+      "count": 4,
+      "scores": [
+        0.9033333333333333,
+        0.8216666666666667,
+        0.7466666666666667,
+        0.7766666666666666
+      ],
+      "avg_score": 0.8120833333333333,
+      "issues": [
+        "Missing expected concepts: ['negotiation strategy']",
+        "Missing expected concepts: ['risk assessment', 'contingency planning']",
+        "Repeated phrase: 'long-term'",
+        "Missing expected concepts: ['value creation', 'negotiation strategy']",
+        "Missing expected concepts: ['batna', 'negotiation strategy']"
+      ]
+    },
+    "risk": {
+      "count": 4,
+      "scores": [
+        0.9333333333333333,
+        0.9333333333333333,
+        0.8366666666666667,
+        0.8366666666666667
+      ],
+      "avg_score": 0.885,
+      "issues": [
+        "Missing expected concepts: ['market analysis']",
+        "Missing expected concepts: ['risk assessment']",
+        "Missing expected concepts: ['monte carlo simulation', 'forecasting']",
+        "Missing expected concepts: ['risk assessment', 'contingency planning']"
+      ]
+    },
+    "behavioral": {
+      "count": 4,
+      "scores": [
+        0.8583333333333334,
+        0.7466666666666667,
+        0.71,
+        0.8066666666666666
+      ],
+      "avg_score": 0.7804166666666666,
+      "issues": [
+        "Missing expected concepts: ['group dynamics']",
+        "Repeated phrase: 'long-term'",
+        "Missing expected concepts: ['sunk cost fallacy', 'cognitive bias']",
+        "Missing expected concepts: ['anchoring bias', 'cognitive behaviors', 'pricing strategy']",
+        "Missing expected concepts: ['group dynamics', 'leadership assessment']"
+      ]
+    },
+    "technology": {
+      "count": 4,
+      "scores": [
+        0.71,
+        0.71,
+        0.71,
+        0.6950000000000001
+      ],
+      "avg_score": 0.70625,
+      "issues": [
+        "Missing expected concepts: ['technology assessment', 'risk assessment', 'cost-benefit analysis']",
+        "Missing expected concepts: ['competitive analysis', 'decision tree', 'technology assessment']",
+        "Missing expected concepts: ['profitability analysis', 'cost-benefit analysis', 'risk assessment']",
+        "Missing expected concepts: ['portfolio management', 'decision tree', 'project prioritization']",
+        "Repeated phrase: 'long-term'"
+      ]
+    },
+    "sustainability": {
+      "count": 4,
+      "scores": [
+        0.5266666666666666,
+        0.8733333333333333,
+        0.6799999999999999,
+        0.6799999999999999
+      ],
+      "avg_score": 0.69,
+      "issues": [
+        "Generic placeholder: 'Relevant framework for this decision context'",
+        "Generic placeholder: 'Relevant framework'",
+        "Generic placeholder: 'Decision Frameworks'",
+        "Generic placeholder: 'Value Assessment'",
+        "Generic placeholder: 'Systematic Analysis'",
+        "Missing expected concepts: ['stakeholder alignment', 'sustainability assessment']",
+        "Missing expected concepts: ['strategic planning']",
+        "Missing expected concepts: ['supply chain risk management', 'stakeholder alignment', 'ESG assessment']",
+        "Missing expected concepts: ['profitability analysis', 'risk assessment', 'investment analysis']"
+      ]
+    },
+    "global": {
+      "count": 4,
+      "scores": [
+        0.6799999999999999,
+        0.6799999999999999,
+        0.71,
+        0.8366666666666667
+      ],
+      "avg_score": 0.7266666666666666,
+      "issues": [
+        "Missing expected concepts: ['risk assessment', 'hedging strategies', 'international finance']",
+        "Missing expected concepts: ['cost-benefit analysis', 'supply chain risk management', 'decision tree']",
+        "Missing expected concepts: ['market analysis', 'risk assessment', 'strategic planning']",
+        "Missing expected concepts: ['risk assessment', 'international finance']"
+      ]
+    }
+  },
+  "detailed_results": [
+    {
+      "query": "I need to decide between two job offers with different salaries",
+      "domain": "career",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0.6,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['weighted scoring', 'career planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.7366666666666667,
+      "processing_time": 7.16843581199646,
+      "response_length": 2234
+    },
+    {
+      "query": "Should I accept a promotion that requires relocation?",
+      "domain": "career",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['decision tree']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.8733333333333333,
+      "processing_time": 4.263831853866577,
+      "response_length": 2010
+    },
+    {
+      "query": "How do I choose between staying at my current company or joining a startup?",
+      "domain": "career",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['swot analysis', 'risk assessment', 'career planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 2.3919172286987305,
+      "response_length": 1822
+    },
+    {
+      "query": "What factors should I consider when negotiating my salary?",
+      "domain": "career",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0.6,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['batna', 'negotiation strategy']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.6766666666666666,
+      "processing_time": 3.0753860473632812,
+      "response_length": 2142
+    },
+    {
+      "query": "How should our company position itself against new competitors?",
+      "domain": "strategy",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['competitive analysis', 'strategic positioning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.8366666666666667,
+      "processing_time": 1.7805030345916748,
+      "response_length": 1816
+    },
+    {
+      "query": "Should we expand into international markets?",
+      "domain": "strategy",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0.6,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['swot analysis', 'risk assessment', 'market analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 0.9,
+        "issues": [
+          "Repeated phrase: 'long-term'"
+        ]
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.655,
+      "processing_time": 2.8650870323181152,
+      "response_length": 2300
+    },
+    {
+      "query": "How do we evaluate different pricing strategies for our new product?",
+      "domain": "strategy",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['competitive analysis', 'market analysis', 'profitability analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.74,
+      "processing_time": 3.6031899452209473,
+      "response_length": 1897
+    },
+    {
+      "query": "What are the risks and opportunities of entering a new market segment?",
+      "domain": "strategy",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0.6,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'swot analysis', 'market analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.64,
+      "processing_time": 3.477782964706421,
+      "response_length": 2338
+    },
+    {
+      "query": "How do I optimize our supply chain to reduce costs?",
+      "domain": "operations",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['supply chain risk management', 'cost analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.75,
+        "issues": []
+      },
+      "overall_score": 0.8291666666666666,
+      "processing_time": 3.1691532135009766,
+      "response_length": 1954
+    },
+    {
+      "query": "What's the best way to allocate resources across multiple projects?",
+      "domain": "operations",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['linear optimization', 'resource planning', 'project management']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.0,
+        "issues": []
+      },
+      "overall_score": 0.65,
+      "processing_time": 2.584501266479492,
+      "response_length": 2057
+    },
+    {
+      "query": "How can we improve our production capacity planning?",
+      "domain": "operations",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['capacity planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.75,
+        "issues": []
+      },
+      "overall_score": 0.8958333333333333,
+      "processing_time": 3.032501220703125,
+      "response_length": 2309
+    },
+    {
+      "query": "What forecasting method should we use for seasonal demand?",
+      "domain": "operations",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['moving average']"
+        ]
+      },
+      "story_overlap": {
+        "score": 0.9,
+        "issues": [
+          "Repeated phrase: 'long-term'"
+        ]
+      },
+      "domain_alignment": {
+        "score": 0.25,
+        "issues": []
+      },
+      "overall_score": 0.8058333333333333,
+      "processing_time": 2.6348962783813477,
+      "response_length": 2113
+    },
+    {
+      "query": "What are the risks of investing in emerging market stocks?",
+      "domain": "financial",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0.6,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'portfolio management', 'investment analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.58,
+      "processing_time": 3.7860257625579834,
+      "response_length": 2262
+    },
+    {
+      "query": "How should I evaluate different retirement investment options?",
+      "domain": "financial",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['decision tree', 'risk tolerance assessment', 'portfolio management']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 4.331629276275635,
+      "response_length": 2312
+    },
+    {
+      "query": "What's the best way to assess the value of a potential acquisition?",
+      "domain": "financial",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['value chain analysis', 'profitability analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.7766666666666666,
+      "processing_time": 3.097388505935669,
+      "response_length": 2080
+    },
+    {
+      "query": "How do I model the uncertainty in my investment portfolio?",
+      "domain": "financial",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['monte carlo simulation', 'risk assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.7766666666666666,
+      "processing_time": 1.753950595855713,
+      "response_length": 2062
+    },
+    {
+      "query": "How do I negotiate better terms with a dominant supplier?",
+      "domain": "negotiation",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['negotiation strategy']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.9033333333333333,
+      "processing_time": 4.06812047958374,
+      "response_length": 1971
+    },
+    {
+      "query": "What's my best alternative if this business deal falls through?",
+      "domain": "negotiation",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'contingency planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 0.9,
+        "issues": [
+          "Repeated phrase: 'long-term'"
+        ]
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.8216666666666667,
+      "processing_time": 2.544541835784912,
+      "response_length": 1944
+    },
+    {
+      "query": "How can I create value in a zero-sum negotiation?",
+      "domain": "negotiation",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['value creation', 'negotiation strategy']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.7466666666666667,
+      "processing_time": 3.1882290840148926,
+      "response_length": 1963
+    },
+    {
+      "query": "What's my reservation point in this salary negotiation?",
+      "domain": "negotiation",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['batna', 'negotiation strategy']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.7766666666666666,
+      "processing_time": 3.2540249824523926,
+      "response_length": 1918
+    },
+    {
+      "query": "How do I assess the risks of launching a new product?",
+      "domain": "risk",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['market analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 1.0,
+        "issues": []
+      },
+      "overall_score": 0.9333333333333333,
+      "processing_time": 2.4747650623321533,
+      "response_length": 2155
+    },
+    {
+      "query": "What's the probability of success for this R&D project?",
+      "domain": "risk",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['risk assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 1.0,
+        "issues": []
+      },
+      "overall_score": 0.9333333333333333,
+      "processing_time": 3.3824546337127686,
+      "response_length": 2003
+    },
+    {
+      "query": "How should we model the uncertainty in our demand forecasts?",
+      "domain": "risk",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['monte carlo simulation', 'forecasting']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.8366666666666667,
+      "processing_time": 2.8138768672943115,
+      "response_length": 1891
+    },
+    {
+      "query": "What are the worst-case scenarios for our business plan?",
+      "domain": "risk",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'contingency planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.8366666666666667,
+      "processing_time": 2.9108726978302,
+      "response_length": 2096
+    },
+    {
+      "query": "How do cognitive biases affect our team's decision-making?",
+      "domain": "behavioral",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['group dynamics']"
+        ]
+      },
+      "story_overlap": {
+        "score": 0.9,
+        "issues": [
+          "Repeated phrase: 'long-term'"
+        ]
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.8583333333333334,
+      "processing_time": 4.127420902252197,
+      "response_length": 2305
+    },
+    {
+      "query": "Why do people continue investing in failing projects?",
+      "domain": "behavioral",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['sunk cost fallacy', 'cognitive bias']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.7466666666666667,
+      "processing_time": 2.699061870574951,
+      "response_length": 1896
+    },
+    {
+      "query": "How do anchoring effects influence our pricing decisions?",
+      "domain": "behavioral",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['anchoring bias', 'cognitive behaviors', 'pricing strategy']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 3.3746650218963623,
+      "response_length": 1872
+    },
+    {
+      "query": "What causes groupthink in high-pressure team decisions?",
+      "domain": "behavioral",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['group dynamics', 'leadership assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.8066666666666666,
+      "processing_time": 4.333951711654663,
+      "response_length": 1922
+    },
+    {
+      "query": "Should we adopt AI technology for our customer service?",
+      "domain": "technology",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['technology assessment', 'risk assessment', 'cost-benefit analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 2.144667387008667,
+      "response_length": 1811
+    },
+    {
+      "query": "How do we evaluate competing technology platforms?",
+      "domain": "technology",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['competitive analysis', 'decision tree', 'technology assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 2.679577589035034,
+      "response_length": 1942
+    },
+    {
+      "query": "What's the ROI of implementing automation in our processes?",
+      "domain": "technology",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['profitability analysis', 'cost-benefit analysis', 'risk assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 2.981297016143799,
+      "response_length": 1919
+    },
+    {
+      "query": "How should we prioritize our innovation projects?",
+      "domain": "technology",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['portfolio management', 'decision tree', 'project prioritization']"
+        ]
+      },
+      "story_overlap": {
+        "score": 0.9,
+        "issues": [
+          "Repeated phrase: 'long-term'"
+        ]
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.6950000000000001,
+      "processing_time": 4.25247597694397,
+      "response_length": 2293
+    },
+    {
+      "query": "How do we balance profitability with environmental responsibility?",
+      "domain": "sustainability",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 0,
+        "issues": [
+          "Generic placeholder: 'Relevant framework for this decision context'",
+          "Generic placeholder: 'Relevant framework'",
+          "Generic placeholder: 'Decision Frameworks'",
+          "Generic placeholder: 'Value Assessment'",
+          "Generic placeholder: 'Systematic Analysis'"
+        ]
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['stakeholder alignment', 'sustainability assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.5266666666666666,
+      "processing_time": 4.018791913986206,
+      "response_length": 2195
+    },
+    {
+      "query": "What are the risks of ignoring climate change in our strategy?",
+      "domain": "sustainability",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.6666666666666666,
+        "issues": [
+          "Missing expected concepts: ['strategic planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.6,
+        "issues": []
+      },
+      "overall_score": 0.8733333333333333,
+      "processing_time": 4.048821926116943,
+      "response_length": 2258
+    },
+    {
+      "query": "How should we evaluate suppliers based on ESG criteria?",
+      "domain": "sustainability",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['supply chain risk management', 'stakeholder alignment', 'ESG assessment']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.6799999999999999,
+      "processing_time": 2.1023459434509277,
+      "response_length": 1930
+    },
+    {
+      "query": "What's the business case for investing in renewable energy?",
+      "domain": "sustainability",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['profitability analysis', 'risk assessment', 'investment analysis']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.6799999999999999,
+      "processing_time": 3.5729966163635254,
+      "response_length": 2079
+    },
+    {
+      "query": "How do we manage currency risk in international operations?",
+      "domain": "global",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'hedging strategies', 'international finance']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.6799999999999999,
+      "processing_time": 2.8855478763580322,
+      "response_length": 1810
+    },
+    {
+      "query": "What are the trade-offs of outsourcing vs. local production?",
+      "domain": "global",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['cost-benefit analysis', 'supply chain risk management', 'decision tree']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.2,
+        "issues": []
+      },
+      "overall_score": 0.6799999999999999,
+      "processing_time": 3.6564271450042725,
+      "response_length": 1937
+    },
+    {
+      "query": "How should we approach market entry in emerging economies?",
+      "domain": "global",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.0,
+        "issues": [
+          "Missing expected concepts: ['market analysis', 'risk assessment', 'strategic planning']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.4,
+        "issues": []
+      },
+      "overall_score": 0.71,
+      "processing_time": 2.5754337310791016,
+      "response_length": 2092
+    },
+    {
+      "query": "What are the political risks of investing in foreign markets?",
+      "domain": "global",
+      "structure_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "content_quality": {
+        "score": 1.0,
+        "issues": []
+      },
+      "concept_relevance": {
+        "score": 0.3333333333333333,
+        "issues": [
+          "Missing expected concepts: ['risk assessment', 'international finance']"
+        ]
+      },
+      "story_overlap": {
+        "score": 1.0,
+        "issues": []
+      },
+      "domain_alignment": {
+        "score": 0.8,
+        "issues": []
+      },
+      "overall_score": 0.8366666666666667,
+      "processing_time": 4.669218063354492,
+      "response_length": 2058
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+{
+  "timestamp": "20250804_160407",
+  "test_results": {
+    "imports": {
+      "success": true,
+      "error": null
+    },
+    "data_loading": {
+      "success": true,
+      "error": null
+    },
+    "concept_extraction": {
+      "success": true,
+      "error": null,
+      "details": [
+        {
+          "query": "How do I reduce groupthink in team decisions?",
+          "concepts": [
+            "cognitive behaviors",
+            "strategic framing"
+          ],
+          "success": true
+        },
+        {
+          "query": "What tools help evaluate uncertain outcomes?",
+          "concepts": [
+            "decision tree",
+            "expected value",
+            "sensitivity analysis"
+          ],
+          "success": true
+        },
+        {
+          "query": "How can I model risks in product launch?",
+          "concepts": [
+            "scenario analysis",
+            "risk assessment",
+            "monte carlo simulation"
+          ],
+          "success": true
+        }
+      ]
+    },
+    "query_processing": {
+      "success": true,
+      "error": null,
+      "details": [
+        {
+          "query": "I need to decide between two job offers",
+          "processing_time": 3.5411369800567627,
+          "response_length": 2237,
+          "has_strategic_lens": true,
+          "has_story": true,
+          "has_followup": true,
+          "has_concepts": true,
+          "success": true
+        },
+        {
+          "query": "How do I optimize my supply chain?",
+          "processing_time": 2.305248498916626,
+          "response_length": 2198,
+          "has_strategic_lens": true,
+          "has_story": true,
+          "has_followup": true,
+          "has_concepts": true,
+          "success": true
+        },
+        {
+          "query": "What are the risks of this investment?",
+          "processing_time": 3.9492807388305664,
+          "response_length": 1983,
+          "has_strategic_lens": true,
+          "has_story": true,
+          "has_followup": true,
+          "has_concepts": true,
+          "success": true
+        }
+      ]
+    },
+    "syntax_check": {
+      "success": true,
+      "error": null
+    }
+  },
+  "analysis": {
+    "overall_status": "PASS",
+    "issues": [],
+    "recommendations": [],
+    "metrics": {
+      "test_success_rate": 1.0,
+      "successful_tests": 5,
+      "total_tests": 5
+    }
+  },
+  "fixes": {
+    "fixes_applied": [],
+    "success": true
+  }
+}

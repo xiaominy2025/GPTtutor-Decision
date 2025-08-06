@@ -1,0 +1,1452 @@
+[
+  {
+    "entity": "competitive advantage",
+    "category": "Criteria",
+    "relevance": 0.93
+  },
+  {
+    "entity": "high uncertainty",
+    "category": "Uncertainty",
+    "relevance": 0.92
+  },
+  {
+    "entity": "immediately",
+    "category": "Timeframe",
+    "relevance": 0.92
+  },
+  {
+    "entity": "urgently",
+    "category": "Timeframe",
+    "relevance": 0.91
+  },
+  {
+    "entity": "safety",
+    "category": "Criteria",
+    "relevance": 0.9
+  },
+  {
+    "entity": "market share",
+    "category": "Criteria",
+    "relevance": 0.9
+  },
+  {
+    "entity": "reputation",
+    "category": "Criteria",
+    "relevance": 0.89
+  },
+  {
+    "entity": "short-term",
+    "category": "Timeframe",
+    "relevance": 0.88
+  },
+  {
+    "entity": "danger",
+    "category": "Criteria",
+    "relevance": 0.88
+  },
+  {
+    "entity": "long-term",
+    "category": "Timeframe",
+    "relevance": 0.87
+  },
+  {
+    "entity": "low uncertainty",
+    "category": "Uncertainty",
+    "relevance": 0.87
+  },
+  {
+    "entity": "brand",
+    "category": "Criteria",
+    "relevance": 0.87
+  },
+  {
+    "entity": "vulnerability",
+    "category": "Criteria",
+    "relevance": 0.86
+  },
+  {
+    "entity": "immediate action",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "quick response",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "this week",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "next quarter",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "when to implement",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "employee concerns",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "staff satisfaction",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "professional growth",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "customer needs",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "client satisfaction",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "investor expectations",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "financial returns",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "regulatory compliance",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "legal requirements",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "government standards",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "supplier relationships",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "supply chain",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "operational efficiency",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "quality standards",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "salary comparison",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "career growth",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "work-life balance",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "high complexity",
+    "category": "Complexity",
+    "relevance": 0.85
+  },
+  {
+    "entity": "multiple factors",
+    "category": "Complexity",
+    "relevance": 0.85
+  },
+  {
+    "entity": "medium complexity",
+    "category": "Complexity",
+    "relevance": 0.85
+  },
+  {
+    "entity": "several factors",
+    "category": "Complexity",
+    "relevance": 0.85
+  },
+  {
+    "entity": "low complexity",
+    "category": "Complexity",
+    "relevance": 0.85
+  },
+  {
+    "entity": "medium-term",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "2025",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "2026",
+    "category": "Timeframe",
+    "relevance": 0.85
+  },
+  {
+    "entity": "exposure",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "medium uncertainty",
+    "category": "Uncertainty",
+    "relevance": 0.85
+  },
+  {
+    "entity": "end users",
+    "category": "Stakeholder",
+    "relevance": 0.85
+  },
+  {
+    "entity": "prevention",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "safeguard",
+    "category": "Criteria",
+    "relevance": 0.84
+  },
+  {
+    "entity": "this month",
+    "category": "Timeframe",
+    "relevance": 0.83
+  },
+  {
+    "entity": "coming months",
+    "category": "Timeframe",
+    "relevance": 0.82
+  },
+  {
+    "entity": "immediate",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "urgent",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "quick",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "fast",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "soon",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "now",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "today",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "this",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "week",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "month",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "short",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "term",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "within",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "days",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "weeks",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "months",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "the",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "next",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "asap",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "possible",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "medium",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "quarter",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "few",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "quarterly",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "monthly",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "long",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "run",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "future",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "years",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "annual",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "yearly",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "over",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "sustainable",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "permanent",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "when",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "appropriate",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "right",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "best",
+    "category": "Timeframe",
+    "relevance": 0.8
+  },
+  {
+    "entity": "employees",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "staff",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "workers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "personnel",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "workforce",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "colleagues",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "employee",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "satisfaction",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "morale",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "dynamics",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "company",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "job",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "offer",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "offers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "career",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "path",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "professional",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "growth",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "development",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "salary",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "benefits",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "compensation",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "work",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "life",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "balance",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "promotion",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "advancement",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "transition",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "change",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "employment",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "move",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "customers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "clients",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "users",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "consumers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "buyers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "end",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "customer",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "experience",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "needs",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "audience",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "investors",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "shareholders",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "stakeholders",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "owners",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "partners",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "return",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "investment",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "roi",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "profit",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "revenue",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "earnings",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "financial",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "monetary",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "economic",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "invest",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "regulators",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "regulatory",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "compliance",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "legal",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "government",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "authorities",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "regulations",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "laws",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "policies",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "standards",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "requirements",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "suppliers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "vendors",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "providers",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "supply",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "chain",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "procurement",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "sourcing",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "external",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "third",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "party",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "outsourced",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "cost",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "expense",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "capital",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "funding",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "money",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "fiscal",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "performance",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "operational",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "operations",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "efficiency",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "productivity",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "workflow",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "procedure",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "infrastructure",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "quality",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "delivery",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "service",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "execution",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "pay",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "income",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "culture",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "security",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "stability",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "prospects",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "skills",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "opportunities",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "training",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "high",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "unpredictable",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "volatile",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "unstable",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "chaotic",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "unknown",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "unclear",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "ambiguous",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "indefinite",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "rapid",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "dynamic",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "turbulent",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "moderate",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "somewhat",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "partially",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "mixed",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "varied",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "diverse",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "complex",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "evolving",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "changing",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "developing",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "low",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "stable",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "clear",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "known",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "established",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "proven",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "reliable",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "consistent",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "steady",
+    "category": "Uncertainty",
+    "relevance": 0.8
+  },
+  {
+    "entity": "complexity",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "complicated",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "intricate",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "sophisticated",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "multiple",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "factors",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "many",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "variables",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "interconnected",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "interdependent",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "technical",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "advanced",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "specialized",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "expert",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "manageable",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "several",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "considerations",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "various",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "aspects",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "standard",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "typical",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "common",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "usual",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "simple",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "straightforward",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "basic",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "elementary",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "limited",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "minimal",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "obvious",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "direct",
+    "category": "Complexity",
+    "relevance": 0.8
+  },
+  {
+    "entity": "international markets",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "international",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "global markets",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "market expansion",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "expand",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "pricing strategies",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "pricing",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "strategies",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "new product",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "product",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "production capacity",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "capacity planning",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "production",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "capacity",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "improve",
+    "category": "Criteria",
+    "relevance": 0.75
+  },
+  {
+    "entity": "forecasting method",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "forecasting",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "seasonal demand",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "seasonal",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "demand",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "zero-sum negotiation",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "negotiation",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "create value",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "value creation",
+    "category": "Criteria",
+    "relevance": 0.85
+  },
+  {
+    "entity": "evaluate",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "evaluation",
+    "category": "Criteria",
+    "relevance": 0.8
+  },
+  {
+    "entity": "different",
+    "category": "Complexity",
+    "relevance": 0.75
+  },
+  {
+    "entity": "should",
+    "category": "Timeframe",
+    "relevance": 0.75
+  },
+  {
+    "entity": "could",
+    "category": "Timeframe",
+    "relevance": 0.75
+  },
+  {
+    "entity": "would",
+    "category": "Timeframe",
+    "relevance": 0.75
+  },
+  {
+    "entity": "can",
+    "category": "Timeframe",
+    "relevance": 0.75
+  },
+  {
+    "entity": "we",
+    "category": "Stakeholder",
+    "relevance": 0.75
+  },
+  {
+    "entity": "our",
+    "category": "Stakeholder",
+    "relevance": 0.75
+  },
+  {
+    "entity": "organization",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  },
+  {
+    "entity": "business",
+    "category": "Stakeholder",
+    "relevance": 0.8
+  }
+]
