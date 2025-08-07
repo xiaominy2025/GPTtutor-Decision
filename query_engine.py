@@ -36,6 +36,10 @@ if not openai_api_key:
 # Initialize OpenAI client
 client = OpenAI(api_key=openai_api_key)
 
+# Performance timing system
+timing = {}
+timing["start"] = time.time()
+
 # Global variables for lazy loading
 _index = None
 _metadata = None
@@ -57,7 +61,12 @@ def load_data_lazily():
             _file_names = _metadata.get("file_names", ["Unknown"] * len(_documents))
             _model = SentenceTransformer("all-MiniLM-L6-v2")
             _nlp = spacy.load("en_core_web_sm")
-            print("PASS: Data loaded successfully")
+            
+            # Performance timing: After data loading
+            timing["after_data_load"] = time.time()
+            print("✅ Data loaded")
+            print(f"🔹 Data Load Time: {timing['after_data_load'] - timing['start']:.2f}s")
+            
         except Exception as e:
             print(f"FAIL: Error loading data: {e}")
             sys.exit(1)
@@ -1139,15 +1148,21 @@ Story Draft:
 """
 
     try:
+        # Performance timing: Before GPT call
+        timing["before_gpt_call"] = time.time()
+        print("✅ GPT call starting")
+        
         # Call GPT-3.5 for merging
-        start_time = time.time()
         response, error = robust_api_call(
             client=client,
             system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
             user_message=prompt,
             max_tokens=300
         )
-        end_time = time.time()
+        
+        # Performance timing: After GPT call
+        timing["after_gpt_call"] = time.time()
+        print("✅ GPT call complete")
         
         if error:
             print(f"❌ GPT-3.5 merge failed: {error}")
@@ -1169,7 +1184,7 @@ Story Draft:
         
         # Log success
         tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        response_time = end_time - start_time
+        response_time = timing["after_gpt_call"] - timing["before_gpt_call"]
         print(f"✅ GPT-3.5 merge successful: {tokens_used} tokens, {response_time:.2f}s")
         
         return merged_content
@@ -1875,6 +1890,10 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Note: Removed analytical tools injection to prevent inappropriate inclusion
         # of analytical methods in Strategic Thinking Lens
         
+        # Performance timing: Before initial GPT call
+        timing["before_initial_gpt_call"] = time.time()
+        print("✅ Initial GPT call starting")
+        
         # Make API call
         response, error = robust_api_call(
             client=client,
@@ -1882,6 +1901,10 @@ def process_query(query: str, course_config: dict = None) -> str:
             user_message=user_message,
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))
         )
+        
+        # Performance timing: After initial GPT call
+        timing["after_initial_gpt_call"] = time.time()
+        print("✅ Initial GPT call complete")
         
         if error:
             print(f"❌ API call failed: {error}")
@@ -1982,6 +2005,17 @@ def process_query(query: str, course_config: dict = None) -> str:
                     answer,
                     flags=re.DOTALL
                 )
+        
+        # Performance timing: End of processing
+        timing["end"] = time.time()
+        
+        # Print timing summary
+        print("📊 Timing Summary:")
+        print(f"🔹 Data Load: {timing.get('after_data_load', 0) - timing['start']:.2f}s")
+        print(f"🔹 Initial GPT Call: {timing.get('after_initial_gpt_call', 0) - timing.get('before_initial_gpt_call', 0):.2f}s")
+        print(f"🔹 Merge GPT Call: {timing.get('after_gpt_call', 0) - timing.get('before_gpt_call', 0):.2f}s")
+        print(f"🔹 Post-GPT: {timing['end'] - timing.get('after_gpt_call', 0):.2f}s")
+        print(f"🔹 Total Backend Time: {timing['end'] - timing['start']:.2f}s")
         
         return answer
         
