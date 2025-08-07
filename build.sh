@@ -9,8 +9,8 @@ echo "Starting build process..."
 # Upgrade pip first
 pip install --upgrade pip
 
-# Install setuptools and wheel first
-pip install --no-cache-dir setuptools==68.0.0 wheel==0.41.2
+# Install setuptools, wheel, and build first
+pip install --no-cache-dir setuptools>=65.0.0 wheel>=0.40.0 build>=1.0.3
 
 # Install packages normally
 pip install --no-cache-dir Flask==2.3.2
