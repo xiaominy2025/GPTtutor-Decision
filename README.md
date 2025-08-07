@@ -26,30 +26,35 @@ python query_engine.py --test
 
 ### **🛡️ Query Abuse Protection**
 - **Relevance Scoring**: `compute_relevance_score()` function evaluates query relevance
+- **Multi-Factor Scoring**: 2× concept count + domain count + application field (score < 2 = rejected)
 - **Pre-GPT Filtering**: Rejects off-topic queries before expensive GPT calls
 - **Cost Protection**: Saves API costs by filtering irrelevant queries early
 - **User-Friendly Messages**: Clear rejection messages guide users to relevant topics
-- **Score Threshold**: Queries with score < 2 are rejected with helpful feedback
+- **Debug Information**: Detailed scoring breakdown for backend monitoring
 
 ### **⚡ Performance Optimizations**
 - **In-Memory Caching**: Temporary cache for course data (V1.6.6 workaround)
 - **Lazy Loading**: On-demand data loading for optimal performance
-- **Request-Scoped Timing**: Accurate per-request performance metrics
+- **Course Bypass Logic**: API server bypasses course_id for 100% compatibility
 - **Data Load Optimization**: Only reports timing on actual cache misses
 - **Background Process Management**: Efficient handling of concurrent requests
+- **Robust API Calls**: Retry mechanism with exponential backoff (max 3 retries)
 
 ### **🧠 Enhanced Concept Management**
-- **Granular Concepts**: Split "supply chain risk management" into separate concepts
-- **Expanded Glossary**: 100+ domain-specific concepts with definitions
-- **Fuzzy Matching**: Fallback mechanism for concept detection
+- **Granular Concepts**: Split "supply chain risk management" into separate concepts ("supply chain", "risk management")
+- **Comprehensive Glossary**: 60+ domain-specific concepts with detailed definitions and aliases
+- **Fuzzy Matching**: Fallback mechanism for concept detection with 0.8 threshold
 - **Domain Categorization**: Technical, strategic, and behavioral concept classification
-- **Alias Support**: Multiple keywords per concept for better matching
+- **Alias Support**: Multiple keywords per concept for better matching (e.g., "BATNA" has 8 aliases)
+- **Core Concept Flagging**: Priority concepts marked for enhanced detection
 
 ### **🎨 Structured Response Generation**
-- **Strategic Thinking Lens**: 120-140 word domain-aware explanations
+- **Strategic Thinking Lens**: 120-140 word domain-aware explanations with integrated story content
 - **Follow-up Prompts**: 2-4 domain-specific lens-shifting questions
-- **Concepts & Tools**: 2-4 relevant concepts with definitions
-- **Merged Story Section**: "Story in Action" content integrated into Strategic Thinking Lens
+- **Concepts & Tools**: 2-4 relevant concepts with definitions and aliases
+- **V1.6.6 Step 1 Processing**: Complex merging logic for lens and story drafts
+- **Fallback Content**: Context-aware fallbacks for edge cases
+- **Structure Enforcement**: `enforce_thinkpal_structure()` ensures consistent formatting
 
 ## 📋 API Usage
 
@@ -85,7 +90,16 @@ curl -X POST http://127.0.0.1:5000/query \
     "model": "gpt-3.5-turbo",
     "processing_time": 2.3,
     "answer": "**Strategic Thinking Lens**\nEvery negotiation is essentially a problem-solving exercise...\n\n**Follow-up Prompts**\n• How might the decision change when considering the other party's underlying interests?\n• What if you explored creative options that expand the pie rather than divide it?\n\n**Concepts/Tools**\n- **BATNA**: Best Alternative To Negotiated Agreement...\n- **ZOPA**: Zone Of Possible Agreement...",
-    "conceptsToolsPractice": []
+    "conceptsToolsPractice": [
+      {
+        "term": "BATNA",
+        "definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached"
+      },
+      {
+        "term": "ZOPA", 
+        "definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation"
+      }
+    ]
   }
 }
 ```
@@ -227,12 +241,12 @@ cached_data = {}  # In-memory cache for course data
 
 ## 📚 Concept Library
 
-### **Core Concepts (100+)**
-- **Strategic**: decision tree, game theory, strategic positioning
-- **Analytical**: linear programming, forecasting, simulation
-- **Behavioral**: cognitive biases, prospect theory, anchoring
-- **Technical**: supply chain, risk management, optimization
-- **Financial**: NPV, ROI, cost-benefit analysis
+### **Core Concepts (60+)**
+- **Strategic**: decision tree, game theory, strategic positioning, BATNA, ZOPA
+- **Analytical**: linear programming, forecasting, simulation, monte carlo simulation
+- **Behavioral**: cognitive biases, prospect theory, anchoring, confirmation bias
+- **Technical**: supply chain, risk management, optimization, sensitivity analysis
+- **Financial**: profitability analysis, expected value, utility functions
 
 ### **Domain Classification**
 - **negotiation**: BATNA, ZOPA, integrative bargaining
@@ -253,11 +267,13 @@ cached_data = {}  # In-memory cache for course data
 ## 🚀 Recent Updates (V1.6.6)
 
 ### **✅ New Features**
-1. **Query Abuse Protection**: Pre-GPT relevance filtering with user-friendly messages
-2. **Performance Caching**: Temporary in-memory cache for course data
-3. **Concept Granularity**: Split broad concepts into specific, detectable terms
-4. **Response Structure**: Merged "Story in Action" into "Strategic Thinking Lens"
+1. **Query Abuse Protection**: Pre-GPT relevance filtering with multi-factor scoring
+2. **Performance Caching**: Temporary in-memory cache for course data (V1.6.6 workaround)
+3. **Concept Granularity**: Split "supply chain risk management" into separate concepts
+4. **Response Structure**: V1.6.6 Step 1 processing with complex merging logic
 5. **API Rejection Handling**: Proper status codes and messages for filtered queries
+6. **Course Bypass Logic**: API server bypasses course_id for 100% compatibility
+7. **Robust Error Handling**: Retry mechanism with exponential backoff
 
 ### **✅ Performance Improvements**
 1. **Data Load Optimization**: Only report timing on actual cache misses
@@ -267,9 +283,11 @@ cached_data = {}  # In-memory cache for course data
 
 ### **✅ Quality Enhancements**
 1. **Relevance Scoring**: Multi-factor evaluation (concepts, domains, fields)
-2. **Concept Detection**: Fuzzy matching fallback for improved coverage
-3. **Error Handling**: Robust API call retry mechanism
+2. **Concept Detection**: Fuzzy matching fallback with 0.8 threshold
+3. **Error Handling**: Robust API call retry mechanism (max 3 retries)
 4. **Logging Cleanup**: Removed verbose timing logs for production
+5. **Structure Enforcement**: `enforce_thinkpal_structure()` ensures consistent formatting
+6. **Fallback Content**: Context-aware fallbacks for edge cases
 
 ### **✅ Technical Debt**
 1. **Version Tagging**: Consistent V1.6.6 Stable across all components
