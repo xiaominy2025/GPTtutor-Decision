@@ -1,5 +1,5 @@
 """
-Simple Flask API server for Engent Labs Backend V1.6.6 Stable
+Simple Flask API server for Engent Labs Backend V1.6.6.6 Final
 Supports multi-course loading with dynamic configuration
 """
 from flask import Flask, request, jsonify
@@ -76,7 +76,7 @@ def load_course_config(course_id: str) -> dict:
     return config
 
 # Initialize query engine
-print("\U0001F680 Initializing Engent Labs API Server V1.6.6 Stable...")
+print("\U0001F680 Initializing Engent Labs API Server V1.6.6.6 Final...")
 try:
     print("\u2705 Query engine module loaded successfully")
 except Exception as e:
@@ -88,7 +88,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "version": "1.6.6",
+        "version": "1.6.6.6",
         "engine_ready": True
     })
 
@@ -115,7 +115,7 @@ def process_query():
         user_id = data.get('user_id')
         course_id = data.get('course_id', DEFAULT_COURSE)
         
-        # V1.6.6 Stable: Bypass course configuration to ensure 100% alignment
+        # V1.6.6.6 Final: Bypass course configuration to ensure 100% alignment
         # Still accept course_id from frontend for compatibility, but ignore it for processing
         print(f"📚 Frontend requested course: {course_id}")
         print("🔄 TEMPORARY: Bypassing course config, using direct query engine call")
@@ -244,7 +244,7 @@ def get_course_config(course_id):
 @app.route('/api/course/<course_id>', methods=['GET'])
 def get_course_metadata(course_id):
     """
-    V1.6.6 Stable: Multi-course metadata route.
+    V1.6.6.6 Final: Multi-course metadata route.
     Loads metadata.json and glossary.json for a given course.
     Falls back to 'decision' if the course does not exist.
     """
@@ -335,14 +335,14 @@ def user_profile():
 
 
 if __name__ == '__main__':
-    print("🌐 Starting Engent Labs API Server V1.6.6 Stable...")
+    print("🌐 Starting Engent Labs API Server V1.6.6.6 Final...")
     print("📱 Server will be available at http://localhost:5000")
     print("📋 Available endpoints:")
     print("   GET  /health                    - Health check")
     print("   POST /query                     - Process query")
     print("   GET  /courses                   - List available courses")
     print("   GET  /courses/<course_id>/config - Get course configuration")
-    print("   GET  /api/course/<course_id>    - Get course metadata (V1.6.6)")
+    print("   GET  /api/course/<course_id>    - Get course metadata (V1.6.6.6)")
     print("   GET  /stats                     - Get usage statistics")
     print("   GET  /profile                   - Get user profile")
     print("   PUT  /profile                   - Update user profile")
