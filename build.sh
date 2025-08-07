@@ -10,13 +10,13 @@ echo "Starting build process..."
 pip install --upgrade pip
 
 # Install setuptools and wheel first
-pip install --no-cache-dir setuptools>=69.0.0 wheel>=0.42.0
+pip install --no-cache-dir setuptools==68.0.0 wheel==0.41.2
 
 # Install packages normally
 pip install --no-cache-dir Flask==2.3.2
 pip install --no-cache-dir Flask-CORS
-pip install --no-cache-dir sentence-transformers==2.2.2
-pip install --no-cache-dir transformers==4.28.1
+pip install --no-cache-dir sentence-transformers==2.2.0
+pip install --no-cache-dir transformers==4.24.0
 pip install --no-cache-dir torch==2.8.0
 pip install --no-cache-dir huggingface_hub==0.15.1
 pip install --no-cache-dir openai==1.3.0
