@@ -96,6 +96,11 @@ def health_check():
 @app.route('/query', methods=['POST'])
 def process_query():
     """Process a query and return structured response"""
+    # Initialize timing for this request
+    import time
+    timing = {}
+    timing["start"] = time.time()
+    
     try:
         data = request.get_json()
         print("\u26a1 [BACKEND] Received POST /query")
@@ -151,6 +156,10 @@ def process_query():
             concepts_tools_practice = fixed
         # --- END VALIDATION BLOCK ---
 
+        # Calculate total backend time for this request
+        timing["end"] = time.time()
+        total_backend_time = timing["end"] - timing["start"]
+        
         # Format V1.6 API response
         response = {
             "status": "success",
@@ -160,12 +169,13 @@ def process_query():
                 "course_id": DEFAULT_COURSE,  # Always return "decision" for compatibility
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "gpt-3.5-turbo",
-                "processing_time": 2.3,  # Placeholder
+                "processing_time": total_backend_time,  # Use actual timing
                 "conceptsToolsPractice": concepts_tools_practice
             }
         }
 
         print("✅ Query processed successfully.")
+        print(f"📊 API Route Timing: Total Backend Time: {total_backend_time:.2f}s")
         return jsonify(response)
 
     except Exception as e:
