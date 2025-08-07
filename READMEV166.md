@@ -1,6 +1,6 @@
-# GPTTutor-Decision V1.6.6 Stable
+# GPTTutor-Decision V1.6.6.6 Final
 
-A sophisticated decision-making query engine that provides structured, domain-aware responses for business and strategic decision scenarios. V1.6.6 introduces significant performance optimizations, query abuse protection, and enhanced concept management.
+A sophisticated decision-making query engine that provides structured, domain-aware responses for business and strategic decision scenarios. V1.6.6.6 introduces significant performance optimizations, query abuse protection, and enhanced concept management.
 
 ## 🚀 Quick Start
 
@@ -22,7 +22,7 @@ python api_server.py
 python query_engine.py --test
 ```
 
-## 🎯 V1.6.6 Key Features
+## 🎯 V1.6.6.6 Key Features
 
 ### **🛡️ Query Abuse Protection**
 - **Relevance Scoring**: `compute_relevance_score()` function evaluates query relevance
@@ -33,7 +33,7 @@ python query_engine.py --test
 - **Debug Information**: Detailed scoring breakdown for backend monitoring
 
 ### **⚡ Performance Optimizations**
-- **In-Memory Caching**: Temporary cache for course data (V1.6.6 workaround)
+- **In-Memory Caching**: Temporary cache for course data (V1.6.6.6 workaround)
 - **Lazy Loading**: On-demand data loading for optimal performance
 - **Course Bypass Logic**: API server bypasses course_id for 100% compatibility
 - **Data Load Optimization**: Only reports timing on actual cache misses
@@ -52,7 +52,7 @@ python query_engine.py --test
 - **Strategic Thinking Lens**: 120-140 word domain-aware explanations with integrated story content
 - **Follow-up Prompts**: 2-4 domain-specific lens-shifting questions
 - **Concepts & Tools**: 2-4 relevant concepts with definitions and aliases
-- **V1.6.6 Step 1 Processing**: Complex merging logic for lens and story drafts
+- **V1.6.6.6 Step 1 Processing**: Complex merging logic for lens and story drafts
 - **Fallback Content**: Context-aware fallbacks for edge cases
 - **Structure Enforcement**: `enforce_thinkpal_structure()` ensures consistent formatting
 
@@ -67,7 +67,7 @@ curl http://127.0.0.1:5000/health
 ```json
 {
   "status": "healthy",
-  "version": "1.6.6",
+          "version": "1.6.6.6",
   "engine_ready": true
 }
 ```
@@ -125,8 +125,8 @@ curl -X POST http://127.0.0.1:5000/query \
 ### **Core Components**
 ```
 GPTTutor-Decision/
-├── query_engine.py                    # Main query processing engine (V1.6.6)
-├── api_server.py                      # Flask backend server (V1.6.6)
+├── query_engine.py                    # Main query processing engine (V1.6.6.6)
+├── api_server.py                      # Flask backend server (V1.6.6.6)
 ├── app.py                            # Additional Flask endpoints
 ├── courses/                          # Course-specific configurations
 │   └── decision/
@@ -149,7 +149,7 @@ GPTTutor-Decision/
 
 #### **2. Performance Optimization**
 - **Problem**: Repeated data loading causes 24+ second delays
-- **Solution**: Temporary in-memory cache for V1.6.6 (to be removed in V1.6.7)
+- **Solution**: Temporary in-memory cache for V1.6.6.6 (to be removed in V1.6.7)
 - **Implementation**: `load_course_data_cached()` wrapper function
 - **Benefits**: Subsequent queries complete in <3 seconds
 
@@ -235,7 +235,7 @@ FIELD_WEIGHT = 1         # Weight for application field matches
 
 ### **Cache Settings**
 ```python
-# Temporary cache for V1.6.6 (remove in V1.6.7)
+# Temporary cache for V1.6.6.6 (remove in V1.6.7)
 cached_data = {}  # In-memory cache for course data
 ```
 
@@ -264,13 +264,13 @@ cached_data = {}  # In-memory cache for course data
 - **innovation**: R&D decisions, technology adoption
 - **leadership**: team management, organizational change
 
-## 🚀 Recent Updates (V1.6.6)
+## 🚀 Recent Updates (V1.6.6.6)
 
 ### **✅ New Features**
 1. **Query Abuse Protection**: Pre-GPT relevance filtering with multi-factor scoring
-2. **Performance Caching**: Temporary in-memory cache for course data (V1.6.6 workaround)
+2. **Performance Caching**: Temporary in-memory cache for course data (V1.6.6.6 workaround)
 3. **Concept Granularity**: Split "supply chain risk management" into separate concepts
-4. **Response Structure**: V1.6.6 Step 1 processing with complex merging logic
+4. **Response Structure**: V1.6.6.6 Step 1 processing with complex merging logic
 5. **API Rejection Handling**: Proper status codes and messages for filtered queries
 6. **Course Bypass Logic**: API server bypasses course_id for 100% compatibility
 7. **Robust Error Handling**: Retry mechanism with exponential backoff
@@ -290,7 +290,7 @@ cached_data = {}  # In-memory cache for course data
 6. **Fallback Content**: Context-aware fallbacks for edge cases
 
 ### **✅ Technical Debt**
-1. **Version Tagging**: Consistent V1.6.6 Stable across all components
+1. **Version Tagging**: Consistent V1.6.6.6 Final across all components
 2. **Code Documentation**: Comprehensive inline comments and docstrings
 3. **Test Coverage**: Enhanced testing for new features
 4. **Git Management**: Proper tagging and version control
@@ -331,12 +331,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🏷️ Version History
 
-- **V1.6.6.3**: Query Abuse Protection (Current)
+- **V1.6.6.6**: Final Version (Current)
+- **V1.6.6.3**: Query Abuse Protection
 - **V1.6.6.2**: Performance Optimizations
 - **V1.6.6.1**: Initial V1.6.6 Release
 - **V1.6.6-Stable**: Stable Release
-- **V1.6.6-Final**: Final V1.6.6 Release
 
 ---
 
-**V1.6.6.3 is production-ready with query abuse protection and performance optimizations! 🚀**
+**V1.6.6.6 is production-ready with query abuse protection and performance optimizations! 🚀**

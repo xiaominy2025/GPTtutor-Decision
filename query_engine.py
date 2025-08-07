@@ -2,7 +2,7 @@
 #!/usr/bin/env python3
 """
 Clean Query Engine - Produces only user-facing output without developer information
-V1.6.6 Stable Version - No Streaming Support
+V1.6.6.6 Final Version - No Streaming Support
 """
 
 import os
@@ -88,8 +88,8 @@ _file_names = None
 _model = None
 _nlp = None
 
-# TEMPORARY CACHE for V1.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
-# Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6
+# TEMPORARY CACHE for V1.6.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
+# Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6.6
 # This cache should be removed or revised in V1.6.7 when the centralized multi-course architecture is introduced
 cached_data = {}
 
@@ -118,18 +118,18 @@ def load_data_lazily():
 
 def load_course_data_cached(course_id):
     """
-    TEMPORARY CACHE WRAPPER for V1.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
+    TEMPORARY CACHE WRAPPER for V1.6.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
     
-    Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6
+    Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6.6
     This cache should be removed or revised in V1.6.7 when the centralized multi-course architecture is introduced
     
     Args:
-        course_id: Course identifier (currently ignored in V1.6.6, always uses 'decision')
+        course_id: Course identifier (currently ignored in V1.6.6.6, always uses 'decision')
         
     Returns:
         Cached course data or loads it for the first time
     """
-    # V1.6.6: Always use 'decision' course regardless of course_id parameter
+    # V1.6.6.6: Always use 'decision' course regardless of course_id parameter
     # This is a temporary workaround until V1.6.7 multi-course architecture
     effective_course_id = "decision"
     
@@ -1928,7 +1928,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         Formatted ThinkPal response with all sections
     """
     try:
-        # Load data lazily with V1.6.6 temporary caching
+        # Load data lazily with V1.6.6.6 temporary caching
         # TEMPORARY: Using cached data loading to avoid repeated ~24s loads
         # This will be replaced with proper multi-course architecture in V1.6.7
         index, metadata, documents, file_names, model, nlp = load_course_data_cached("decision")
@@ -1995,10 +1995,10 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Ensure proper structure
         answer = enforce_thinkpal_structure(answer_raw, query)
         
-        # Extract sections for V1.6.6 Step 1 processing
+        # Extract sections for V1.6.6.6 Step 1 processing
         sections = extract_sections_from_response(answer)
         
-        # V1.6.6 Step 1: Generate Lens and Story drafts separately, then merge
+        # V1.6.6.6 Step 1: Generate Lens and Story drafts separately, then merge
         if 'lens' in sections:
             # Detect domain count for adaptive word count
             domains = detect_course_concept_domains(query)

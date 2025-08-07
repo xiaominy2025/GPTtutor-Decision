@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flask Application for V1.6.6 Stable
+Flask Application for V1.6.6.6 Final
 Provides API endpoints for the GPTTutor Decision system.
 """
 
@@ -29,7 +29,7 @@ def health_check():
     """Health check endpoint."""
     return jsonify({
         "status": "healthy",
-        "version": "V1.6.6",
+        "version": "V1.6.6.6",
         "query_available": QUERY_AVAILABLE,
         "timestamp": time.time()
     })
@@ -116,8 +116,8 @@ def get_answer():
 def test_endpoint():
     """Test endpoint for basic functionality."""
     return jsonify({
-        "message": "V1.6.6 API is working",
-        "version": "1.6.6",
+        "message": "V1.6.6.6 API is working",
+        "version": "1.6.6.6",
         "timestamp": time.time()
     })
 
