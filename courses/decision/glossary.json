@@ -556,13 +556,24 @@
     "core": false,
     "aliases": []
   },
-  "supply chain risk management": {
-    "definition": "Identifying and mitigating risks in supply chain operations",
+  "supply chain": {
+    "definition": "The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer",
     "core": true,
     "aliases": [
-      "supply chain risk",
-      "risk management",
-      "supply chain"
+      "supply network",
+      "logistics network",
+      "procurement network",
+      "distribution network"
+    ]
+  },
+  "risk management": {
+    "definition": "The process of identifying, assessing, and controlling threats to an organization's capital and earnings",
+    "core": true,
+    "aliases": [
+      "risk assessment",
+      "risk control",
+      "threat management",
+      "risk mitigation"
     ]
   },
   "utility functions": {

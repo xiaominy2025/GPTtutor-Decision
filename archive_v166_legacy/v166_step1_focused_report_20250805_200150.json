@@ -1,0 +1,236 @@
+{
+  "test_summary": {
+    "adaptive_word_count": "1/3",
+    "merge_quality": "3/3",
+    "regression_validation": "1/3"
+  },
+  "performance_metrics": {
+    "results": [
+      {
+        "test_case": 1,
+        "query": "Should I accept this job offer?",
+        "response_time": 4.669289588928223,
+        "lens_words": 106,
+        "status": "PASS"
+      },
+      {
+        "test_case": 2,
+        "query": "How should I negotiate this contract?",
+        "response_time": 4.043150424957275,
+        "lens_words": 86,
+        "status": "PASS"
+      },
+      {
+        "test_case": 3,
+        "query": "What's the best strategy for market entry?",
+        "response_time": 5.606242418289185,
+        "lens_words": 100,
+        "status": "PASS"
+      },
+      {
+        "test_case": 4,
+        "query": "How do I optimize operations?",
+        "response_time": 3.9991443157196045,
+        "lens_words": 112,
+        "status": "PASS"
+      },
+      {
+        "test_case": 5,
+        "query": "What approach should I take for this investment?",
+        "response_time": 4.632894515991211,
+        "lens_words": 121,
+        "status": "PASS"
+      }
+    ],
+    "avg_response_time": 4.590144252777099,
+    "total_queries": 5,
+    "total_time": 22.950721263885498
+  },
+  "detailed_results": {
+    "adaptive_word_count": [
+      {
+        "test_case": 1,
+        "query": "Should I accept this job offer?",
+        "expected_domains": 1,
+        "actual_domains": 1,
+        "expected_range": [
+          90,
+          120
+        ],
+        "actual_words": 99,
+        "is_compliant": true,
+        "has_connector": true,
+        "response_time": 7.688532590866089,
+        "status": "PASS"
+      },
+      {
+        "test_case": 2,
+        "query": "How should I negotiate this contract while considering technical requirements?",
+        "expected_domains": 2,
+        "actual_domains": 1,
+        "expected_range": [
+          115,
+          135
+        ],
+        "actual_words": 94,
+        "is_compliant": false,
+        "has_connector": true,
+        "response_time": 8.56031322479248,
+        "status": "FAIL"
+      },
+      {
+        "test_case": 3,
+        "query": "How do I optimize production while managing team conflicts and market demands?",
+        "expected_domains": 3,
+        "actual_domains": 3,
+        "expected_range": [
+          135,
+          150
+        ],
+        "actual_words": 132,
+        "is_compliant": false,
+        "has_connector": true,
+        "response_time": 6.194682359695435,
+        "status": "FAIL"
+      }
+    ],
+    "merge_quality": [
+      {
+        "test_case": 1,
+        "query": "How should I approach this business decision?",
+        "quality_checks": {
+          "has_connector": true,
+          "has_multiple_paragraphs": true,
+          "has_reasoning": true,
+          "has_example": true,
+          "low_duplication": true
+        },
+        "quality_score": 1.0,
+        "repeated_phrases": [],
+        "lens_length": 972,
+        "word_count": 128,
+        "status": "PASS"
+      },
+      {
+        "test_case": 2,
+        "query": "What's the best strategy for market entry?",
+        "quality_checks": {
+          "has_connector": true,
+          "has_multiple_paragraphs": true,
+          "has_reasoning": true,
+          "has_example": true,
+          "low_duplication": true
+        },
+        "quality_score": 1.0,
+        "repeated_phrases": [],
+        "lens_length": 1091,
+        "word_count": 133,
+        "status": "PASS"
+      },
+      {
+        "test_case": 3,
+        "query": "How do I optimize operations while managing conflicts?",
+        "quality_checks": {
+          "has_connector": true,
+          "has_multiple_paragraphs": true,
+          "has_reasoning": true,
+          "has_example": true,
+          "low_duplication": true
+        },
+        "quality_score": 1.0,
+        "repeated_phrases": [],
+        "lens_length": 1069,
+        "word_count": 144,
+        "status": "PASS"
+      }
+    ],
+    "regression_validation": [
+      {
+        "test_case": 1,
+        "query": "How should I approach this business decision?",
+        "missing_sections": [],
+        "section_quality": {
+          "lens_present": true,
+          "story_present": true,
+          "prompts_present": true,
+          "concepts_present": true
+        },
+        "prompts_valid": true,
+        "concepts_valid": true,
+        "status": "PASS"
+      },
+      {
+        "test_case": 2,
+        "query": "What's the best strategy for market entry?",
+        "missing_sections": [],
+        "section_quality": {
+          "lens_present": true,
+          "story_present": true,
+          "prompts_present": true,
+          "concepts_present": true
+        },
+        "prompts_valid": false,
+        "concepts_valid": true,
+        "status": "FAIL"
+      },
+      {
+        "test_case": 3,
+        "query": "How do I optimize operations while managing conflicts?",
+        "missing_sections": [],
+        "section_quality": {
+          "lens_present": true,
+          "story_present": true,
+          "prompts_present": true,
+          "concepts_present": true
+        },
+        "prompts_valid": false,
+        "concepts_valid": true,
+        "status": "FAIL"
+      }
+    ],
+    "performance_metrics": {
+      "results": [
+        {
+          "test_case": 1,
+          "query": "Should I accept this job offer?",
+          "response_time": 4.669289588928223,
+          "lens_words": 106,
+          "status": "PASS"
+        },
+        {
+          "test_case": 2,
+          "query": "How should I negotiate this contract?",
+          "response_time": 4.043150424957275,
+          "lens_words": 86,
+          "status": "PASS"
+        },
+        {
+          "test_case": 3,
+          "query": "What's the best strategy for market entry?",
+          "response_time": 5.606242418289185,
+          "lens_words": 100,
+          "status": "PASS"
+        },
+        {
+          "test_case": 4,
+          "query": "How do I optimize operations?",
+          "response_time": 3.9991443157196045,
+          "lens_words": 112,
+          "status": "PASS"
+        },
+        {
+          "test_case": 5,
+          "query": "What approach should I take for this investment?",
+          "response_time": 4.632894515991211,
+          "lens_words": 121,
+          "status": "PASS"
+        }
+      ],
+      "avg_response_time": 4.590144252777099,
+      "total_queries": 5,
+      "total_time": 22.950721263885498
+    }
+  },
+  "timestamp": "2025-08-05T20:01:50.866261",
+  "version": "V1.6.6 Step 1 Focused"
+}

@@ -1,0 +1,38 @@
+{
+  "phase": "4.2",
+  "version": "V1.6.5.1",
+  "metrics": {
+    "avg_response_time_increase": -98.18746810723314,
+    "p95_response_time_increase": -99.72002445519084,
+    "clarity_score": 0.8348949557639389,
+    "structure_preservation_rate": 100.0,
+    "natural_integration_rate": 100.0,
+    "critical_errors": 0,
+    "cache_hit_rate": 0,
+    "lazy_loading_skips": 0,
+    "total_queries": 10,
+    "deployment_timestamp": "2025-08-04T12:45:26.804861",
+    "optimization_version": "Phase 4.2"
+  },
+  "success_results": {
+    "avg_response_time": true,
+    "p95_response_time": true,
+    "clarity_score": true,
+    "structure_preservation": true,
+    "natural_integration": true,
+    "critical_errors": true
+  },
+  "config": {
+    "entity_weight_factor": 0.05,
+    "cache_size": 200,
+    "lazy_loading_threshold": 5,
+    "performance_targets": {
+      "avg_response_time_increase": 50.0,
+      "p95_response_time_increase": 100.0,
+      "clarity_score_min": 0.6,
+      "structure_preservation_min": 95.0,
+      "natural_integration_min": 90.0,
+      "critical_errors_max": 0
+    }
+  }
+}
