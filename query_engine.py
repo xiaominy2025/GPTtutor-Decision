@@ -37,6 +37,44 @@ if not openai_api_key:
     print("FAIL: Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
 
+# --- Relevance Scoring Helper ---
+def compute_relevance_score(query):
+    """
+    Compute relevance score for query abuse prevention.
+    Higher scores indicate more relevant queries for decision-making topics.
+    """
+    # Extract domains using existing function
+    domains = detect_course_concept_domains(query)
+    domain_count = len([d for d in domains.values() if d > 0.1])
+    
+    # Extract application field using existing function
+    try:
+        application_field = extract_application_field_semantic(query, None)  # Will use cached model
+    except:
+        application_field = extract_application_field(query)
+    
+    # Extract concepts using existing function
+    concepts = get_top_ranked_concepts(query, top_k=3)
+    concept_count = len(concepts)
+    
+    # Fuzzy fallback if no concept match
+    if not concepts:
+        fuzzy_hits = extract_concepts_with_fuzzy_matching(query, threshold=0.8)
+        if fuzzy_hits:
+            concepts = fuzzy_hits
+            concept_count = len(concepts)
+    
+    # Calculate relevance score
+    score = 2 * concept_count + domain_count + (1 if application_field else 0)
+    
+    debug_info = {
+        "domains": list(domains.keys()),
+        "application_fields": [application_field] if application_field else [],
+        "concepts": [concept[0] for concept in concepts],
+        "score": score
+    }
+    return score, debug_info
+
 # Initialize OpenAI client
 client = OpenAI(api_key=openai_api_key)
 
@@ -1894,6 +1932,15 @@ def process_query(query: str, course_config: dict = None) -> str:
         # TEMPORARY: Using cached data loading to avoid repeated ~24s loads
         # This will be replaced with proper multi-course architecture in V1.6.7
         index, metadata, documents, file_names, model, nlp = load_course_data_cached("decision")
+        
+        # ✅ Relevance filter to reject off-topic queries before GPT call
+        score, debug = compute_relevance_score(query)
+        if score < 2:
+            print(f"⚠️ Query rejected due to low relevance. Debug: {debug}")
+            return (
+                "⚠️ This question doesn't appear to be related to the course. "
+                "Try asking about decision-making tools, strategies, or intuitive judgment."
+            )
         
         # Extract concepts using semantic similarity
         concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
