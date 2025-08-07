@@ -110,13 +110,11 @@
   "answer_format": {
     "sections": [
       "Strategic Thinking Lens",
-      "Story in Action", 
       "Follow-up Prompts",
       "Concepts & Tools"
     ],
     "word_limits": {
       "strategic_lens": {"min": 120, "max": 140},
-      "story_in_action": {"min": 60, "max": 80},
       "follow_up_prompts": {"min": 2, "max": 4},
       "concepts_tools": {"min": 2, "max": 4}
     }
