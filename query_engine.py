@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Clean Query Engine - Produces only user-facing output without developer information
-V1.6.5 Clean Version - No Streaming Support
+V1.6.6 Stable Version - No Streaming Support
 """
 
 import os
