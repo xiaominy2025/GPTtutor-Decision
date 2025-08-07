@@ -11,4 +11,4 @@ faiss-cpu>=1.7.0
 spacy>=3.0.0
 scikit-learn>=1.0.0
 Flask-CORS
-huggingface-hub>=0.16.0
+huggingface-hub==0.15.1
