@@ -123,6 +123,22 @@ def process_query():
         # Process query using V1.6 query engine directly (no course_config parameter)
         answer = query_engine.process_query(query)
         
+        # Check if query was rejected by relevance filter
+        if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
+            print("⚠️ Query rejected by relevance filter")
+            return jsonify({
+                "status": "rejected",
+                "message": answer,
+                "data": {
+                    "query": query,
+                    "course_id": DEFAULT_COURSE,
+                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "model": "gpt-3.5-turbo",
+                    "processing_time": 0.1,  # Quick rejection
+                    "conceptsToolsPractice": []
+                }
+            })
+        
         # Extract concepts/tools as objects for frontend
         concepts_tools_practice = []
         if hasattr(query_engine, 'extract_tools_from_section'):
