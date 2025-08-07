@@ -1,0 +1,448 @@
+{
+  "test_summary": {
+    "total_queries": 25,
+    "entity_detection_rate": 0.56,
+    "avg_entities_found": 4,
+    "avg_response_time_change": 0.3053525311405222,
+    "max_response_time_increase": 3.455170540424689,
+    "structure_preservation_rate": 1.0,
+    "avg_clarity_score": 0.47069500531164987,
+    "natural_integration_rate": 1.0
+  },
+  "quality_thresholds": {
+    "response_time_acceptable": false,
+    "structure_preserved": true,
+    "clarity_maintained": false,
+    "natural_integration": true
+  },
+  "detailed_results": [
+    {
+      "query": "Should I invest in renewable energy for my company within the next 6 months?",
+      "response_time_change": -2.3596115112304688,
+      "response_time_change_percent": -0.38654978199441375,
+      "word_count_change": 28,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 226,
+        "word_count_comparison": 28,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4545833333333334,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nInvesting in renewable energy within six months for your company involves weighing short-term costs against long-term benefits, anticipating market shifts due to evolving ...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nInvesting in renewable energy within the next 6 months could enhance your company's long-term sustainability but might require considerable upfront capital and have uncert..."
+    },
+    {
+      "query": "How do we handle employee concerns about the new policy in the short term?",
+      "response_time_change": -0.0925450325012207,
+      "response_time_change_percent": -0.031927219212427596,
+      "word_count_change": 21,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 251,
+        "word_count_comparison": 21,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4649794699514744,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nIn addressing employee concerns about a new policy in the short term, consider the importance of clear communication to manage anxiety and align expectations. While mainta...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nMaintaining the status quo can offer short-term comfort to employees, especially when facing policy changes. However, swift acknowledgment of their concerns, along with cl..."
+    },
+    {
+      "query": "What financial criteria should we consider for long-term investor satisfaction?",
+      "response_time_change": 1.3010616302490234,
+      "response_time_change_percent": 0.44844232377366033,
+      "word_count_change": -22,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -94,
+        "word_count_comparison": -22,
+        "structure_preserved": true,
+        "clarity_assessment": 0.44579385964912277,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nFor long-term investor satisfaction, it's crucial to consider not just current profitability but also future growth potential. Evaluate the sustainability of earnings thro...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen considering long-term investor satisfaction from a financial perspective, it's crucial to balance profitability analysis alongside portfolio management principles. Un..."
+    },
+    {
+      "query": "How do we manage operational complexity for immediate customer needs?",
+      "response_time_change": 3.1512842178344727,
+      "response_time_change_percent": 1.1396007573861402,
+      "word_count_change": -19,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -144,
+        "word_count_comparison": -19,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4573809523809524,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nTo manage operational complexity for immediate customer needs in marketing, balancing short-term demand fluctuations while ensuring efficient supply-chain processes is cru...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nTo manage operational complexity for immediate customer needs, focus on optimizing supply and demand alignment through aggregate planning. By analyzing the value chain fro..."
+    },
+    {
+      "query": "What strategic risks do regulators see in our approach to market expansion?",
+      "response_time_change": 2.7586801052093506,
+      "response_time_change_percent": 1.150708351259164,
+      "word_count_change": 13,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 20,
+        "word_count_comparison": 13,
+        "structure_preserved": true,
+        "clarity_assessment": 0.48155707395498387,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nRegulators, keen on maintaining market stability, view market expansion risks through multiple lenses. They weigh potential disruptions against the benefits of growth, ant...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen considering the approach to market expansion, it's crucial to anticipate regulatory concerns. Regulators, with a long-term perspective, prioritize stability and fair ..."
+    },
+    {
+      "query": "Should we expand our business to new markets within the next quarter?",
+      "response_time_change": -1.5836143493652344,
+      "response_time_change_percent": -0.3825733897414858,
+      "word_count_change": -1,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -115,
+        "word_count_comparison": -1,
+        "structure_preserved": true,
+        "clarity_assessment": 0.5297332978911926,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nExpanding into new markets entails considering differentiation strategy\u2014how will you stand out? Evaluate competitive advantage analysis to understand if existing strengths...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nExpanding into new markets involves the interplay of differentiation strategy to stand out in a new competitive landscape, efficient portfolio management to allocate resou..."
+    },
+    {
+      "query": "How do we balance cost and quality for our suppliers in the coming months?",
+      "response_time_change": -0.8526148796081543,
+      "response_time_change_percent": -0.25455733036284317,
+      "word_count_change": 11,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 210,
+        "word_count_comparison": 11,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4400250896057347,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen balancing cost and quality for suppliers, focus on long-term benefits alongside immediate savings. Sacrificing quality for cost might generate short-term savings but ...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nBalancing cost and quality with suppliers involves optimizing value creation in the medium term, ensuring financial and operational efficacy. To enhance quality without ex..."
+    },
+    {
+      "query": "What operational efficiency measures should we implement this year?",
+      "response_time_change": 3.1854453086853027,
+      "response_time_change_percent": 0.6941466253110762,
+      "word_count_change": -18,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -109,
+        "word_count_comparison": -18,
+        "structure_preserved": true,
+        "clarity_assessment": 0.47864872856298046,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nTo enhance operational efficiency, consider investing in process automation to eliminate repetitive tasks, reducing human errors and speeding up workflows. Additionally, p...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nTo boost operational efficiency long-term, considering seasonal forecasting in inventory management, production, and staffing is vital. Implementing systems to predict dem..."
+    },
+    {
+      "query": "How do we address customer complaints about our service quality?",
+      "response_time_change": 0.26799964904785156,
+      "response_time_change_percent": 0.11327623260127043,
+      "word_count_change": 40,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 238,
+        "word_count_comparison": 40,
+        "structure_preserved": true,
+        "clarity_assessment": 0.44895382395382394,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen addressing customer complaints about service quality, one must balance short-term fixes with long-term strategies. Immediately resolving issues demonstrates responsiv...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen addressing customer complaints about service quality, applying a differentiation strategy can set our approach apart by emphasizing unique offerings desired by custom..."
+    },
+    {
+      "query": "What risk management strategies should we adopt for high uncertainty scenarios?",
+      "response_time_change": -1.6240582466125488,
+      "response_time_change_percent": -0.37743556361721425,
+      "word_count_change": -96,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -857,
+        "word_count_comparison": -96,
+        "structure_preserved": true,
+        "clarity_assessment": 0.46478484011054083,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nIn high uncertainty scenarios within the technology field, leveraging risk management strategies is paramount. Integrating This approach requires careful consideration of ...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nIn high uncertainty scenarios within the technology sector, adopting a combination of Monte Carlo simulation and scenario planning is strategic. Monte Carlo simulations ca..."
+    },
+    {
+      "query": "What is the best approach to decision making?",
+      "response_time_change": 0.8004810810089111,
+      "response_time_change_percent": 0.3267803262235036,
+      "word_count_change": -31,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -200,
+        "word_count_comparison": -31,
+        "structure_preserved": true,
+        "clarity_assessment": 0.447620320855615,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nAn optimal decision-making approach involves leveraging tools like scenario analysis and decision trees. Through scenario analysis, one can map out multiple futures, consi...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen approaching decision-making, consider scenario analysis to anticipate various outcomes, maximizing preparedness for uncertainties inherent in choices. Additionally, f..."
+    },
+    {
+      "query": "How do I improve my analytical skills?",
+      "response_time_change": 0.09736442565917969,
+      "response_time_change_percent": 0.039230510373400536,
+      "word_count_change": 42,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 240,
+        "word_count_comparison": 42,
+        "structure_preserved": true,
+        "clarity_assessment": 0.48310961968680094,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nImproving analytical skills in education involves embracing tools like the analytical solver to optimize complex issues efficiently and qualitative forecasting to make jud...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nEnhancing analytical skills in education involves using tools like qualitative forecasting to make judgment-based predictions and the analytical solver for implementing op..."
+    },
+    {
+      "query": "What frameworks are useful for strategic planning?",
+      "response_time_change": 2.1826608180999756,
+      "response_time_change_percent": 1.12592097817546,
+      "word_count_change": -25,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -232,
+        "word_count_comparison": -25,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4241481481481482,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen considering frameworks for strategic planning in operations, several tools stand out. Scenario planning and analysis help strategists anticipate various operational l...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nIn operations, utilizing scenario planning and strategic framing can enhance long-term strategic planning. Scenario planning helps identify potential future situations wit..."
+    },
+    {
+      "query": "How do I evaluate different options?",
+      "response_time_change": 0.4262199401855469,
+      "response_time_change_percent": 0.15625750336189947,
+      "word_count_change": 4,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 15,
+        "word_count_comparison": 4,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4595172644988267,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen evaluating different options, integrate utility functions to quantify preferences and decision trees to visualize outcomes and their likelihood. Consider strategic fr...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen evaluating different options, consider constructing a decision tree to outline each choice's potential outcomes. Use utility functions to mathematically quantify your..."
+    },
+    {
+      "query": "What tools help with problem solving?",
+      "response_time_change": -0.1471853256225586,
+      "response_time_change_percent": -0.053399488010545997,
+      "word_count_change": 3,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 34,
+        "word_count_comparison": 3,
+        "structure_preserved": true,
+        "clarity_assessment": 0.45277826855123676,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen tackling problem-solving, leveraging analytical tools like decision trees assists in visually organizing potential outcomes and choices. Combining this with the analy...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nProblem-solving benefits from integrating analytical solvers like optimization models, enhancing human-computer collaboration, and using decision trees to visualize option..."
+    },
+    {
+      "query": "How do I make better choices?",
+      "response_time_change": 1.2684047222137451,
+      "response_time_change_percent": 0.48280336730636003,
+      "word_count_change": 6,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 15,
+        "word_count_comparison": 6,
+        "structure_preserved": true,
+        "clarity_assessment": 0.476953642384106,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nMaking better choices involves understanding your preferences through utility functions, mapping out options and outcomes with decision trees, and structuring decisions ef...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nImproving decision-making entails leveraging utility functions to quantify individual preferences and decision trees to visualize potential outcomes, guiding choices throu..."
+    },
+    {
+      "query": "What methods improve decision quality?",
+      "response_time_change": 1.046978235244751,
+      "response_time_change_percent": 0.3423472495795252,
+      "word_count_change": -9,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -73,
+        "word_count_comparison": -9,
+        "structure_preserved": true,
+        "clarity_assessment": 0.42776315789473685,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nDecision quality can improve by incorporating a mix of quantitative and qualitative approaches. By utilizing utility functions, you can assign values to different outcomes...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nImproving decision quality involves leveraging various methods like utility functions to quantify preferences, qualitative forecasting for judgment-based insights, and str..."
+    },
+    {
+      "query": "How do I assess alternatives effectively?",
+      "response_time_change": 1.52766752243042,
+      "response_time_change_percent": 0.6373061973097381,
+      "word_count_change": -1,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -42,
+        "word_count_comparison": -1,
+        "structure_preserved": true,
+        "clarity_assessment": 0.5110714285714286,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nTo assess alternatives effectively, start by framing your decision clearly with defined objectives and available options. Consider using utility functions and decision tre...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen assessing alternatives effectively, consider using This situation requires careful analysis of all available options and their potential outcomes. Consider stakeholde..."
+    },
+    {
+      "query": "What techniques enhance critical thinking?",
+      "response_time_change": 0.20076346397399902,
+      "response_time_change_percent": 0.05286485683579037,
+      "word_count_change": 30,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 103,
+        "word_count_comparison": 30,
+        "structure_preserved": true,
+        "clarity_assessment": 0.45478813559322034,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nEnhancing critical thinking involves honing cognitive behaviors like recognizing patterns, challenging assumptions, and fostering open-mindedness. By practicing active lis...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nImproving critical thinking involves recognizing cognitive behaviors that shape decision-making. By understanding these patterns, individuals can develop strategies to enh..."
+    },
+    {
+      "query": "How do I structure my analysis?",
+      "response_time_change": -0.2187638282775879,
+      "response_time_change_percent": -0.0700876926842101,
+      "word_count_change": 18,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 127,
+        "word_count_comparison": 18,
+        "structure_preserved": true,
+        "clarity_assessment": 0.46493828218755356,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen structuring your analysis in operations, consider incorporating sensitivity analysis to assess the impact of input variations on key outcomes. However, balance this q...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen structuring your analysis in operations, consider incorporating sensitivity analysis to evaluate various input values' impact on outcomes within the operational scena..."
+    },
+    {
+      "query": "What should I consider when choosing between two job offers?",
+      "response_time_change": -3.3202998638153076,
+      "response_time_change_percent": -0.5866430774008358,
+      "word_count_change": -35,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -198,
+        "word_count_comparison": -35,
+        "structure_preserved": true,
+        "clarity_assessment": 0.5380784313725491,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen weighing two job offers, consider factors like salary, benefits, career growth opportunities, company culture, work-life balance, location, and the alignment of job r...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen weighing two job offers, assess factors like growth opportunities, company culture fit, and work-life balance. Consider the long-term implications of each offer, such..."
+    },
+    {
+      "query": "How do I decide whether to start my own business?",
+      "response_time_change": 0.1048135757446289,
+      "response_time_change_percent": 0.0481423283553846,
+      "word_count_change": 7,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": 56,
+        "word_count_comparison": 7,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4990966221523959,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nStarting a business demands a blend of strategic analysis and risk awareness. Do a profitability analysis to understand potential financial outcomes and risks systematical...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen contemplating starting a business, look beyond passion to assess its profitability. Begin with a detailed profitability analysis, evaluating revenue projections again..."
+    },
+    {
+      "query": "What factors matter most in selecting a new technology?",
+      "response_time_change": 7.948504209518433,
+      "response_time_change_percent": 3.455170540424689,
+      "word_count_change": -22,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -140,
+        "word_count_comparison": -22,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4488221013789085,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen selecting a new technology, considering factors like scalability, interoperability, and security is crucial. Scalability ensures the technology can adapt with growing...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nIn selecting a new technology, consider the impact on human-computer integration for enhanced decision-making capabilities. Additionally, conduct scenario analysis to prep..."
+    },
+    {
+      "query": "How do I evaluate investment opportunities?",
+      "response_time_change": 0.07237005233764648,
+      "response_time_change_percent": 0.03080388121880841,
+      "word_count_change": -3,
+      "entity_detected": true,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -6,
+        "word_count_comparison": -3,
+        "structure_preserved": true,
+        "clarity_assessment": 0.4508206686930092,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen evaluating investment opportunities, it's crucial to conduct comprehensive profitability and competitive advantage analyses. Assessing potential returns against risks...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen evaluating investment opportunities primarily based on financial criteria, one must conduct profitability and risk assessments. Profitability analysis helps gauge the..."
+    },
+    {
+      "query": "What criteria should guide my career decisions?",
+      "response_time_change": -1.980118751525879,
+      "response_time_change_percent": -0.4668152079588395,
+      "word_count_change": -35,
+      "entity_detected": false,
+      "entities_found": 4,
+      "quality_metrics": {
+        "length_comparison": -293,
+        "word_count_comparison": -35,
+        "structure_preserved": true,
+        "clarity_assessment": 0.5614285714285714,
+        "entity_integration_natural": true
+      },
+      "baseline_result": "**Strategic Thinking Lens**\n\nWhen pondering career decisions, consider a holistic perspective incorporating professional growth, personal fulfillment, and long-term goals. Pause to envision potential ...",
+      "enhanced_result": "**Strategic Thinking Lens**\n\nWhen making career decisions, considering criteria through the lenses of scenario analysis, strategic framing, and decision trees can be invaluable. Employ scenario analys..."
+    }
+  ],
+  "recommendations": [
+    "\u274c Error: Quality report not properly generated"
+  ]
+}

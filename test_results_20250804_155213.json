@@ -1,0 +1,80 @@
+{
+  "timestamp": "20250804_155213",
+  "pytest_results": {
+    "exit_code": 4,
+    "stdout": "",
+    "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --json-report --json-report-file=pytest_results.json\n  inifile: None\n  rootdir: C:\\Users\\xmkya\\Documents\\Xiaomin Folder\\ThinkPal Project\\GPTTutor-Decision\n\n",
+    "success": false
+  },
+  "custom_results": {
+    "concept_extraction": [],
+    "query_processing": [
+      {
+        "query": "I need to decide between two job offers",
+        "processing_time": 6.922837734222412,
+        "response_length": 1965,
+        "has_strategic_lens": true,
+        "has_story": true,
+        "has_followup": true,
+        "has_concepts": true,
+        "success": true
+      },
+      {
+        "query": "How do I optimize my supply chain?",
+        "processing_time": 2.460524797439575,
+        "response_length": 2194,
+        "has_strategic_lens": true,
+        "has_story": true,
+        "has_followup": true,
+        "has_concepts": true,
+        "success": true
+      },
+      {
+        "query": "What are the risks of this investment?",
+        "processing_time": 2.8030171394348145,
+        "response_length": 1932,
+        "has_strategic_lens": true,
+        "has_story": true,
+        "has_followup": true,
+        "has_concepts": true,
+        "success": true
+      },
+      {
+        "query": "How should I negotiate this deal?",
+        "processing_time": 2.679990768432617,
+        "response_length": 2114,
+        "has_strategic_lens": true,
+        "has_story": true,
+        "has_followup": true,
+        "has_concepts": true,
+        "success": true
+      }
+    ]
+  },
+  "analysis": {
+    "overall_status": "FAIL",
+    "issues": [
+      "Pytest tests failed"
+    ],
+    "recommendations": [
+      "Improve concept extraction accuracy"
+    ],
+    "metrics": {
+      "pytest_passed": false,
+      "concept_extraction": {
+        "successful_tests": 0,
+        "total_tests": 0,
+        "average_accuracy": 0
+      },
+      "query_processing": {
+        "successful_queries": 4,
+        "total_queries": 4,
+        "average_processing_time": 3.7165926098823547
+      }
+    }
+  },
+  "fixes": {
+    "fixes_applied": [],
+    "success": true
+  }
+}

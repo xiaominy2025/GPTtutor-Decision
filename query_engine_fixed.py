@@ -1,8 +1,7 @@
-
 #!/usr/bin/env python3
 """
 Clean Query Engine - Produces only user-facing output without developer information
-V1.6.6 Stable Version - No Streaming Support
+V1.6.5 Clean Version - No Streaming Support
 """
 
 import os
@@ -18,9 +17,6 @@ from openai import OpenAI
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-
-
-
 from sentence_transformers import util
 import spacy
 import uuid
@@ -34,51 +30,11 @@ openai_max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
 openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 
 if not openai_api_key:
-    print("FAIL: Error: OPENAI_API_KEY not set in environment variables.")
+    print("❌ Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
-
-# --- Relevance Scoring Helper ---
-def compute_relevance_score(query):
-    """
-    Compute relevance score for query abuse prevention.
-    Higher scores indicate more relevant queries for decision-making topics.
-    """
-    # Extract domains using existing function
-    domains = detect_course_concept_domains(query)
-    domain_count = len([d for d in domains.values() if d > 0.1])
-    
-    # Extract application field using existing function
-    try:
-        application_field = extract_application_field_semantic(query, None)  # Will use cached model
-    except:
-        application_field = extract_application_field(query)
-    
-    # Extract concepts using existing function
-    concepts = get_top_ranked_concepts(query, top_k=3)
-    concept_count = len(concepts)
-    
-    # Fuzzy fallback if no concept match
-    if not concepts:
-        fuzzy_hits = extract_concepts_with_fuzzy_matching(query, threshold=0.8)
-        if fuzzy_hits:
-            concepts = fuzzy_hits
-            concept_count = len(concepts)
-    
-    # Calculate relevance score
-    score = 2 * concept_count + domain_count + (1 if application_field else 0)
-    
-    debug_info = {
-        "domains": list(domains.keys()),
-        "application_fields": [application_field] if application_field else [],
-        "concepts": [concept[0] for concept in concepts],
-        "score": score
-    }
-    return score, debug_info
 
 # Initialize OpenAI client
 client = OpenAI(api_key=openai_api_key)
-
-# Performance timing system (moved to API server route level)
 
 # Global variables for lazy loading
 _index = None
@@ -87,11 +43,6 @@ _documents = None
 _file_names = None
 _model = None
 _nlp = None
-
-# TEMPORARY CACHE for V1.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
-# Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6
-# This cache should be removed or revised in V1.6.7 when the centralized multi-course architecture is introduced
-cached_data = {}
 
 def load_data_lazily():
     """Load data only when needed"""
@@ -106,46 +57,12 @@ def load_data_lazily():
             _file_names = _metadata.get("file_names", ["Unknown"] * len(_documents))
             _model = SentenceTransformer("all-MiniLM-L6-v2")
             _nlp = spacy.load("en_core_web_sm")
-            
-            # Data loading complete (timing now handled by cache wrapper)
-            print("✅ Data loaded")
-            
+            print("✅ Data loaded successfully")
         except Exception as e:
-            print(f"FAIL: Error loading data: {e}")
+            print(f"❌ Error loading data: {e}")
             sys.exit(1)
     
     return _index, _metadata, _documents, _file_names, _model, _nlp
-
-def load_course_data_cached(course_id):
-    """
-    TEMPORARY CACHE WRAPPER for V1.6.6 – to be removed in V1.6.7 when multi-course engine is introduced
-    
-    Purpose: Avoid reloading course data (~24s) on every query while bypassing course_config in V1.6.6
-    This cache should be removed or revised in V1.6.7 when the centralized multi-course architecture is introduced
-    
-    Args:
-        course_id: Course identifier (currently ignored in V1.6.6, always uses 'decision')
-        
-    Returns:
-        Cached course data or loads it for the first time
-    """
-    # V1.6.6: Always use 'decision' course regardless of course_id parameter
-    # This is a temporary workaround until V1.6.7 multi-course architecture
-    effective_course_id = "decision"
-    
-    if effective_course_id in cached_data:
-        print(f"✅ Using cached data for course: {effective_course_id}")
-        return cached_data[effective_course_id]
-    
-    print(f"🔁 First-time load for course: {effective_course_id}")
-    # Performance timing: Only measure actual data loading time
-    start_time = time.time()
-    # Load data using existing lazy loading mechanism
-    data = load_data_lazily()
-    duration = time.time() - start_time
-    cached_data[effective_course_id] = data
-    print(f"🔹 Data Load Time: {duration:.2f}s")
-    return data
 
 # Decision frameworks - Core domains of the decision-making process
 FRAMEWORKS = {
@@ -202,8 +119,7 @@ CONCEPT_GLOSSARY = {
     "batna": {"definition": "Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached", "core": True, "aliases": ['best alternative', 'walk away option', 'negotiation alternative', 'reservation alternative', 'best alternative to negotiated agreement', 'best option if no deal', 'alternative to agreement']},
     "reservation point": {"definition": "The least favorable outcome acceptable before walking away from a negotiation", "core": True, "aliases": ['walk away point', 'minimum acceptable', 'bottom line', 'walk-away point', 'minimum outcome', 'least acceptable', 'walk away', 'reservation point']},
     "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ['zone of agreement', 'negotiation zone', 'agreement zone', 'bargaining zone', 'possible agreement', 'negotiation', 'zone of possible agreement', 'agreement range']},
-    "supply chain": {"definition": "The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer", "core": True, "aliases": ['supply chain management', 'logistics', 'procurement', 'distribution', 'supply chain optimization', 'supply chain disruption']},
-    "risk management": {"definition": "The process of identifying, assessing, and controlling threats to an organization's capital and earnings", "core": True, "aliases": ['risk assessment', 'risk mitigation', 'threat management', 'risk control', 'risk evaluation', 'risk analysis']},
+    "supply chain risk management": {"definition": "Identifying and mitigating risks in procurement and distribution", "core": False, "aliases": ['supply chain', 'procurement risk', 'distribution risk']},
     "leadership assessment": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": False, "aliases": ['leadership evaluation', 'leadership skills', 'management assessment']},
     "cognitive behaviors": {"definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias", "core": True, "aliases": ['cognitive behavior', 'thinking patterns', 'mental models', 'cognitive bias']},
     "judgment intuitive bias": {"definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously", "core": True, "aliases": ['cognitive bias', 'judgment bias', 'thinking errors', 'decision bias']},
@@ -223,12 +139,12 @@ CONCEPT_GLOSSARY = {
     "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ['solver simulation', 'algorithmic optimization', 'computational optimization']},
     "confirmation bias": {"definition": "Favoring evidence that supports existing beliefs", "core": True, "aliases": ['selective evidence bias', 'favor confirming information', 'seek confirming evidence', 'ignore contradicting', 'favor existing beliefs', 'confirm beliefs', 'favor confirming']},
     "anchoring bias": {"definition": "Relying too heavily on initial information", "core": True, "aliases": ['initial value bias', 'rely on first information', 'first piece of information', 'anchor on initial', 'stick to first impression', 'initial reference point', 'first information']},
-    "framing bias": {"definition": "Decisions influenced by whether information is presented positively or negatively", "core": True, "aliases": ['context framing', 'positive negative framing', 'presentation bias']},
+    "framing bias": {"definition": "Decisions shaped by how options are presented", "core": True, "aliases": ['context framing']},
     "representative heuristic": {"definition": "Judging probability based on similarity", "core": True, "aliases": ['representativeness bias', 'judge by similarity', 'similar to past', 'based on similarity', 'judge probability by similarity']},
     "endowment effect": {"definition": "Valuing owned items higher than market value", "core": True, "aliases": ['ownership bias', 'value own work higher', 'overvalue own', 'my work is worth more', 'value my creation higher', 'own work more valuable', 'personal attachment', 'value own']},
     "status quo bias": {"definition": "Preference for maintaining the current state", "core": True, "aliases": ['resistance to change', 'status quo', 'maintaining current', 'not want to give up', 'reluctant to change', 'prefer current', 'refuse to change', 'stick with current', 'keep current', "don't want to change", 'prefer existing', 'stick to current']},
     "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ['sunk cost fallacy', 'legacy project', 'continuing investment', 'failing project', 'persistent investment', 'keep investing', 'already spent', 'time investment', 'continue despite failure', 'invest more in failing', 'keep going despite problems', 'legacy']},
-    "mental accounting": {"definition": "Treating money and financial resources differently based on their source or context", "core": True, "aliases": ['psychological budgeting', 'money source bias', 'financial categorization']},
+    "mental accounting": {"definition": "Treating money differently depending on its source", "core": True, "aliases": ['psychological budgeting']},
     "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ['strategic games', 'payoff analysis', 'competitive interactions', 'strategic analysis', 'competitive strategy', 'strategic thinking', 'competitive analysis', 'strategic interactions', 'game theory']},
     "winner's curse": {"definition": "Overpaying or overcommitting in competitive bidding", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', "winner's curse"]},
     "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ['collaborative negotiation', 'win-win bargaining', 'value creation', 'mutual benefits', 'win-win solutions', 'create value', 'collaborative approach', 'mutual gains', 'win-win']},
@@ -318,8 +234,7 @@ CONCEPT_DOMAINS = {
     "contingency planning": "general",
     "grow model": "general",
     "ooda loop": "general",
-    "supply chain": "technical",
-    "risk management": "technical",
+    "supply chain risk management": "general",
     "human-computer integration": "technical"
 }
 
@@ -330,10 +245,7 @@ def clear_concept_cache():
     """Clear the concept embeddings cache to force re-initialization with new format."""
     global _concept_embeddings_cache
     _concept_embeddings_cache = None
-    print("🗑️ Concept embeddings cache cleared")
-    
-# Clear cache on import to ensure fresh concept selection
-clear_concept_cache() 
+    print("🗑️ Concept embeddings cache cleared") 
 
 def detect_course_concept_domains(query: str) -> dict:
     """
@@ -357,46 +269,80 @@ def detect_course_concept_domains(query: str) -> dict:
         'individual', 'group', 'social', 'interpersonal', 'communication',
         'behave', 'behaving', 'behaved', 'psychologic', 'cognitively', 'judge', 'judging',
         'lead', 'leading', 'led', 'motivate', 'motivating', 'motivated', 'feel', 'feeling',
-        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating',
-        # Manager and workplace relationship keywords
-        'manager', 'managers', 'boss', 'supervisor', 'supervisors', 'colleague', 'colleagues',
-        'workplace', 'office', 'professional', 'professionally', 'work', 'working',
-        'critique', 'critiques', 'criticism', 'criticisms', 'feedback', 'unfair', 'fair',
-        'approach', 'approaching', 'situation', 'circumstance', 'circumstances',
-        'relationship', 'relationships', 'interpersonal', 'communication', 'communicate',
-        'response', 'respond', 'responding', 'react', 'reacting', 'reaction', 'reactions',
-        # Money and financial behavior keywords
-        'budget', 'budgeting', 'budgeted', 'salary', 'salaries', 'expense', 'expenses', 'spending', 'spend', 'spent',
-        'money', 'financial', 'finance', 'cost', 'costs', 'price', 'prices', 'payment', 'payments',
-        'income', 'revenue', 'profit', 'loss', 'saving', 'savings', 'save', 'saved',
-        'investment', 'invest', 'investing', 'invested', 'wealth', 'wealthy', 'asset', 'assets',
-        'debt', 'credit', 'loan', 'loans', 'mortgage', 'rent', 'rental', 'utility', 'utilities',
-        'grocery', 'groceries', 'entertainment', 'transportation', 'healthcare', 'insurance'
+        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating'
     ]
     for keyword in behavioral_keywords:
         if keyword in query_lower:
             course_concept_domains['behavioral'] += 1
     
-    # Technical/analytical indicators (FOCUSED - only truly technical terms)
+    # Technical/analytical indicators
     technical_keywords = [
-        'simulation', 'simulate', 'simulating', 'simulated',
-        'forecast', 'forecasting', 'forecasted', 
-        'optimization', 'optimize', 'optimizing', 'optimized',
-        'maximization', 'maximize', 'maximizing', 'maximized',
-        'minimization', 'minimize', 'minimizing', 'minimized',
-        'algorithm', 'algorithms', 'mathematical', 'mathematics',
-        'calculate', 'calculation', 'calculating', 'calculated',
-        'compute', 'computation', 'computing', 'computed',
-        'production', 'demand', 'storage', 'capacity', 'inventory',
-        'operations', 'operational', 'manufacturing', 'logistics',
-        'data', 'statistical', 'statistics', 'numerical', 'numeric',
-        'uncertainty', 'uncertain', 'uncertainties', 'probability', 
-        'probabilistic', 'probable', 'scenario', 'scenarios',
-        'model', 'modeling', 'modeled', 'models',
-        'visualize', 'visualizing', 'visualized', 'visualization',
-        'map', 'mapping', 'mapped', 'diagram', 'diagrams',
-        'chart', 'charts', 'graph', 'graphs', 'tree', 'trees',
-        'flow', 'flows', 'flowchart', 'flowcharts'
+        'model', 'modeling', 'modeled', 'simulation', 'simulate', 'simulating', 'simulated',
+        'forecast', 'forecasting', 'forecasted', 'optimization', 'optimize', 'optimizing', 
+        'optimized', 'optimum', 'optimization strategy', 'optimization strategies',
+        'maximization', 'maximize', 'maximizing', 'maximized', 'maximum', 'minimization', 
+        'minimize', 'minimizing', 'minimized', 'minimum', 'simulation strategy', 'simulation strategies',
+        'analysis', 'analyze', 'analyzing', 'analyzed', 'analytical',
+        'data', 'statistical', 'statistics', 'mathematical', 'mathematics',
+        'algorithm', 'algorithms', 'uncertainty', 'uncertain', 'uncertainties', 'probability', 
+        'probabilistic', 'probable', 'calculate', 'calculation', 'calculating', 'calculated',
+        'compute', 'computation', 'computing', 'computed', 'numerical', 'numeric',
+        'assess', 'assessment', 'assessing', 'assessed', 'evaluate', 'evaluation', 
+        'evaluating', 'evaluated', 'measure', 'measurement', 'measuring', 'measured',
+        'determine', 'determining', 'determined', 'estimate', 'estimating', 'estimated',
+        'predict', 'predicting', 'predicted', 'prediction', 'predictions',
+        'production', 'demand', 'storage', 'capacity', 'inventory', 'supply chain',
+        'operations', 'operational', 'manufacturing', 'logistics', 'distribution',
+        # Technical implementation keywords
+        'implement', 'implementation', 'implementing', 'implemented', 'deploy', 'deployment',
+        'deploying', 'deployed', 'install', 'installation', 'installing', 'installed',
+        'configure', 'configuration', 'configuring', 'configured', 'setup', 'set up',
+        'integrate', 'integration', 'integrating', 'integrated', 'develop', 'development',
+        'developing', 'developed', 'build', 'building', 'built', 'create', 'creating', 'created',
+        'design', 'designing', 'designed', 'architecture', 'architectural', 'system', 'systems',
+        'technical', 'technically', 'technology', 'technological', 'digital', 'automation',
+        'automated', 'automate', 'automating', 'programming', 'program', 'programmed',
+        'coding', 'code', 'coded', 'software', 'hardware', 'infrastructure', 'platform',
+        # Enhanced technical keywords for analysis and evaluation
+        'choose', 'choosing', 'chose', 'chosen', 'choice', 'choices', 'select', 'selecting', 'selected',
+        'compare', 'comparing', 'compared', 'comparison', 'compare options', 'compare alternatives',
+        'option', 'options', 'alternative', 'alternatives', 'approach', 'approaches',
+        'method', 'methods', 'methodology', 'methodologies', 'technique', 'techniques',
+        'tool', 'tools', 'framework', 'frameworks', 'process', 'processes', 'procedure', 'procedures',
+        'strategy', 'strategies', 'strategic', 'strategically', 'plan', 'planning', 'planned',
+        'decision', 'decisions', 'decide', 'deciding', 'decided', 'decision-making', 'decision making',
+        'evaluate', 'evaluating', 'evaluated', 'evaluation', 'assess', 'assessing', 'assessed', 'assessment',
+        'analyze', 'analyzing', 'analyzed', 'analysis', 'analytical', 'analytically',
+        'examine', 'examining', 'examined', 'examination', 'investigate', 'investigating', 'investigated',
+        'study', 'studying', 'studied', 'research', 'researching', 'researched',
+        'test', 'testing', 'tested', 'experiment', 'experimenting', 'experimented',
+        'trial', 'trials', 'pilot', 'piloting', 'piloted', 'prototype', 'prototyping', 'prototyped',
+        'launch', 'launching', 'launched', 'release', 'releasing', 'released', 'deploy', 'deploying', 'deployed',
+        'product', 'products', 'service', 'services', 'solution', 'solutions',
+        'project', 'projects', 'initiative', 'initiatives', 'campaign', 'campaigns',
+        'visualize', 'visualizing', 'visualized', 'visualization', 'visual', 'visually',
+        'map', 'mapping', 'mapped', 'diagram', 'diagrams', 'chart', 'charts', 'graph', 'graphs',
+        'tree', 'trees', 'flow', 'flows', 'flowchart', 'flowcharts', 'structure', 'structures',
+        'model', 'modeling', 'modeled', 'models', 'framework', 'frameworks',
+        'matrix', 'matrices', 'grid', 'grids', 'table', 'tables', 'list', 'lists',
+        'categorize', 'categorizing', 'categorized', 'classification', 'classify', 'classifying', 'classified',
+        'organize', 'organizing', 'organized', 'organization', 'structure', 'structuring', 'structured',
+        'prioritize', 'prioritizing', 'prioritized', 'priority', 'priorities', 'rank', 'ranking', 'ranked',
+        'score', 'scoring', 'scored', 'rating', 'ratings', 'rate', 'rating', 'rated',
+        'weight', 'weighting', 'weighted', 'weighted analysis', 'weighted evaluation',
+        'criteria', 'criterion', 'factor', 'factors', 'consideration', 'considerations',
+        'metric', 'metrics', 'measure', 'measures', 'measuring', 'measured', 'measurement',
+        'performance', 'perform', 'performing', 'performed', 'efficiency', 'effective', 'effectiveness',
+        'cost', 'costs', 'costing', 'costed', 'benefit', 'benefits', 'beneficial',
+        'risk', 'risks', 'risky', 'uncertainty', 'uncertain', 'uncertainties',
+        'probability', 'probable', 'probabilistic', 'likely', 'likelihood',
+        'scenario', 'scenarios', 'outcome', 'outcomes', 'result', 'results',
+        'impact', 'impacts', 'effect', 'effects', 'consequence', 'consequences',
+        'timeline', 'timelines', 'schedule', 'schedules', 'timing', 'time', 'timing',
+        'resource', 'resources', 'budget', 'budgets', 'funding', 'fund', 'funds',
+        'team', 'teams', 'staff', 'personnel', 'expertise', 'skills', 'capabilities',
+        'technology', 'technological', 'technical', 'technically', 'digital', 'automation',
+        'platform', 'platforms', 'system', 'systems', 'infrastructure', 'architecture'
     ]
     for keyword in technical_keywords:
         if keyword in query_lower:
@@ -422,10 +368,12 @@ def detect_course_concept_domains(query: str) -> dict:
         'choose', 'choosing', 'chose', 'chosen', 'decide', 'deciding', 'decided', 'decision',
         'compare', 'comparing', 'compared', 'comparison', 'evaluate', 'evaluating', 'evaluated',
         'assessment', 'assess', 'assessing', 'assessed', 'option', 'options', 'alternative', 'alternatives',
-        # Investment and financial keywords (business/strategic context only)
-        'portfolio', 'portfolios', 'fund', 'funds', 'funding', 'funded',
+        # Investment and financial keywords
+        'investment', 'investments', 'invest', 'investing', 'invested', 'portfolio', 'portfolios',
+        'financial', 'finance', 'financing', 'fund', 'funds', 'funding', 'funded',
         'return', 'returns', 'revenue', 'revenues', 'profit', 'profits', 'profitable',
-        'capital', 'equity', 'stock', 'stocks', 'bond', 'bonds', 'mutual fund', 'mutual funds', 'etf', 'etfs', 'dividend', 'dividends',
+        'wealth', 'wealthy', 'asset', 'assets', 'capital', 'equity', 'stock', 'stocks',
+        'bond', 'bonds', 'mutual fund', 'mutual funds', 'etf', 'etfs', 'dividend', 'dividends',
         # Education and academic keywords
         'college', 'colleges', 'university', 'universities', 'school', 'schools', 'academic',
         'academics', 'education', 'educational', 'learning', 'learn', 'learned', 'studying',
@@ -449,17 +397,11 @@ def detect_course_concept_domains(query: str) -> dict:
         'proposal', 'proposals', 'propose', 'proposing', 'proposed',
         'counteroffer', 'counteroffers', 'counter-offer', 'counter-offers',
         'terms', 'term', 'condition', 'conditions', 'concession', 'concessions',
-        'deadlock', 'impasse', 'deadlocked', 'win-win', 'win win', 'zero-sum', 'zero sum',
-        # Add missing negotiation keywords
-        'package', 'packages', 'offer', 'offers', 'offering', 'offered', 'deal', 'deals'
+        'deadlock', 'impasse', 'deadlocked', 'win-win', 'win win', 'zero-sum', 'zero sum'
     ]
     for keyword in negotiation_keywords:
         if keyword in query_lower:
             course_concept_domains['negotiation'] += 1
-    
-
-    
-
     
     # Normalize scores and filter out zero scores
     total_keywords = sum(course_concept_domains.values())
@@ -505,16 +447,12 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # Use semantic domain detection for more accurate classification
-        query_domains = detect_domain_semantic(query)
+        # Detect multiple domains for better concept filtering
+        query_domains = detect_course_concept_domains(query)
         if query_domains:
-            # Only use the strongest domain to avoid broadening perspectives
             primary_domain = max(query_domains, key=query_domains.get)
-            # Convert to single-domain format to prevent multi-domain broadening
-            query_domains = {primary_domain: query_domains[primary_domain]}
         else:
             primary_domain = 'general'
-            query_domains = {}
         
         # Generate embedding for the query
         query_embedding = model.encode([query])
@@ -593,6 +531,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Define concept-pattern relationships for boosting
                 concept_patterns = {
                     'decision tree': ['comparison', 'planning'],
+     
                     'swot analysis': ['analysis', 'planning'],
                     'monte carlo simulation': ['risk', 'forecasting'],
                     'scenario analysis': ['risk', 'planning'],
@@ -616,42 +555,6 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply pattern boost
             score += pattern_boost
             
-            # Apply behavioral concept boosting for specific query types
-            behavioral_boost = 0.0
-            query_lower = query.lower()
-            
-            # Check for critique/feedback related keywords (negative presentation)
-            critique_keywords = ['critique', 'criticism', 'feedback', 'unfair', 'unjust', 'negative', 'manager', 'employee', 'workplace', 'boss', 'bad news']
-            if any(keyword in query_lower for keyword in critique_keywords):
-                # Boost framing bias for critique-related queries (positive vs negative presentation)
-                if concept_name == 'framing bias':
-                    behavioral_boost = 0.35  # Increased boost for critique-related queries
-                # Boost confirmation bias for critique-related queries
-                elif concept_name == 'confirmation bias':
-                    behavioral_boost = 0.30  # Increased boost
-                # Boost anchoring bias for workplace feedback
-                elif concept_name == 'anchoring bias':
-                    behavioral_boost = 0.25  # Increased boost
-                # Penalize mental accounting for critique-related queries (not money-related)
-                elif concept_name == 'mental accounting':
-                    behavioral_boost = -0.30  # Significant penalty - critiques are not about money
-            
-            # Check for money/financial related keywords
-            money_keywords = ['money', 'financial', 'finance', 'budget', 'budgeting', 'cost', 'price', 'salary', 'salaries', 'investment', 'payment', 'expense', 'expenses', 'income', 'revenue', 'profit', 'loss', 'spending', 'spend', 'saving', 'save']
-            if any(keyword in query_lower for keyword in money_keywords):
-                # Boost mental accounting for money-related queries
-                if concept_name == 'mental accounting':
-                    behavioral_boost = 0.40  # Strong boost - money-related queries
-                # Penalize framing bias for money-related queries (not about positive/negative presentation)
-                elif concept_name == 'framing bias':
-                    behavioral_boost = -0.20  # Moderate penalty - money queries are not about presentation framing
-                # Penalize technical concepts for behavioral money queries
-                elif concept_name in ['seasonal forecasting', 'aggregate planning', 'integrated optimization & simulation']:
-                    behavioral_boost = -0.30  # Strong penalty - technical concepts not relevant for personal budgeting
-            
-            # Apply behavioral boost
-            score += behavioral_boost
-            
             # Apply generic concept penalty to avoid domination by overly generic concepts
             generic_penalty = 0.0
             generic_concepts = [
@@ -669,8 +572,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic penalty
             score -= generic_penalty
             
-            # LOWER THRESHOLD: Changed from 0.20 to 0.15 to capture more concepts
-            if score > 0.15:  # Lower threshold to capture more concepts
+            if score > 0.20:  # Lower threshold to 0.20 to capture more concepts
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -750,110 +652,30 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         # Sort by adjusted score (highest first)
         concept_scores.sort(key=lambda x: x[2], reverse=True)
         
-        # DOMAIN-DRIVEN CONCEPT SELECTION
+        # Determine threshold based on domain situation
         if query_domains:
-            # Classify concepts by domain
-            primary_domain = max(query_domains, key=query_domains.get)
-            primary_score = query_domains[primary_domain]
+            # Check if this is effectively a single domain (one domain has >80% weight)
+            sorted_domains = sorted(query_domains.items(), key=lambda x: x[1], reverse=True)
+            primary_score = sorted_domains[0][1]
             
-            # Separate concepts by domain
-            primary_domain_concepts = []
-            secondary_domain_concepts = []
-            other_domain_concepts = []
-            
-            for name, definition, score, is_core in concept_scores:
-                concept_domain = CONCEPT_DOMAINS.get(name, 'general')
-                
-                if concept_domain == primary_domain:
-                    primary_domain_concepts.append((name, definition, score, is_core))
-                elif concept_domain in query_domains:
-                    secondary_domain_concepts.append((name, definition, score, is_core))
-                else:
-                    other_domain_concepts.append((name, definition, score, is_core))
-            
-            # DOMAIN-BALANCED SELECTION LOGIC
-            selected_concepts = []
-            
-            if primary_score > 0.8:  # Single domain - select 3 from primary
-                selected_concepts = primary_domain_concepts[:3]
-            else:  # Multi-domain - select 2 from primary + 1 from each secondary
-                # Select 2 from primary domain
-                selected_concepts = primary_domain_concepts[:2]
-                
-                # Select 1 from each secondary domain
-                secondary_domains = [d for d in query_domains.keys() if d != primary_domain and query_domains[d] > 0.3]
-                for secondary_domain in secondary_domains:
-                    secondary_concepts = [c for c in secondary_domain_concepts if CONCEPT_DOMAINS.get(c[0], 'general') == secondary_domain]
-                    if secondary_concepts:
-                        selected_concepts.append(secondary_concepts[0])
-            
-            # If we don't have enough concepts from domain-driven selection, fill with high-scoring concepts
-            if len(selected_concepts) < top_k:
-                remaining_concepts = [c for c in concept_scores if c not in selected_concepts]
-                selected_concepts.extend(remaining_concepts[:top_k - len(selected_concepts)])
-            
-            # Take top_k concepts from selected
-            final_concepts = selected_concepts[:top_k]
-        else:
-            # No specific domains detected - use traditional selection
-            final_concepts = concept_scores[:top_k]
+            if primary_score > 0.8:  # Single domain - use higher threshold
+                primary_threshold = 0.50
+                secondary_threshold = 0.40
+                core_threshold = 0.35
+            else:  # Multi-domain - use proper thresholds
+                primary_threshold = 0.50  # Primary domain concepts
+                secondary_threshold = 0.40  # Secondary domain concepts
+                core_threshold = 0.35  # Core concepts just under threshold
+        else:  # General query - use higher threshold
+            primary_threshold = 0.50
+            secondary_threshold = 0.40
+            core_threshold = 0.35
         
-        # Define high_quality_concepts based on final_concepts
-        high_quality_concepts = final_concepts
+        # Filter to only high-quality concepts with appropriate threshold
+        high_quality_concepts = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= primary_threshold]
         
-        # Define missing threshold variables
-        core_threshold = 0.35
-        primary_threshold = 0.50
-        secondary_threshold = 0.40
-        
-        # Define core_concepts_under_threshold
-        core_concepts_under_threshold = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores 
-                                       if score >= core_threshold and is_core and score < primary_threshold]
-        
-        # Add concept relevance validation
-        def is_concept_relevant_to_query(concept_name: str, query: str, concept_domain: str) -> bool:
-            """Validate if a concept is actually relevant to the query."""
-            query_lower = query.lower()
-            
-            # Domain-specific relevance checks
-            if concept_domain == 'behavioral':
-                # For behavioral queries, ensure concepts relate to human behavior/psychology
-                behavioral_keywords = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response', 'unfair', 'unjust', 'boss', 'bad news']
-                if any(keyword in query_lower for keyword in behavioral_keywords):
-                    # Mental accounting is about money - not relevant for workplace feedback
-                    if concept_name == 'mental accounting':
-                        return False
-                    # Framing bias is about how options are presented - very relevant for critiques
-                    if concept_name == 'framing bias':
-                        return True
-                    # Confirmation bias is relevant for critiques and feedback
-                    if concept_name == 'confirmation bias':
-                        return True
-                    # Anchoring bias is relevant for workplace feedback
-                    if concept_name == 'anchoring bias':
-                        return True
-                    # Other behavioral concepts are generally relevant
-                    return True
-            
-            return True  # Default to relevant for other domains
-        
-        # Apply relevance filtering
-        relevant_concepts = []
-        for name, definition, score, is_core in high_quality_concepts:
-            concept_domain = CONCEPT_DOMAINS.get(name, 'general')
-            if is_concept_relevant_to_query(name, query, concept_domain):
-                relevant_concepts.append((name, definition, score, is_core))
-        
-        # If we don't have enough relevant concepts, include some from under threshold
-        if len(relevant_concepts) < 2:
-            for name, definition, score, is_core in core_concepts_under_threshold:
-                concept_domain = CONCEPT_DOMAINS.get(name, 'general')
-                if is_concept_relevant_to_query(name, query, concept_domain):
-                    relevant_concepts.append((name, definition, score, is_core))
-                    if len(relevant_concepts) >= 3:
-                        break
-        
-        high_quality_concepts = relevant_concepts
+        # Check if we have core concepts that are just under the threshold but should be included
+        core_concepts_under_threshold = [(name, definition, score, is_core) for name, definition, score, is_core in concept_scores if score >= core_threshold and is_core and score < primary_threshold]
         
         # Smart domain-based concept selection with proper allocation rules
         selected_concepts = []
@@ -862,22 +684,15 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Sort domains by score (highest first)
             sorted_domains = sorted(query_domains.items(), key=lambda x: x[1], reverse=True)
             
-            # Check if this is effectively a single domain (one domain has >60% weight)
+            # Check if this is effectively a single domain (one domain has >80% weight)
             primary_domain = sorted_domains[0][0]
             primary_score = sorted_domains[0][1]
             
-            if primary_score > 0.5:  # Single domain (one domain dominates)
+            if primary_score > 0.8:  # Single domain (one domain dominates)
                 # Single domain: up to 3 concepts from primary domain
                 domain_concepts = [(name, definition) for name, definition, score, is_core in high_quality_concepts 
                                  if CONCEPT_DOMAINS.get(name, 'general') == primary_domain][:3]
                 selected_concepts = domain_concepts
-                
-                # If we don't have enough concepts, add more from primary domain
-                if len(selected_concepts) < 3:
-                    additional_primary = [(name, definition) for name, definition, score, is_core in concept_scores 
-                                        if score >= core_threshold and CONCEPT_DOMAINS.get(name, 'general') == primary_domain 
-                                        and (name, definition) not in selected_concepts][:3-len(selected_concepts)]
-                    selected_concepts.extend(additional_primary)
                 
                 # Special case: For visualization queries, include decision tree if it's not already selected
                 if is_visualization_query:
@@ -906,7 +721,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 
                 # Get up to 1 concept from each additional domain (>= secondary_threshold)
                 for domain_name, domain_score in sorted_domains[1:]:
-                    if domain_score > 0.15:  # Only include domains with meaningful weight
+                    if domain_score > 0.1:  # Only include domains with meaningful weight
                         domain_concepts = [(name, definition) for name, definition, score, is_core in concept_scores 
                                          if score >= secondary_threshold and CONCEPT_DOMAINS.get(name, 'general') == domain_name][:1]
                         selected_concepts.extend(domain_concepts)
@@ -914,13 +729,6 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Enforce hard total cap of 4 tooltips maximum
                 if len(selected_concepts) > 4:
                     selected_concepts = selected_concepts[:4]
-                
-                # If we don't have enough concepts, add more from primary domain
-                if len(selected_concepts) < 4:
-                    additional_primary = [(name, definition) for name, definition, score, is_core in concept_scores 
-                                        if score >= core_threshold and CONCEPT_DOMAINS.get(name, 'general') == primary_domain 
-                                        and (name, definition) not in selected_concepts][:4-len(selected_concepts)]
-                    selected_concepts.extend(additional_primary)
                 
                 # Special case: For choice queries, include decision tree if it's not already selected
                 if is_choice_query:
@@ -1120,8 +928,6 @@ Concept Name: Short definition
 
 Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
 
-IMPORTANT: Use ONLY the exact definitions provided in the context. Do NOT invent new definitions or modify existing ones. If a concept is provided in the context, use its exact definition.
-
 If the query is narrow or course-specific concepts do not apply, include broader decision-making concepts such as: Stakeholder Alignment, Strategic Framing, or Risk Assessment.
 
 ---
@@ -1182,90 +988,6 @@ def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: i
             else:
                 return None, str(e)
     return None, "Max retries exceeded"
-
-def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int) -> str:
-    """
-    Merge Strategic Thinking Lens and Story using GPT-3.5 to create a refined Lens.
-    
-    Args:
-        lens_text: Original Strategic Thinking Lens content (reasoning)
-        story_text: Original Story in Action content (example seed)
-        domain_count: Number of domains detected (for adaptive word count)
-        
-    Returns:
-        Merged Strategic Thinking Lens with integrated story
-    """
-    # Calculate target length based on domain count
-    target_length = min(150, 100 + (domain_count - 1) * 25)
-    
-    # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
-    prompt = f"""
-You're an expert instructor helping graduate students practice strategic decision-making.
-
-Below are two drafts:
-1. A strategic thinking explanation for the query
-2. An illustrative story or scenario aligned with that explanation
-
-Your task is to revise and merge these into a single, cohesive answer. The result will be displayed under the section: **Strategic Thinking Lens**.
-
-✅ Do NOT add section headers or markdown titles like "Strategic Reasoning" or "Concrete Example."
-✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
-✅ Write ONLY the narrative content without any formatting headers
-✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
-✅ Use a clear, professional tone appropriate for graduate-level learners.
-✅ Keep the response concise (ideally two well-developed paragraphs).
-✅ Avoid repetition or superficial elaboration.
-
-Lens Draft:
-{lens_text}
-
-Story Draft:
-{story_text}
-"""
-
-    try:
-        print("✅ GPT call starting")
-        
-        # Call GPT-3.5 for merging
-        response, error = robust_api_call(
-            client=client,
-            system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
-            user_message=prompt,
-            max_tokens=300
-        )
-        
-        print("✅ GPT call complete")
-        
-        if error:
-            print(f"❌ GPT-3.5 merge failed: {error}")
-            # Fallback: concatenate with connector
-            merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-            print("🔄 Using fallback merge (concatenation)")
-            return merged_lens
-        
-        # Extract merged content
-        merged_content = response.choices[0].message.content.strip()
-        
-        # ✅ Clean up redundant headers in merged_content from GPT output
-        merged_content = re.sub(
-            r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-            '',
-            merged_content.strip(),
-            flags=re.IGNORECASE
-        )
-        
-        # Log success
-        tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        print(f"✅ GPT-3.5 merge successful: {tokens_used} tokens")
-        
-        return merged_content
-        
-    except Exception as e:
-        print(f"❌ Exception in merge_and_extend_with_story: {e}")
-        # Fallback: concatenate with connector
-        merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-        print("🔄 Using fallback merge (concatenation) due to exception")
-        return merged_lens
 
 def clean_concepts_tools_practice(raw_items):
     """Ensure conceptsToolsPractice is always a list of {term, definition} objects with non-empty, non-placeholder definitions."""
@@ -1424,47 +1146,49 @@ def extract_concepts_from_markdown(text: str) -> list:
     return concepts
 
 def generate_fallback_concepts(query: str) -> List[str]:
-    """Generate domain-appropriate fallback concepts when semantic extraction fails."""
+    """Generate fallback concepts based on query keywords when no valid concepts are extracted."""
     query_lower = query.lower()
+    fallback_concepts = []
     
-    # Detect domains for domain-appropriate fallbacks
-    domains = detect_course_concept_domains(query)
-    primary_domain = max(domains, key=domains.get) if domains else 'general'
+    # Keyword-based concept mapping
+    keyword_concepts = {
+        "risk": ["Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
+        "planning": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Scenario Analysis: Exploring different future possibilities to prepare for uncertainty"],
+        "career": ["Career Path Analysis: Evaluating long-term professional development and growth opportunities", "Personal Values Assessment: Aligning decisions with core personal and professional values"],
+                    "finance": ["Risk Tolerance Assessment: Understanding your comfort level with financial uncertainty"],
+        "negotiation": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Value Creation: Identifying opportunities to create mutual benefits in negotiations"],
+        "uncertainty": ["Scenario Analysis: Exploring different future possibilities to prepare for uncertainty", "Risk Assessment: Systematic evaluation of potential threats and their impact"],
+        "strategy": ["Strategic Framing: Structuring the decision problem to clarify objectives and alternatives", "Competitive Analysis: Understanding your position relative to alternatives and competitors"],
+        "team": ["Stakeholder Alignment: Ensuring all parties' interests are considered and balanced", "Leadership Assessment: Evaluating leadership styles and their impact on team decisions"],
+        "supply": ["Supply Chain Risk Management: Identifying and mitigating risks in procurement and distribution", "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced"],
+        "management": ["Leadership Assessment: Evaluating leadership styles and their impact on organizational decisions", "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives"]
+    }
     
-    # Domain-specific fallback templates
-    domain_fallbacks = {
-        'behavioral': [
-            "Framing Bias: Decisions influenced by whether information is presented positively or negatively",
-            "Confirmation Bias: Favoring evidence that supports existing beliefs",
-            "Anchoring Bias: Relying too heavily on initial information"
-        ],
-        'technical': [
-            "Scenario Analysis: Exploring different future possibilities to prepare for uncertainty",
-            "Expected Value: Calculating the average outcome considering all possible scenarios",
-            "Monte Carlo Simulation: Using random sampling to model complex systems"
-        ],
-        'strategic': [
-            "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives",
-            "Competitive Analysis: Understanding your position relative to alternatives and competitors",
-            "Value Creation: Identifying opportunities to create mutual benefits"
-        ],
-        'negotiation': [
-            "BATNA: Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached",
-            "ZOPA: Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation",
-            "Integrative Negotiation: Win-win bargaining through value creation"
-        ],
-        'general': [
+    # Find matching keywords and add corresponding concepts
+    for keyword, concepts in keyword_concepts.items():
+        if keyword in query_lower:
+            for concept in concepts:
+                if concept not in fallback_concepts:
+                    fallback_concepts.append(concept)
+                    if len(fallback_concepts) >= 3:
+                        break
+            if len(fallback_concepts) >= 3:
+                break
+    
+    # If no keyword matches, use general fallbacks
+    if len(fallback_concepts) < 2:
+        general_fallbacks = [
             "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives",
             "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced",
             "Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes"
         ]
-    }
+        for concept in general_fallbacks:
+            if concept not in fallback_concepts:
+                fallback_concepts.append(concept)
+                if len(fallback_concepts) >= 2:
+                    break
     
-    # Get domain-appropriate fallbacks
-    fallback_concepts = domain_fallbacks.get(primary_domain, domain_fallbacks['general'])
-    
-    # Return exactly 2 domain-appropriate concepts as per requirements
-    return fallback_concepts[:2]
+    return fallback_concepts[:3]  # Return max 3 concepts
 
 def deduplicate_concepts(concepts_section: str) -> str:
     """
@@ -1625,16 +1349,7 @@ def context_aware_fallbacks(query: str):
     """Generate context-aware fallback content for each ThinkPal V1.6.3 section based on the query application field."""
     # Use course concept domain-aware logic for Strategic Thinking Lens
     course_concept_domains = detect_course_concept_domains(query)
-    
-    # Use semantic application field detection for better accuracy
-    try:
-        # Load data lazily to get the model
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        application_field = extract_application_field_semantic(query, model)
-    except Exception as e:
-        # Fallback to keyword-based detection if semantic fails
-        print(f"⚠️ Semantic application field detection failed, using keyword-based: {e}")
-        application_field = extract_application_field(query)
+    application_field = extract_application_field(query)
     
     # Determine primary course concept domain for Strategic Thinking Lens
     if course_concept_domains:
@@ -1882,40 +1597,6 @@ def generate_domain_aware_fallback_questions(query: str, domain: str) -> list:
     
     return questions
 
-def extract_sections_from_response(answer: str) -> dict:
-    """
-    Extract individual sections from a ThinkPal response.
-    
-    Args:
-        answer: Complete ThinkPal response
-        
-    Returns:
-        Dictionary with section names as keys and content as values
-    """
-    sections = {}
-    
-    # Extract Strategic Thinking Lens
-    lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if lens_match:
-        sections['lens'] = lens_match.group(1).strip()
-    
-    # Extract Story in Action
-    story_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if story_match:
-        sections['story'] = story_match.group(1).strip()
-    
-    # Extract Follow-up Prompts
-    prompts_match = re.search(r'\*\*Follow-up Prompts\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if prompts_match:
-        sections['prompts'] = prompts_match.group(1).strip()
-    
-    # Extract Concepts/Tools
-    concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if concepts_match:
-        sections['concepts'] = concepts_match.group(1).strip()
-    
-    return sections
-
 def process_query(query: str, course_config: dict = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
@@ -1928,30 +1609,14 @@ def process_query(query: str, course_config: dict = None) -> str:
         Formatted ThinkPal response with all sections
     """
     try:
-        # Load data lazily with V1.6.6 temporary caching
-        # TEMPORARY: Using cached data loading to avoid repeated ~24s loads
-        # This will be replaced with proper multi-course architecture in V1.6.7
-        index, metadata, documents, file_names, model, nlp = load_course_data_cached("decision")
-        
-        # ✅ Relevance filter to reject off-topic queries before GPT call
-        score, debug = compute_relevance_score(query)
-        if score < 2:
-            print(f"⚠️ Query rejected due to low relevance. Debug: {debug}")
-            return (
-                "⚠️ This question doesn't appear to be related to the course. "
-                "Try asking about decision-making tools, strategies, or intuitive judgment."
-            )
+        # Load data lazily
+        index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
         # Extract concepts using semantic similarity
         concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
         
-        # Detect application field using semantic detection for better accuracy
-        try:
-            application_field = extract_application_field_semantic(query, model)
-        except Exception as e:
-            # Fallback to keyword-based detection if semantic fails
-            print(f"⚠️ Semantic application field detection failed, using keyword-based: {e}")
-            application_field = extract_application_field(query)
+        # Detect application field for context-aware generation
+        application_field = extract_application_field(query)
         
         # Generate context-aware fallback content
         fallback_content = context_aware_fallbacks(query)
@@ -1969,10 +1634,11 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Add application field context
         user_message += f"Application field: {application_field}\n\n"
         
-        # Note: Removed analytical tools injection to prevent inappropriate inclusion
-        # of analytical methods in Strategic Thinking Lens
-        
-        print("✅ Initial GPT call starting")
+        # Add analytical tools context
+        tools_context = "Available analytical tools:\n"
+        for tool_name, tool_def in ANALYTICAL_TOOLS[:5]:  # Limit to top 5 tools
+            tools_context += f"- {tool_name}: {tool_def}\n"
+        user_message += tools_context + "\n"
         
         # Make API call
         response, error = robust_api_call(
@@ -1981,8 +1647,6 @@ def process_query(query: str, course_config: dict = None) -> str:
             user_message=user_message,
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))
         )
-        
-        print("✅ Initial GPT call complete")
         
         if error:
             print(f"❌ API call failed: {error}")
@@ -1994,80 +1658,6 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Ensure proper structure
         answer = enforce_thinkpal_structure(answer_raw, query)
-        
-        # Extract sections for V1.6.6 Step 1 processing
-        sections = extract_sections_from_response(answer)
-        
-        # V1.6.6 Step 1: Generate Lens and Story drafts separately, then merge
-        if 'lens' in sections:
-            # Detect domain count for adaptive word count
-            domains = detect_course_concept_domains(query)
-            domain_count = len([d for d in domains.values() if d > 0.1]) or 1  # At least 1 domain
-            
-            # Get lens draft (reasoning)
-            lens_draft = sections['lens']
-            
-            # Get story draft (example seed) - use existing story or generate fallback
-            if 'story' in sections:
-                story_draft = sections['story']
-            else:
-                # Generate fallback story using context_aware_fallbacks
-                fallback_content = context_aware_fallbacks(query)
-                story_draft = fallback_content.get('Story in Action', 
-                    "A professional systematically evaluates their options using structured decision-making tools. They consider both immediate impacts and long-term consequences, ultimately making a choice that balances competing priorities and aligns with their strategic objectives.")
-            
-            # Merge Lens and Story using GPT-3.5
-            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
-            
-            # ✅ Clean up redundant headers in merged_content from GPT output
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-            
-            # Clean up old Strategic Thinking Lens section from the original answer
-            answer = re.sub(
-                r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-
-            # Sanitize the merged content in case it still starts with a header (just to be safe)
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-
-            # Inject clean Strategic Thinking Lens section
-            answer = f"**Strategic Thinking Lens**\n\n{merged_content.strip()}\n\n" + answer
-            
-            # POST-PROCESSING: Remove Part 1/Part 2 subheaders and format connectors as italic
-            answer = re.sub(r'\*\*Part \d+:[^*]*\*\*', '', answer)
-            
-            # Strip stray bold/italic around connectors first
-            answer = re.sub(r'[*_]+(For (?:example|instance)[^,:]*,?)[*_]+', r'\1', answer)
-            answer = re.sub(r'[*_]+(Consider this scenario:?)[*_]+', r'\1', answer)
-            
-            # Reapply italics consistently
-            answer = re.sub(r'(For (?:example|instance)[^,:]*,?)', r'*\1*', answer)
-            answer = re.sub(r'(Consider this scenario:?)', r'*\1*', answer)
-            
-            # Remove the original Story section to prevent duplication
-            answer = re.sub(
-                r'\*\*Story in Action\*\*.*?(?=\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-            
-            # Ensure proper section spacing
-            answer = re.sub(r'\*\*Follow-up Prompts\*\*', '\n\n**Follow-up Prompts**', answer)
-            answer = re.sub(r'\*\*Concepts/Tools\*\*', '\n\n**Concepts/Tools**', answer)
         
         # Extract and validate concepts/tools
         concepts_tools = extract_tools_from_section(answer)
@@ -2083,8 +1673,6 @@ def process_query(query: str, course_config: dict = None) -> str:
                     answer,
                     flags=re.DOTALL
                 )
-        
-        # Query processing complete
         
         return answer
         
@@ -2131,318 +1719,6 @@ def format_fallback_response(fallback_content: dict) -> str:
         sections.append(f"**Concepts/Tools**\n\n{fallback_content['Concepts/Tools']}")
     
     return '\n\n'.join(sections)
-
-def detect_domain_semantic(query: str) -> dict:
-    """
-    Detect query domain using semantic similarity with domain-specific reference texts.
-    More accurate than keyword-based detection.
-    """
-    try:
-        # Load data lazily
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        
-        # Domain reference texts (representative examples for each domain)
-        domain_references = {
-            'behavioral': [
-                "how to deal with unfair criticism from manager",
-                "handling workplace conflicts and interpersonal issues",
-                "managing team dynamics and human behavior",
-                "dealing with biased feedback and workplace relationships",
-                "handling difficult conversations with colleagues",
-                "managing emotions and reactions in professional settings",
-                "dealing with unfair critiques and workplace feedback",
-                "managing personal finance and budgeting decisions"
-            ],
-            'technical': [
-                "optimizing production capacity using mathematical models",
-                "forecasting demand with statistical analysis",
-                "simulation modeling for risk assessment",
-                "linear programming for resource allocation",
-                "data analysis and statistical modeling",
-                "mathematical optimization and algorithms"
-            ],
-            'strategic': [
-                "developing long-term business strategy",
-                "competitive positioning and market analysis",
-                "strategic planning and corporate decisions",
-                "business expansion and growth strategy",
-                "competitive advantage and market positioning",
-                "strategic decision making for organizations"
-            ],
-            'negotiation': [
-                "negotiating deals and agreements",
-                "bargaining strategies and tactics",
-                "contract negotiations and settlements",
-                "negotiation techniques and approaches",
-                "deal-making and agreement processes",
-                "negotiation frameworks and methods",
-                "negotiating salary packages and compensation",
-                "bargaining for better terms and conditions"
-            ],
-            'general': [
-                "what tools can help me make better decisions",
-                "general decision making tools and frameworks",
-                "basic decision making approaches and methods",
-                "decision making tools and techniques",
-                "how to make better decisions",
-                "decision making frameworks and processes"
-            ]
-        }
-        
-        # Generate embeddings for query and domain references
-        query_embedding = model.encode([query])
-        
-        domain_scores = {}
-        
-        for domain, references in domain_references.items():
-            # Encode all reference texts for this domain
-            reference_embeddings = model.encode(references)
-            
-            # Calculate similarities between query and all references
-            similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
-            
-            # Take the maximum similarity as the domain score
-            max_similarity = similarities.max().item()
-            domain_scores[domain] = max_similarity
-        
-        # Normalize scores to sum to 1.0
-        total_score = sum(domain_scores.values())
-        if total_score > 0:
-            domain_scores = {domain: score / total_score for domain, score in domain_scores.items()}
-        
-        return domain_scores
-        
-    except Exception as e:
-        print(f"Error in semantic domain detection: {e}")
-        # Fallback to keyword-based detection
-        return detect_course_concept_domains(query)
-
-def unified_semantic_extraction(query: str) -> dict:
-    """
-    Unified semantic extraction system for consistent domain, application field, 
-    concept, and entity extraction using semantic similarity.
-    """
-    try:
-        # Load data lazily
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        
-        # 1. SEMANTIC DOMAIN DETECTION
-        domain_scores = detect_domain_semantic(query)
-        primary_domain = max(domain_scores, key=domain_scores.get) if domain_scores else 'general'
-        
-        # 2. SEMANTIC APPLICATION FIELD DETECTION
-        application_field = extract_application_field_semantic(query, model)
-        
-        # 3. SEMANTIC CONCEPT SELECTION
-        concepts = get_top_ranked_concepts(query, top_k=3)
-        
-        # 4. SEMANTIC ENTITY EXTRACTION
-        entities = extract_entities_semantic(query, model, nlp)
-        
-        return {
-            'domain': primary_domain,
-            'domain_scores': domain_scores,
-            'application_field': application_field,
-            'concepts': concepts,
-            'entities': entities
-        }
-        
-    except Exception as e:
-        print(f"Error in unified semantic extraction: {e}")
-        # Fallback to individual methods
-        return {
-            'domain': 'general',
-            'domain_scores': {},
-            'application_field': extract_application_field(query),
-            'concepts': get_top_ranked_concepts(query, top_k=3),
-            'entities': {}
-        }
-
-def extract_application_field_semantic(query: str, model) -> str:
-    """
-    Hybrid semantic + keyword-based application field detection.
-    Returns: the most relevant field with fallback to keyword logic if semantic confidence is low.
-    """
-    # Application field reference texts for semantic matching
-    application_references = {
-        'finance': [
-            "financial analysis and planning",
-            "investment and portfolio management",
-            "budgeting and cost control",
-            "financial decision making",
-            "investment strategies"
-        ],
-        'startup': [
-            "starting a new business",
-            "entrepreneurship and innovation",
-            "product development and launch",
-            "business model and strategy",
-            "scaling a venture"
-        ],
-        'marketing': [
-            "customer acquisition strategy",
-            "brand positioning and loyalty",
-            "advertising and promotion",
-            "market segmentation",
-            "pricing strategy"
-        ],
-        'operations': [
-            "production planning and capacity",
-            "supply chain optimization",
-            "demand forecasting",
-            "logistics and inventory management"
-        ],
-        'project_management': [
-            "managing project timelines",
-            "stakeholder alignment in projects",
-            "milestones and deliverables",
-            "critical path analysis"
-        ],
-        'leadership': [
-            "managing teams and conflicts",
-            "leadership and organizational culture",
-            "handling interpersonal issues",
-            "facilitating team decision making"
-        ],
-        'risk_management': [
-            "risk mitigation strategies",
-            "scenario analysis and resilience",
-            "volatility and contingency planning"
-        ],
-        'education': [
-            "choosing a university program",
-            "career impact of degrees",
-            "education decisions and ROI"
-        ],
-        'sustainability': [
-            "corporate ESG strategy",
-            "environmental responsibility in business",
-            "long-term sustainability trade-offs"
-        ],
-        'job': [
-            "choosing between job offers",
-            "career decision making",
-            "evaluating employment options"
-        ],
-        'health': [
-            "deciding on health insurance",
-            "wellness and healthcare trade-offs",
-            "mental and physical well-being"
-        ],
-        'ethics': [
-            "ethical decision making in organizations",
-            "values-driven choices",
-            "moral dilemmas in leadership"
-        ],
-        'relocation': [
-            "moving to a new city for work",
-            "geographic relocation trade-offs",
-            "family and career balance in relocation"
-        ],
-        'business': [
-            "strategic decision making in business",
-            "organizational decision making",
-            "bias in executive decisions",
-            "managerial judgment and planning"
-        ]
-    }
-
-    # Encode query
-    query_embedding = model.encode([query])
-    field_scores = {}
-
-    for field, examples in application_references.items():
-        example_embeddings = model.encode(examples)
-        similarity = util.pytorch_cos_sim(query_embedding, example_embeddings)[0].max().item()
-        field_scores[field] = similarity
-
-    # Get best semantic match
-    semantic_field = max(field_scores, key=field_scores.get)
-    semantic_score = field_scores[semantic_field]
-
-    # Keyword-based fallback scoring (lightweight)
-    def extract_application_field_keywords(query: str) -> Tuple[str, float]:
-        q = query.lower()
-        field_keywords = {
-            'finance': ["invest", "investment", "portfolio", "finance", "budget", "cost", "financial", "return"],
-            'startup': ["startup", "entrepreneur", "founder", "launch", "venture"],
-            'business': ["business strategy", "business decision", "business impact", "business risk", "managerial", "executive", "corporate"],
-            'marketing': ["marketing", "customer", "brand", "advertising", "promotion", "sales"],
-            'operations': ["production", "capacity", "supply chain", "forecast", "manufacturing"],
-            'project_management': ["project", "milestone", "timeline", "deadline", "deliverable", "scope"],
-            'leadership': ["team", "leader", "conflict", "organizational culture", "staff"],
-            'risk_management': ["risk", "mitigation", "contingency", "volatility", "hazard"],
-            'education': ["degree", "course", "certification", "university", "education"],
-            'sustainability': ["sustainability", "esg", "green", "carbon", "environmental"],
-            'relocation': ["relocate", "move", "immigration", "city", "country"],
-            'job': ["job", "position", "employment", "offer", "career", "hiring"],
-            'health': ["health", "wellness", "insurance", "medical", "mental"],
-            'ethics': ["ethics", "moral", "values", "integrity", "responsibility"]
-        }
-
-        best_field = "general"
-        max_matches = 0
-        for field, keywords in field_keywords.items():
-            matches = sum(1 for word in keywords if word in q)
-            if matches > max_matches:
-                best_field = field
-                max_matches = matches
-
-        keyword_score = min(max_matches / 5.0, 1.0)  # Normalize
-        return best_field, keyword_score
-
-    keyword_field, keyword_score = extract_application_field_keywords(query)
-
-    # Final decision: semantic vs keyword
-    if max(semantic_score, keyword_score) < 0.5:
-        return 'general'
-    elif keyword_score > semantic_score:
-        return keyword_field
-    else:
-        return semantic_field
-
-def extract_entities_semantic(query: str, model, nlp) -> dict:
-    """
-    Extract entities using both NLP and semantic similarity for better accuracy.
-    """
-    # Use spaCy for basic entity extraction
-    doc = nlp(query)
-    entities = {}
-    
-    # Extract named entities
-    for ent in doc.ents:
-        entities[ent.text] = {
-            'type': ent.label_,
-            'confidence': 0.8,  # spaCy confidence
-            'method': 'nlp'
-        }
-    
-    # Use semantic similarity to identify domain-specific entities
-    domain_entities = {
-        'behavioral': ['manager', 'team', 'colleague', 'employee', 'stakeholder'],
-        'technical': ['model', 'algorithm', 'system', 'data', 'analysis'],
-        'strategic': ['strategy', 'plan', 'approach', 'method', 'framework'],
-        'negotiation': ['deal', 'agreement', 'contract', 'settlement', 'proposal']
-    }
-    
-    # Check for domain-specific entities using semantic similarity
-    query_embedding = model.encode([query])
-    
-    for domain, entity_list in domain_entities.items():
-        entity_embeddings = model.encode(entity_list)
-        similarities = util.pytorch_cos_sim(query_embedding, entity_embeddings)[0]
-        
-        for i, entity in enumerate(entity_list):
-            similarity = similarities[i].item()
-            if similarity > 0.3:  # Threshold for entity detection
-                entities[entity] = {
-                    'type': 'DOMAIN_ENTITY',
-                    'confidence': similarity,
-                    'method': 'semantic',
-                    'domain': domain
-                }
-    
-    return entities
 
 # Main execution for testing
 if __name__ == "__main__":

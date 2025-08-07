@@ -1,0 +1,421 @@
+{
+  "version": "1.0",
+  "description": "Generic terms to exclude from entity enrichment",
+  "base_generic_terms": [
+    "decision",
+    "management",
+    "planning",
+    "budget",
+    "business",
+    "leadership",
+    "organization",
+    "strategy",
+    "analysis",
+    "assessment",
+    "evaluation",
+    "consideration",
+    "approach",
+    "process",
+    "system",
+    "method",
+    "technique",
+    "framework",
+    "model",
+    "tool",
+    "factor",
+    "element",
+    "aspect",
+    "component",
+    "dimension",
+    "perspective",
+    "context",
+    "situation",
+    "scenario",
+    "circumstance",
+    "condition",
+    "environment",
+    "objective",
+    "goal",
+    "target",
+    "aim",
+    "purpose",
+    "intention",
+    "outcome",
+    "result",
+    "consequence",
+    "impact",
+    "effect",
+    "influence",
+    "benefit",
+    "advantage",
+    "risk",
+    "threat",
+    "challenge",
+    "problem",
+    "issue",
+    "concern",
+    "matter",
+    "option",
+    "choice",
+    "alternative",
+    "possibility",
+    "opportunity",
+    "potential",
+    "time",
+    "period",
+    "duration",
+    "timeline",
+    "schedule",
+    "deadline",
+    "timing",
+    "level",
+    "degree",
+    "extent",
+    "scope",
+    "range",
+    "scale",
+    "magnitude",
+    "type",
+    "category",
+    "classification",
+    "group",
+    "class",
+    "kind",
+    "sort"
+  ],
+  "domain_similar_terms": [
+    "personal",
+    "planning",
+    "human",
+    "market",
+    "coming",
+    "strategy",
+    "strategy",
+    "business",
+    "organization",
+    "positioning",
+    "competitive",
+    "individual",
+    "predictable",
+    "people",
+    "conditions",
+    "position",
+    "learning",
+    "uncertainty",
+    "uncertainty",
+    "uncertainty",
+    "team",
+    "team",
+    "certain",
+    "situation",
+    "value",
+    "value",
+    "protection",
+    "analysis",
+    "strategic",
+    "strategic",
+    "strategic",
+    "assessment",
+    "contractors",
+    "advantage",
+    "mitigation",
+    "vague"
+  ],
+  "field_similar_terms": [
+    "management"
+  ],
+  "all_stoplist_terms": [
+    "advantage",
+    "aim",
+    "alternative",
+    "analysis",
+    "approach",
+    "aspect",
+    "assessment",
+    "benefit",
+    "budget",
+    "business",
+    "category",
+    "certain",
+    "challenge",
+    "choice",
+    "circumstance",
+    "class",
+    "classification",
+    "coming",
+    "competitive",
+    "component",
+    "concern",
+    "condition",
+    "conditions",
+    "consequence",
+    "consideration",
+    "context",
+    "contractors",
+    "deadline",
+    "decision",
+    "degree",
+    "dimension",
+    "duration",
+    "effect",
+    "element",
+    "environment",
+    "evaluation",
+    "extent",
+    "factor",
+    "framework",
+    "goal",
+    "group",
+    "human",
+    "impact",
+    "individual",
+    "influence",
+    "intention",
+    "issue",
+    "kind",
+    "leadership",
+    "learning",
+    "level",
+    "magnitude",
+    "management",
+    "market",
+    "matter",
+    "method",
+    "mitigation",
+    "model",
+    "objective",
+    "opportunity",
+    "option",
+    "organization",
+    "outcome",
+    "people",
+    "period",
+    "personal",
+    "perspective",
+    "planning",
+    "position",
+    "positioning",
+    "possibility",
+    "potential",
+    "predictable",
+    "problem",
+    "process",
+    "protection",
+    "purpose",
+    "range",
+    "result",
+    "risk",
+    "scale",
+    "scenario",
+    "schedule",
+    "scope",
+    "situation",
+    "sort",
+    "strategic",
+    "strategy",
+    "system",
+    "target",
+    "team",
+    "technique",
+    "threat",
+    "time",
+    "timeline",
+    "timing",
+    "tool",
+    "type",
+    "uncertainty",
+    "vague",
+    "value"
+  ],
+  "similarity_matches": {
+    "domain_matches": [
+      {
+        "term": "personal",
+        "reference": "personality",
+        "similarity": 0.8421052631578947
+      },
+      {
+        "term": "planning",
+        "reference": "planning",
+        "similarity": 1.0
+      },
+      {
+        "term": "human",
+        "reference": "human",
+        "similarity": 1.0
+      },
+      {
+        "term": "market",
+        "reference": "market",
+        "similarity": 1.0
+      },
+      {
+        "term": "coming",
+        "reference": "computing",
+        "similarity": 0.8
+      },
+      {
+        "term": "strategy",
+        "reference": "strategy",
+        "similarity": 1.0
+      },
+      {
+        "term": "strategy",
+        "reference": "strategic",
+        "similarity": 0.8235294117647058
+      },
+      {
+        "term": "business",
+        "reference": "business",
+        "similarity": 1.0
+      },
+      {
+        "term": "organization",
+        "reference": "organization",
+        "similarity": 1.0
+      },
+      {
+        "term": "positioning",
+        "reference": "positioning",
+        "similarity": 1.0
+      },
+      {
+        "term": "competitive",
+        "reference": "competitive",
+        "similarity": 1.0
+      },
+      {
+        "term": "individual",
+        "reference": "individual",
+        "similarity": 1.0
+      },
+      {
+        "term": "predictable",
+        "reference": "predicted",
+        "similarity": 0.8
+      },
+      {
+        "term": "people",
+        "reference": "people",
+        "similarity": 1.0
+      },
+      {
+        "term": "conditions",
+        "reference": "cognition",
+        "similarity": 0.8421052631578947
+      },
+      {
+        "term": "position",
+        "reference": "positioning",
+        "similarity": 0.8421052631578947
+      },
+      {
+        "term": "learning",
+        "reference": "leading",
+        "similarity": 0.8
+      },
+      {
+        "term": "uncertainty",
+        "reference": "uncertainty",
+        "similarity": 1.0
+      },
+      {
+        "term": "uncertainty",
+        "reference": "uncertain",
+        "similarity": 0.9
+      },
+      {
+        "term": "uncertainty",
+        "reference": "uncertainties",
+        "similarity": 0.8333333333333334
+      },
+      {
+        "term": "team",
+        "reference": "team",
+        "similarity": 1.0
+      },
+      {
+        "term": "team",
+        "reference": "teams",
+        "similarity": 0.8888888888888888
+      },
+      {
+        "term": "certain",
+        "reference": "uncertain",
+        "similarity": 0.875
+      },
+      {
+        "term": "situation",
+        "reference": "simulation",
+        "similarity": 0.8421052631578947
+      },
+      {
+        "term": "value",
+        "reference": "value",
+        "similarity": 1.0
+      },
+      {
+        "term": "value",
+        "reference": "values",
+        "similarity": 0.9090909090909091
+      },
+      {
+        "term": "protection",
+        "reference": "prediction",
+        "similarity": 0.8
+      },
+      {
+        "term": "analysis",
+        "reference": "analysis",
+        "similarity": 1.0
+      },
+      {
+        "term": "strategic",
+        "reference": "strategy",
+        "similarity": 0.8235294117647058
+      },
+      {
+        "term": "strategic",
+        "reference": "strategic",
+        "similarity": 1.0
+      },
+      {
+        "term": "strategic",
+        "reference": "strategically",
+        "similarity": 0.8181818181818182
+      },
+      {
+        "term": "assessment",
+        "reference": "assessment",
+        "similarity": 1.0
+      },
+      {
+        "term": "contractors",
+        "reference": "contract",
+        "similarity": 0.8421052631578947
+      },
+      {
+        "term": "advantage",
+        "reference": "advantage",
+        "similarity": 1.0
+      },
+      {
+        "term": "mitigation",
+        "reference": "motivation",
+        "similarity": 0.8
+      },
+      {
+        "term": "vague",
+        "reference": "value",
+        "similarity": 0.8
+      }
+    ],
+    "field_matches": [
+      {
+        "term": "management",
+        "reference": "risk_management",
+        "similarity": 0.8
+      }
+    ]
+  }
+}
