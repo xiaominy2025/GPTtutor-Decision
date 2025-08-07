@@ -67,10 +67,8 @@ def load_data_lazily():
             _model = SentenceTransformer("all-MiniLM-L6-v2")
             _nlp = spacy.load("en_core_web_sm")
             
-            # Performance timing: After data loading
-            timing["after_data_load"] = time.time()
+            # Data loading complete (timing now handled by cache wrapper)
             print("✅ Data loaded")
-            print(f"🔹 Data Load Time: {timing['after_data_load'] - timing['start']:.2f}s")
             
         except Exception as e:
             print(f"FAIL: Error loading data: {e}")
@@ -100,9 +98,13 @@ def load_course_data_cached(course_id):
         return cached_data[effective_course_id]
     
     print(f"🔁 First-time load for course: {effective_course_id}")
+    # Performance timing: Only measure actual data loading time
+    start_time = time.time()
     # Load data using existing lazy loading mechanism
     data = load_data_lazily()
+    duration = time.time() - start_time
     cached_data[effective_course_id] = data
+    print(f"🔹 Data Load Time: {duration:.2f}s")
     return data
 
 # Decision frameworks - Core domains of the decision-making process
@@ -2045,7 +2047,6 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Print timing summary
         print("📊 Timing Summary:")
-        print(f"🔹 Data Load: {timing.get('after_data_load', 0) - timing['start']:.2f}s")
         print(f"🔹 Initial GPT Call: {timing.get('after_initial_gpt_call', 0) - timing.get('before_initial_gpt_call', 0):.2f}s")
         print(f"🔹 Merge GPT Call: {timing.get('after_gpt_call', 0) - timing.get('before_gpt_call', 0):.2f}s")
         print(f"🔹 Post-GPT: {timing['end'] - timing.get('after_gpt_call', 0):.2f}s")
