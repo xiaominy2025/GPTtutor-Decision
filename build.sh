@@ -9,26 +9,22 @@ echo "Starting build process..."
 # Upgrade pip first
 pip install --upgrade pip
 
-# Install system dependencies if needed
-# apt-get update && apt-get install -y build-essential
+# Install setuptools and wheel first
+pip install --no-cache-dir setuptools==68.0.0 wheel==0.41.2
 
-# Install Python packages with specific flags for better compatibility
-pip install --no-cache-dir --upgrade setuptools wheel
-
-# Install packages one by one to better handle errors
-pip install --no-cache-dir Flask==2.3.2
-pip install --no-cache-dir sentence-transformers==2.2.2
-pip install --no-cache-dir torch>=1.9.0
-pip install --no-cache-dir transformers>=4.21.0
-pip install --no-cache-dir "tokenizers>=0.13.0,<0.15.0"
-pip install --no-cache-dir numpy>=1.21.0
-pip install --no-cache-dir pytest>=7.0.0
-pip install --no-cache-dir python-dotenv>=0.19.0
-pip install --no-cache-dir openai>=1.0.0
-pip install --no-cache-dir faiss-cpu>=1.7.0
-pip install --no-cache-dir spacy>=3.0.0
-pip install --no-cache-dir scikit-learn>=1.0.0
-pip install --no-cache-dir Flask-CORS
-pip install --no-cache-dir huggingface-hub==0.15.1
+# Install packages with specific flags to avoid compilation
+pip install --no-cache-dir --only-binary=all Flask==2.3.2
+pip install --no-cache-dir --only-binary=all sentence-transformers==2.2.2
+pip install --no-cache-dir --only-binary=all torch==2.8.0
+pip install --no-cache-dir --only-binary=all transformers==4.28.1
+pip install --no-cache-dir --only-binary=all tokenizers==0.12.1
+pip install --no-cache-dir --only-binary=all numpy==1.24.3
+pip install --no-cache-dir --only-binary=all pytest==7.4.0
+pip install --no-cache-dir --only-binary=all python-dotenv==1.0.0
+pip install --no-cache-dir --only-binary=all openai==1.3.0
+pip install --no-cache-dir --only-binary=all faiss-cpu==1.7.4
+pip install --no-cache-dir --only-binary=all scikit-learn==1.3.0
+pip install --no-cache-dir --only-binary=all Flask-CORS
+pip install --no-cache-dir --only-binary=all huggingface_hub==0.15.1
 
 echo "Build completed successfully!"
