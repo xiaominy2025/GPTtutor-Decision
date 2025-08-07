@@ -18,6 +18,7 @@ from openai import OpenAI
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
+
 from sentence_transformers import util
 import spacy
 import uuid
@@ -1140,7 +1141,7 @@ def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: i
                 return None, str(e)
     return None, "Max retries exceeded"
 
-def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int) -> str:
+def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int, query_timing: dict = None) -> str:
     """
     Merge Strategic Thinking Lens and Story using GPT-3.5 to create a refined Lens.
     
@@ -1181,6 +1182,9 @@ Story Draft:
 """
 
     try:
+        # Timing for merge GPT call
+        if query_timing is not None:
+            query_timing["merge_gpt_start"] = time.time()
         print("✅ GPT call starting")
         
         # Call GPT-3.5 for merging
@@ -1191,6 +1195,10 @@ Story Draft:
             max_tokens=300
         )
         
+        if query_timing is not None:
+            query_timing["merge_gpt_end"] = time.time()
+            merge_gpt_time = query_timing["merge_gpt_end"] - query_timing["merge_gpt_start"]
+            print(f"🔹 Merge GPT Call Time: {merge_gpt_time:.2f}s")
         print("✅ GPT call complete")
         
         if error:
@@ -1920,6 +1928,9 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Note: Removed analytical tools injection to prevent inappropriate inclusion
         # of analytical methods in Strategic Thinking Lens
         
+        # Query engine timing for detailed logging
+        query_timing = {}
+        query_timing["initial_gpt_start"] = time.time()
         print("✅ Initial GPT call starting")
         
         # Make API call
@@ -1930,7 +1941,10 @@ def process_query(query: str, course_config: dict = None) -> str:
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))
         )
         
+        query_timing["initial_gpt_end"] = time.time()
+        initial_gpt_time = query_timing["initial_gpt_end"] - query_timing["initial_gpt_start"]
         print("✅ Initial GPT call complete")
+        print(f"🔹 Initial GPT Call Time: {initial_gpt_time:.2f}s")
         
         if error:
             print(f"❌ API call failed: {error}")
@@ -1965,7 +1979,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                     "A professional systematically evaluates their options using structured decision-making tools. They consider both immediate impacts and long-term consequences, ultimately making a choice that balances competing priorities and aligns with their strategic objectives.")
             
             # Merge Lens and Story using GPT-3.5
-            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
+            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count, query_timing)
             
             # ✅ Clean up redundant headers in merged_content from GPT output
             merged_content = re.sub(
@@ -2032,7 +2046,15 @@ def process_query(query: str, course_config: dict = None) -> str:
                     flags=re.DOTALL
                 )
         
-        # Performance timing: End of processing (timing summary moved to API server)
+        # Query engine timing summary
+        if query_timing:
+            total_query_time = time.time() - query_timing.get("initial_gpt_start", time.time())
+            print(f"📊 Query Engine Summary:")
+            print(f"🔹 Initial GPT Call: {initial_gpt_time:.2f}s")
+            if "merge_gpt_end" in query_timing:
+                merge_gpt_time = query_timing["merge_gpt_end"] - query_timing["merge_gpt_start"]
+                print(f"🔹 Merge GPT Call: {merge_gpt_time:.2f}s")
+            print(f"🔹 Total Query Engine Time: {total_query_time:.2f}s")
         
         return answer
         
