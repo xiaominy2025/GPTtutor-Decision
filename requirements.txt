@@ -9,3 +9,4 @@ openai>=1.0.0
 faiss-cpu>=1.7.0
 spacy>=3.0.0
 scikit-learn>=1.0.0
+Flask-CORS
