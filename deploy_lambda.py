@@ -36,7 +36,7 @@ def create_lambda_package():
     print("📥 Installing dependencies...")
     subprocess.run([
         "pip", "install", "-r", "lambda_requirements.txt", 
-        "-t", deploy_dir, "--no-deps"
+        "-t", deploy_dir
     ], check=True)
     
     # Create ZIP file
