@@ -1,6 +1,17 @@
-# Git
-.git
-.gitignore
+# Windows files
+Thumbs.db
+Desktop.ini
+desktop.ini
+*.lnk
+$RECYCLE.BIN/
+System Volume Information/
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
 
 # Python
 __pycache__/
@@ -8,27 +19,96 @@ __pycache__/
 *$py.class
 *.so
 .Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual envs
+.env
+.venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Git
+.git/
+.gitignore
 
-# Project specific
-archive_v166_legacy/
-tests/
-docs/
-reports/
+# Logs
 *.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Deployment scripts and artifacts (prevent accidental inclusion)
+*.zip
+Dockerfile*
+.dockerignore*
+*.ps1
+*.sh
 *.md
-!README.md
+docs/
+archive_*/
+v1666_manual/
+
+# Tests
+test_*.py
+*_test.py
+tests/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*
+!lambda_handler.py
+!api_server.py
+!query_engine.py
+!engent/**
+
+!requirements_container.txt
+
+# Include course metadata (note plural "courses")
+!courses/**
+
+# Include any FAISS index file found anywhere
+!**/vector_index.faiss
+
+# keep image slim
+__pycache__/
+*.pyc
+engent/**/__pycache__/
+engent/**/node_modules/
+engent/**/tests/
+engent/**/Documents/
+engent/**/*.ipynb
+engent/**/*.pdf
+engent/**/*.zip
+engent/**/*.wav
+engent/**/*.mp3

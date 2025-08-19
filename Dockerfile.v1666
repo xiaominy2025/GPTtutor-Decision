@@ -1,0 +1,22 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+# Use Lambda task root
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Install Python deps
+COPY requirements_container.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy only what we need for V1666
+COPY api_server.py ./
+COPY query_engine.py ./
+COPY lambda_handler_v1666_real.py ./
+COPY courses/ ./courses/
+COPY vector_index.faiss ./vector_index.faiss
+
+# Runtime env
+ENV COURSE_DIR=/var/task/courses \
+    DEFAULT_COURSE=decision
+
+# Lambda handler entry (module.function)
+CMD ["lambda_handler_v1666_real.lambda_handler"]

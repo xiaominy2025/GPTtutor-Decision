@@ -1,75 +1,40 @@
 #!/usr/bin/env python3
 """
-Quick test to verify Strategic Thinking Lens enhancement
+Quick test for Lambda CORS functionality
 """
+import requests
 
-import query_engine
-import re
-
-def test_strategic_thinking_lens():
-    """Test that Strategic Thinking Lens is comprehensive and detailed"""
+def test_lambda_cors():
+    url = "https://suu42zea6k74bqdogirjfhh2p40vflgq.lambda-url.us-east-2.on.aws"
     
-    print("🧪 Testing Strategic Thinking Lens Enhancement")
-    print("=" * 50)
+    print("🧪 Testing Lambda CORS functionality")
+    print(f"🔗 URL: {url}")
     
-    # Test query
-    test_query = "Should I invest in stocks or bonds?"
-    
-    print(f"📝 Query: {test_query}")
-    print("-" * 30)
-    
+    # Test health endpoint
     try:
-        # Generate response
-        response = query_engine.process_query(test_query)
-        
-        # Extract Strategic Thinking Lens section
-        strategic_match = re.search(r'\*\*Strategic Thinking Lens\*\*\s*\n\n(.*?)(?=\n\n\*\*Story in Action\*\*|$)', response, re.DOTALL)
-        
-        if strategic_match:
-            strategic_content = strategic_match.group(1).strip()
-            word_count = len(strategic_content.split())
-            
-            print(f"✅ Strategic Thinking Lens found")
-            print(f"📊 Word count: {word_count} words")
-            
-            # Check if it meets the enhanced requirements
-            if word_count >= 150:
-                print("✅ Meets minimum length requirement (150+ words)")
-            else:
-                print(f"❌ Below minimum length requirement (need 150+, got {word_count})")
-            
-            # Check for subsections
-            subsections = re.findall(r'\*\*([^*]+):\*\*', strategic_content)
-            if subsections:
-                print(f"✅ Contains {len(subsections)} subsections:")
-                for subsection in subsections:
-                    print(f"   • {subsection}")
-            else:
-                print("⚠️ No subsections found")
-            
-            # Check for forbidden phrases
-            forbidden_phrases = ["strategic mindset", "human behavior awareness", "analytical tools"]
-            found_forbidden = []
-            for phrase in forbidden_phrases:
-                if phrase.lower() in strategic_content.lower():
-                    found_forbidden.append(phrase)
-            
-            if found_forbidden:
-                print(f"❌ Found forbidden phrases: {found_forbidden}")
-            else:
-                print("✅ No forbidden phrases detected")
-            
-            print("\n📄 Content Preview:")
-            print("-" * 30)
-            print(strategic_content[:300] + "..." if len(strategic_content) > 300 else strategic_content)
-            
-        else:
-            print("❌ Strategic Thinking Lens section not found")
-            
+        response = requests.get(f"{url}/health")
+        print(f"✅ Health check: {response.status_code}")
+        print(f"📋 Response: {response.text[:100]}...")
     except Exception as e:
-        print(f"❌ Error during testing: {e}")
-        import traceback
-        traceback.print_exc()
+        print(f"❌ Health check failed: {e}")
+    
+    # Test courses endpoint
+    try:
+        response = requests.get(f"{url}/courses", headers={"Origin": "http://localhost:5174"})
+        print(f"✅ Courses endpoint: {response.status_code}")
+        print(f"📋 CORS headers: {dict(response.headers)}")
+    except Exception as e:
+        print(f"❌ Courses test failed: {e}")
+    
+    # Test query endpoint
+    try:
+        response = requests.post(f"{url}/query", 
+                               json={"query": "test query", "course_id": "decision"},
+                               headers={"Origin": "http://localhost:5174"})
+        print(f"✅ Query endpoint: {response.status_code}")
+        print(f"📋 CORS headers: {dict(response.headers)}")
+    except Exception as e:
+        print(f"❌ Query test failed: {e}")
 
 if __name__ == "__main__":
-    test_strategic_thinking_lens() 
+    test_lambda_cors()

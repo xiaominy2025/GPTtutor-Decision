@@ -1,0 +1,45 @@
+# Exclude unnecessary files from Lambda deployment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.dist-info/
+*.egg-info/
+.git/
+.gitignore
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# Backup files
+lambda_function_complete.py
+lambda_function_v1666_with_errors.py
+lambda_function_v1666_complete.py
+
+# Test files
+test_*.py
+*_test.py
+
+# Documentation
+*.md
+*.txt
+!requirements.txt
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.zip
+!gpttutor-v1666.zip

@@ -1,0 +1,8 @@
+{
+  "httpMethod": "POST",
+  "path": "/query",
+  "body": {
+    "course_id": "decision",
+    "query": "Under tariff uncertainty, how do I plan my production?"
+  }
+}

@@ -8,6 +8,7 @@ import traceback
 import time
 import os
 import json
+from pathlib import Path
 
 # Import the correct query engine with V1.6 implementation
 import query_engine
@@ -18,6 +19,29 @@ CORS(app)  # Enable CORS for frontend integration
 # Course configuration management
 DEFAULT_COURSE = "decision"
 COURSES_DIR = "courses"
+
+# Define metadata loading constants
+COURSE_ID = os.getenv("COURSE_ID", "decision")
+
+# 1. Runtime metadata location (Lambda cold start creates this in rebuild mode)
+TMP_META_PATH = Path(f"/tmp/courses/{COURSE_ID}/metadata.json")
+
+# 2. Baked base metadata location
+COURSE_DIR_PATH = Path(f"courses/{COURSE_ID}")
+BASE_META_PATH = COURSE_DIR_PATH / "base_metadata.json"
+
+# 3. Legacy metadata location (pre-transition)
+LEGACY_META_PATH = COURSE_DIR_PATH / "metadata.json"
+
+# Select the highest-priority existing file
+if TMP_META_PATH.exists():
+    SELECTED_META_PATH = TMP_META_PATH
+elif BASE_META_PATH.exists():
+    SELECTED_META_PATH = BASE_META_PATH
+elif LEGACY_META_PATH.exists():
+    SELECTED_META_PATH = LEGACY_META_PATH
+else:
+    raise FileNotFoundError(f"No metadata file found for course {COURSE_ID}")
 
 def load_course_config(course_id: str) -> dict:
     """
@@ -245,7 +269,7 @@ def get_course_config(course_id):
 def get_course_metadata(course_id):
     """
     V1.6.6.6 Final: Multi-course metadata route.
-    Loads metadata.json and glossary.json for a given course.
+    Loads base_metadata.json and glossary.json for a given course.
     Falls back to 'decision' if the course does not exist.
     """
     import os, json
@@ -256,7 +280,8 @@ def get_course_metadata(course_id):
         base_path = os.path.join('courses', course_id)
 
     try:
-        with open(os.path.join(base_path, 'metadata.json')) as f:
+        # Use the selected metadata path based on priority
+        with open(SELECTED_META_PATH) as f:
             metadata = json.load(f)
         with open(os.path.join(base_path, 'glossary.json')) as f:
             glossary = json.load(f)

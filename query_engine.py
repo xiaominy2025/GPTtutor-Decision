@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 """
 Clean Query Engine - Produces only user-facing output without developer information
@@ -18,8 +17,7 @@ from openai import OpenAI
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-
-
+from pathlib import Path
 
 from sentence_transformers import util
 import spacy
@@ -36,6 +34,29 @@ openai_temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.3"))
 if not openai_api_key:
     print("FAIL: Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
+
+# Define metadata loading constants
+COURSE_ID = os.getenv("COURSE_ID", "decision")
+
+# 1. Runtime metadata location (Lambda cold start creates this in rebuild mode)
+TMP_META_PATH = Path(f"/tmp/courses/{COURSE_ID}/metadata.json")
+
+# 2. Baked base metadata location
+COURSE_DIR = Path(f"courses/{COURSE_ID}")
+BASE_META_PATH = COURSE_DIR / "base_metadata.json"
+
+# 3. Legacy metadata location (pre-transition)
+LEGACY_META_PATH = COURSE_DIR / "metadata.json"
+
+# Select the highest-priority existing file
+if TMP_META_PATH.exists():
+    SELECTED_META_PATH = TMP_META_PATH
+elif BASE_META_PATH.exists():
+    SELECTED_META_PATH = BASE_META_PATH
+elif LEGACY_META_PATH.exists():
+    SELECTED_META_PATH = LEGACY_META_PATH
+else:
+    raise FileNotFoundError(f"No metadata file found for course {COURSE_ID}")
 
 # --- Relevance Scoring Helper ---
 def compute_relevance_score(query):
@@ -100,11 +121,11 @@ def load_data_lazily():
     if _index is None:
         try:
             _index = faiss.read_index("vector_index.faiss")
-            with open("metadata.json", "r", encoding="utf-8") as f:
+            with open(SELECTED_META_PATH, "r", encoding="utf-8") as f:
                 _metadata = json.load(f)
             _documents = _metadata["documents"]
             _file_names = _metadata.get("file_names", ["Unknown"] * len(_documents))
-            _model = SentenceTransformer("all-MiniLM-L6-v2")
+            _model = SentenceTransformer("all-mpnet-base-v2")
             _nlp = spacy.load("en_core_web_sm")
             
             # Data loading complete (timing now handled by cache wrapper)
@@ -1506,119 +1527,57 @@ def extract_application_field(query: str) -> str:
     """Infer the application field/type from the query for context-aware answer generation."""
     q = query.lower()
     
-    # Operations - check FIRST to avoid conflicts with other fields
-    if any(word in q for word in ["production", "capacity", "forecast", "uncertainty", "simulation", "scenario", 
-                                  "linear programming", "supply chain", "monte carlo", "solver", "modeling", 
-                                  "constraints", "variables", "mathematical", "computational", 
-                                  "statistical", "analysis", "planning", "supplier"]) and not any(word in q for word in ["AI", "artificial intelligence", "machine learning", "automation", "digital", "software", "platform", "risk", "risks", "crisis", "mitigation", "negotiate", "negotiation"]):
-        return "operations"
+    # 8. Product Development & Innovation (check first to avoid conflicts)
+    if any(word in q for word in ["product", "design", "prototype", "testing", "features", "roadmap", "user feedback"]):
+        return "product_development_innovation"
     
-    # Business detection - new field for general business decisions
-    if any(word in q for word in ["business strategy", "business model", "business decision", "business risk", 
-                                  "business implication", "business impact", "business consideration", 
-                                  "business trade-off", "business optimization", "business efficiency"]) and not any(word in q for word in ["startup", "entrepreneur", "founder", "launch", "venture", "job", "career", "employment", "esg", "sustainability", "environmental"]):
-        return "business"
+    # 4. Technology Management (check before business to avoid conflicts)
+    tech_keywords = ["technology", "digital", "software", "platform", "artificial intelligence", "automation", "cybersecurity", "data science"]
+    # Special case for AI - check as whole word
+    if any(word in q for word in tech_keywords) or ' ai ' in f' {q} ' or q.startswith('ai ') or q.endswith(' ai'):
+        return "technology_management"
     
-    if any(word in q for word in ["invest", "investment", "portfolio", "stocks", "bonds", "finance", "retirement"]):
-        return "finance"
+    # 3. Financial Decision-Making (check before business to avoid conflicts)
+    if any(word in q for word in ["invest", "investment", "financial", "budget", "cost", "pricing", "valuation", "capital", "funding", "expenses", "profitability"]):
+        return "financial_decision_making"
     
-    # Technology detection - expanded keywords (check BEFORE startup to avoid conflicts)
-    if any(word in q for word in ["technology", "AI", "automation", "digital", "software", "adopt", "platform",
-                                  "artificial intelligence", "machine learning", "automate", "system", "algorithm", "algorithms"]) and not any(word in q for word in ["startup", "entrepreneur", "founder", "launch", "venture", "project", "projects", "milestone", "milestones", "deliverable", "deliverables"]):
-        return "technology"
+    # 10. Education & Learning (check before general terms)
+    if any(word in q for word in ["education", "learning", "school", "teaching", "curriculum", "training", "students"]):
+        return "education_learning"
     
-    # Risk Management detection - check BEFORE operations to avoid conflicts
-    if any(word in q for word in ["risk", "risks", "threat", "threats", 
-                                  "hazard", "exposure", "liability", "contingency", "resilience", 
-                                  "crisis", "volatility", "probability", "scenario", "mitigation", 
-                                  "insurance", "compliance", "regulatory risk", "supply chain risk", "supply chain risks"]) and not any(word in q for word in ["health", "medical", "doctor", "wellness", "fitness", "production", "capacity", "forecast", "simulation", "currency"]):
-        return "risk_management"
+    # 6. People, Talent & Career (check before general business terms)
+    if any(word in q for word in ["hire", "hiring", "recruitment", "employee", "staff", "team", "leadership", "management", "culture", "retention", "job", "offer", "employment", "career", "salary", "compensation", "benefits", "talent"]):
+        return "people_talent_career"
     
-    # Project Management detection - check BEFORE technology to avoid conflicts
-    if any(word in q for word in ["project", "projects", "task", "tasks", "milestone", "milestones", 
-                                  "schedule", "scheduling", "timeline", "deliverable", "deliverables", 
-                                  "work breakdown", "wbs", "pmo", "program management", 
-                                  "critical path", "gantt", "deadline", "resource allocation", 
-                                  "scope", "budget", "stakeholders", "execution", "software development project", "development project"]) and not any(word in q for word in ["startup", "entrepreneur", "founder", "launch", "venture", "AI", "automation", "digital", "r&d", "research"]):
-        return "project_management"
+    # 1. Business & Markets
+    if any(word in q for word in ["business", "company", "market", "competition", "growth", "branding", "marketing", "customer", "sales", "revenue", "profit"]):
+        return "business_markets"
     
-    if any(word in q for word in ["team", "leader", "leadership", "conflict", "manager", "staff"]) and not any(word in q for word in ["employee", "retention", "engagement", "talent", "hiring", "recruiting", "workforce", "human capital"]):
-        return "leadership"
+    # 2. Operations Management
+    if any(word in q for word in ["production", "operations", "logistics", "supply", "manufacturing", "inventory", "process", "workflow"]):
+        return "operations_management"
     
-    # Human Capital Strategy detection - check BEFORE innovation to avoid conflicts
-    if any(word in q for word in ["human capital", "workforce", "talent", "hiring", "recruiting", 
-                                  "recruitment", "staffing", "onboarding", "training", "development", 
-                                  "retention", "turnover", "succession planning", 
-                                  "diversity", "inclusion", "equity", "hr", "human resources", 
-                                  "performance management", "upskilling", "reskilling", 
-                                  "employee engagement", "employee retention", "morale", "benefits"]) and not any(word in q for word in ["job", "career", "employment", "offer", "opportunity", "research", "development", "prototype", "innovation"]):
-        return "human_capital"
+    # 5. Risk, Crisis & Resilience
+    if any(word in q for word in ["risk", "uncertainty", "volatile", "unpredictable", "threat", "mitigation", "contingency", "disaster", "emergency", "safety", "resilience"]):
+        return "risk_crisis_resilience"
     
-    # Marketing & Customer Strategy detection - check BEFORE innovation to avoid conflicts
-    if any(word in q for word in ["marketing", "market", "customer", "client", "consumer", 
-                                  "brand", "branding", "reputation", "loyalty", "segmentation", 
-                                  "target market", "advertising", "promotion", "pricing", 
-                                  "positioning", "product launch", "demand", "sales", "revenue", 
-                                  "campaign", "conversion", "customer journey", "feedback", 
-                                  "retention", "acquisition"]) and not any(word in q for word in ["startup", "entrepreneur", "founder", "launch", "venture", "research", "development", "prototype", "innovation", "market entry", "emerging economies"]):
-        return "marketing"
+    # 7. Policy & Regulatory
+    if any(word in q for word in ["policy", "regulation", "compliance", "legal", "government", "legislation", "standards", "ethics"]):
+        return "policy_regulatory"
     
-    # Globalization & International Trade detection - check BEFORE marketing to avoid conflicts
-    if any(word in q for word in ["global", "international", "worldwide", "cross-border", "foreign", 
-                                  "export", "import", "tariff", "tariffs", "quota", "customs", 
-                                  "trade agreement", "fta", "currency", "exchange rate", 
-                                  "foreign investment", "fdi", "localization", "multinational", 
-                                  "outsourcing", "offshoring", "supply chain disruption", 
-                                  "geopolitical", "sanctions", "market entry", "emerging economies"]) and not any(word in q for word in ["marketing", "customer", "brand", "advertising", "promotion"]):
-        return "globalization"
+    # 9. Sustainability & Environment
+    if any(word in q for word in ["sustainability", "environmental", "climate", "carbon", "renewable", "conservation", "green"]):
+        return "sustainability_environment"
     
-    # Education detection - check BEFORE innovation to avoid conflicts
-    if any(word in q for word in ["degree", "masters", "certification", "training", "course", "education", "skills", "online course", "skill development"]) and not any(word in q for word in ["r&d", "research", "prototype", "innovation", "new technology", "product development"]):
-        return "education"
+    # 11. Healthcare & Medical
+    if any(word in q for word in ["healthcare", "medical", "patient", "treatment", "diagnosis", "clinical", "hospital", "therapy"]):
+        return "healthcare_medical"
     
-    # Innovation & R&D detection - check BEFORE startup to avoid conflicts
-    if any(word in q for word in ["innovation", "innovate", "innovating", "r&d", "research", "development", 
-                                  "prototype", "prototyping", "product design", "product development", 
-                                  "patent", "intellectual property", "ip", "lab", "experimentation", 
-                                  "new technology", "breakthrough", "discovery", "pilot program", 
-                                  "beta test", "iteration", "competing r&d", "r&d projects", "competing projects"]) or ("competing" in q and "r&d" in q) or ("competing" in q and "research" in q):
-        return "innovation"
+    # 12. Military & Defense Decisions
+    if any(word in q for word in ["military", "defense", "army", "navy", "air force", "marine", "security", "mission", "tactical", "combat", "deployment", "training exercise"]):
+        return "military_defense"
     
-    # Sustainability & ESG detection - check BEFORE startup to avoid conflicts
-    if any(word in q for word in ["sustainability", "sustainable", "esg", "environment", "environmental", 
-                                  "green", "carbon", "emissions", "footprint", "renewable", 
-                                  "csr", "corporate social responsibility", "ethical sourcing", 
-                                  "climate", "ecological", "compliance", "governance", 
-                                  "responsibility", "social impact", "stakeholder trust", "esg initiatives"]) and not any(word in q for word in ["startup", "entrepreneur", "founder", "launch", "venture"]):
-        return "sustainability"
-    
-    if any(word in q for word in ["admission", "college", "university", "school"]):
-        return "admission"
-    
-    if any(word in q for word in ["relocate", "move", "relocation", "city", "country", "immigrate"]):
-        return "relocation"
-    
-    # Ethics detection - expanded keywords
-    if any(word in q for word in ["ethics", "values", "integrity", "social issue", "mission", "responsibility", 
-                                  "ethical", "dilemma", "moral", "right", "wrong"]):
-        return "ethics"
-    
-    if any(word in q for word in ["health", "wellness", "doctor", "insurance", "medical", "fitness", "mental health"]):
-        return "health"
-    
-    # Job detection - more specific keywords to avoid false positives
-    if any(word in q for word in ["job offer", "job opportunity", "employment offer", "position offer"]) or        (any(word in q for word in ["job", "position", "employment"]) and 
-        any(word in q for word in ["offer", "opportunity", "accept", "choose", "decide", "compare"])):
-        return "job"
-    
-    if any(word in q for word in ["negotiate", "negotiation", "deal", "partner", "agreement", "batna", "supplier", "vendor", "contract"]) and not any(word in q for word in ["production", "capacity", "forecast", "simulation", "supply chain", "operations"]):
-        return "operations"
-    
-    # Startup detection - expanded keywords
-    if any(word in q for word in ["startup", "product", "entrepreneur", "founder", "business model", "new business", 
-                                  "launch", "venture", "company"]) and not any(word in q for word in ["esg", "sustainability", "environmental", "green", "carbon", "emissions"]):
-        return "startup"
-    
+    # 13. General Decision-Making (default)
     return "general"
 
 def context_aware_fallbacks(query: str):
@@ -2265,85 +2224,89 @@ def extract_application_field_semantic(query: str, model) -> str:
     """
     # Application field reference texts for semantic matching
     application_references = {
-        'finance': [
-            "financial analysis and planning",
-            "investment and portfolio management",
-            "budgeting and cost control",
-            "financial decision making",
-            "investment strategies"
+        'business_markets': [
+            "business strategy and market analysis",
+            "competitive positioning and growth",
+            "brand management and marketing",
+            "customer acquisition and sales",
+            "revenue optimization and profit"
         ],
-        'startup': [
-            "starting a new business",
-            "entrepreneurship and innovation",
-            "product development and launch",
-            "business model and strategy",
-            "scaling a venture"
-        ],
-        'marketing': [
-            "customer acquisition strategy",
-            "brand positioning and loyalty",
-            "advertising and promotion",
-            "market segmentation",
-            "pricing strategy"
-        ],
-        'operations': [
+        'operations_management': [
             "production planning and capacity",
             "supply chain optimization",
-            "demand forecasting",
-            "logistics and inventory management"
+            "logistics and inventory management",
+            "manufacturing process improvement",
+            "workflow optimization"
         ],
-        'project_management': [
-            "managing project timelines",
-            "stakeholder alignment in projects",
-            "milestones and deliverables",
-            "critical path analysis"
+        'financial_decision_making': [
+            "investment analysis and valuation",
+            "budget planning and cost control",
+            "capital allocation decisions",
+            "funding and financing options",
+            "profitability assessment"
         ],
-        'leadership': [
-            "managing teams and conflicts",
-            "leadership and organizational culture",
-            "handling interpersonal issues",
-            "facilitating team decision making"
+        'technology_management': [
+            "technology adoption and implementation",
+            "digital transformation strategy",
+            "AI and automation decisions",
+            "cybersecurity planning",
+            "data science and analytics"
         ],
-        'risk_management': [
-            "risk mitigation strategies",
-            "scenario analysis and resilience",
-            "volatility and contingency planning"
+        'risk_crisis_resilience': [
+            "risk assessment and mitigation",
+            "crisis management planning",
+            "disaster response and recovery",
+            "safety and security measures",
+            "resilience building strategies"
         ],
-        'education': [
-            "choosing a university program",
-            "career impact of degrees",
-            "education decisions and ROI"
+        'people_talent_career': [
+            "talent acquisition and recruitment",
+            "employee development and retention",
+            "leadership and team management",
+            "career planning and advancement",
+            "compensation and benefits"
         ],
-        'sustainability': [
-            "corporate ESG strategy",
-            "environmental responsibility in business",
-            "long-term sustainability trade-offs"
+        'policy_regulatory': [
+            "regulatory compliance and standards",
+            "policy development and implementation",
+            "legal risk management",
+            "government relations",
+            "ethical governance"
         ],
-        'job': [
-            "choosing between job offers",
-            "career decision making",
-            "evaluating employment options"
+        'product_development_innovation': [
+            "product design and development",
+            "prototype testing and validation",
+            "feature prioritization",
+            "user feedback integration",
+            "innovation roadmap planning"
         ],
-        'health': [
-            "deciding on health insurance",
-            "wellness and healthcare trade-offs",
-            "mental and physical well-being"
+        'sustainability_environment': [
+            "environmental impact assessment",
+            "sustainability strategy development",
+            "climate action planning",
+            "renewable energy adoption",
+            "conservation initiatives"
         ],
-        'ethics': [
-            "ethical decision making in organizations",
-            "values-driven choices",
-            "moral dilemmas in leadership"
+        'education_learning': [
+            "educational program design",
+            "curriculum development",
+            "student learning outcomes",
+            "teaching methodology",
+            "training effectiveness"
         ],
-        'relocation': [
-            "moving to a new city for work",
-            "geographic relocation trade-offs",
-            "family and career balance in relocation"
+        'healthcare_medical': [
+            "patient care and treatment",
+            "medical diagnosis and therapy",
+            "clinical decision making",
+            "healthcare system management",
+            "medical technology adoption"
         ],
-        'business': [
-            "strategic decision making in business",
-            "organizational decision making",
-            "bias in executive decisions",
-            "managerial judgment and planning"
+        'military_defense': [
+            "military strategy and tactics",
+            "defense planning and operations",
+            "mission execution and deployment",
+            "combat readiness and training",
+            "security and intelligence"
         ]
     }
 
@@ -2364,20 +2327,18 @@ def extract_application_field_semantic(query: str, model) -> str:
     def extract_application_field_keywords(query: str) -> Tuple[str, float]:
         q = query.lower()
         field_keywords = {
-            'finance': ["invest", "investment", "portfolio", "finance", "budget", "cost", "financial", "return"],
-            'startup': ["startup", "entrepreneur", "founder", "launch", "venture"],
-            'business': ["business strategy", "business decision", "business impact", "business risk", "managerial", "executive", "corporate"],
-            'marketing': ["marketing", "customer", "brand", "advertising", "promotion", "sales"],
-            'operations': ["production", "capacity", "supply chain", "forecast", "manufacturing"],
-            'project_management': ["project", "milestone", "timeline", "deadline", "deliverable", "scope"],
-            'leadership': ["team", "leader", "conflict", "organizational culture", "staff"],
-            'risk_management': ["risk", "mitigation", "contingency", "volatility", "hazard"],
-            'education': ["degree", "course", "certification", "university", "education"],
-            'sustainability': ["sustainability", "esg", "green", "carbon", "environmental"],
-            'relocation': ["relocate", "move", "immigration", "city", "country"],
-            'job': ["job", "position", "employment", "offer", "career", "hiring"],
-            'health': ["health", "wellness", "insurance", "medical", "mental"],
-            'ethics': ["ethics", "moral", "values", "integrity", "responsibility"]
+            'business_markets': ["business", "company", "market", "competition", "growth", "branding", "marketing", "customer", "sales", "revenue", "profit"],
+            'operations_management': ["production", "operations", "logistics", "supply", "manufacturing", "inventory", "process", "workflow"],
+            'financial_decision_making': ["investment", "financial", "budget", "cost", "pricing", "valuation", "capital", "funding", "expenses", "profitability"],
+            'technology_management': ["technology", "innovation", "digital", "software", "platform", "AI", "artificial intelligence", "automation", "cybersecurity", "data science"],
+            'risk_crisis_resilience': ["risk", "uncertainty", "volatile", "unpredictable", "threat", "mitigation", "contingency", "disaster", "emergency", "safety", "resilience"],
+            'people_talent_career': ["hiring", "recruitment", "employee", "staff", "team", "leadership", "management", "culture", "retention", "job", "offer", "employment", "career", "salary", "compensation", "benefits"],
+            'policy_regulatory': ["policy", "regulation", "compliance", "legal", "government", "legislation", "standards", "ethics"],
+            'product_development_innovation': ["product", "design", "prototype", "testing", "features", "roadmap", "user feedback"],
+            'sustainability_environment': ["sustainability", "environmental", "climate", "carbon", "renewable", "conservation", "green"],
+            'education_learning': ["education", "learning", "school", "teaching", "curriculum", "training", "students"],
+            'healthcare_medical': ["healthcare", "medical", "patient", "treatment", "diagnosis", "clinical", "hospital", "therapy"],
+            'military_defense': ["military", "defense", "army", "navy", "air force", "marine", "security", "mission", "tactical", "combat", "deployment", "training exercise"]
         }
 
         best_field = "general"
