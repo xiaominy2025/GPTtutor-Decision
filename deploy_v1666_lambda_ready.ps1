@@ -1,0 +1,312 @@
+# ================================
+# V1.6.6.6 Lambda-Ready Deployment - Original Logic Preserved
+# ================================
+
+param (
+    [string]$LambdaName = "engent-labs-v1666-lambda-ready",
+    [string]$Region = "us-east-2",
+    [string]$AccountId = "771049112957"
+)
+
+Write-Host "=== Starting Lambda-Ready V1.6.6.6 Deployment (Original Logic Preserved) ==="
+
+# Step 1 - Clean environment completely
+Write-Host "🧹 Cleaning environment completely..."
+Remove-Item -Recurse -Force build, .venv, v1666.zip, temp_build -ErrorAction SilentlyContinue
+Get-ChildItem -Recurse -Include __pycache__, *.pyc, .DS_Store, Thumbs.db | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+
+# Step 2 - Verify all required files
+$requiredFiles = @(
+    "api_server.py",
+    "query_engine_lambda_ready.py", 
+    "lambda_handler_v1666_real.py",
+    "courses\decision\base_metadata.json",
+    "courses\decision\glossary.json",
+    "vector_index.faiss",
+    "requirements_container_lambda_ready.txt"
+)
+foreach ($file in $requiredFiles) {
+    if (-not (Test-Path $file)) {
+        Write-Error "Missing required file: $file"
+        exit 1
+    }
+}
+Write-Host "✅ All required files verified."
+
+# Step 3 - Create Lambda-ready Dockerfile
+Write-Host "🐳 Creating Lambda-ready Dockerfile..."
+$dockerfileContent = @"
+FROM public.ecr.aws/lambda/python:3.11
+
+# Set Lambda-specific environment variables
+ENV OMP_NUM_THREADS=1
+ENV MKL_NUM_THREADS=1
+ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV TRANSFORMERS_CACHE=/tmp/transformers_cache
+ENV HF_HOME=/tmp/hf_home
+ENV SENTENCE_TRANSFORMERS_HOME=/tmp/sentence_transformers
+
+WORKDIR /var/task
+
+# Copy Lambda-ready requirements
+COPY requirements_container_lambda_ready.txt ./requirements.txt
+
+# Install dependencies with CPU-only optimizations
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create cache directories
+RUN mkdir -p /tmp/transformers_cache /tmp/hf_home /tmp/sentence_transformers
+
+# Copy application code
+COPY api_server.py ./
+COPY query_engine_lambda_ready.py ./query_engine.py
+COPY lambda_handler_v1666_real.py ./
+
+# Copy course data
+COPY courses/ ./courses/
+
+# Copy FAISS index
+COPY vector_index.faiss ./
+
+# Set environment variables
+ENV COURSE_ID=decision
+ENV METADATA_MODE=baked
+ENV PYTHONPATH=/var/task
+
+# Set the handler
+CMD ["lambda_handler_v1666_real.handler"]
+"@
+
+$dockerfileContent | Out-File -FilePath "Dockerfile.lambda_ready" -Encoding utf8
+
+# Step 4 - Create comprehensive .dockerignore
+Write-Host "📝 Creating .dockerignore..."
+$dockerignoreContent = @"
+# Windows files
+*.exe
+*.dll
+*.pyd
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Development files
+.git/
+.gitignore
+.env
+.venv/
+venv/
+env/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+temp_build/
+
+# Old deployment files
+Dockerfile
+Dockerfile.*
+deploy_*.ps1
+
+# Non-lambda-ready files
+query_engine.py
+query_engine_optimized.py
+requirements_container.txt
+requirements_container_optimized.txt
+"@
+
+$dockerignoreContent | Out-File -FilePath ".dockerignore" -Encoding utf8
+
+# Step 5 - Build Lambda-ready Docker image
+Write-Host "🔨 Building Lambda-ready Docker image..."
+docker build --platform linux/amd64 -f Dockerfile.lambda_ready -t $LambdaName .
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ Docker build failed"
+    Write-Host "Troubleshooting:"
+    Write-Host "1. Ensure Docker Desktop is running"
+    Write-Host "2. Check disk space: docker system df"
+    Write-Host "3. Clean Docker: docker system prune -a"
+    exit 1
+}
+Write-Host "✅ Lambda-ready Docker image built successfully."
+
+# Step 6 - ECR setup
+Write-Host "🔐 Setting up ECR..."
+
+# Check AWS CLI
+$awsIdentity = aws sts get-caller-identity --query 'Account' --output text 2>$null
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ AWS CLI not configured. Run: aws configure"
+    exit 1
+}
+Write-Host "✅ AWS CLI configured for account: $awsIdentity"
+
+# Authenticate with ECR
+aws ecr get-login-password --region $Region | docker login --username AWS --password-stdin $AccountId.dkr.ecr.$Region.amazonaws.com
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ ECR authentication failed"
+    exit 1
+}
+Write-Host "✅ ECR authentication successful."
+
+# Step 7 - Create new ECR repository
+Write-Host "📦 Creating new ECR repository: $LambdaName"
+aws ecr create-repository --repository-name $LambdaName --region $Region
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Warning "⚠️ ECR repository may already exist"
+} else {
+    Write-Host "✅ ECR repository created successfully."
+}
+
+# Step 8 - Push to ECR
+$ecrUri = "$AccountId.dkr.ecr.$Region.amazonaws.com/$LambdaName"
+Write-Host "📤 Pushing to ECR: $ecrUri"
+docker tag $LambdaName $ecrUri`:latest
+docker push $ecrUri`:latest
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ Failed to push to ECR"
+    exit 1
+}
+Write-Host "✅ Image pushed to ECR successfully."
+
+# Step 9 - Create new Lambda function with Lambda-ready settings
+Write-Host "🆕 Creating Lambda-ready Lambda function: $LambdaName"
+aws lambda create-function `
+    --function-name $LambdaName `
+    --package-type Image `
+    --code ImageUri="$ecrUri`:latest" `
+    --role "arn:aws:iam::$AccountId`:role/lambda-execution-role" `
+    --timeout 30 `
+    --memory-size 4096 `
+    --environment "Variables={COURSE_ID=decision,METADATA_MODE=baked,OMP_NUM_THREADS=1,MKL_NUM_THREADS=1,HF_HUB_DISABLE_TELEMETRY=1}" `
+    --region $Region
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ Failed to create Lambda function"
+    Write-Host "Note: If function already exists, it will be updated in next step"
+} else {
+    Write-Host "✅ Lambda-ready Lambda function created successfully."
+}
+
+# Step 10 - Update Lambda function (in case it already existed)
+Write-Host "🔄 Updating Lambda function..."
+aws lambda update-function-code `
+    --function-name $LambdaName `
+    --image-uri "$ecrUri`:latest" `
+    --region $Region
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "❌ Failed to update Lambda function"
+    exit 1
+}
+
+# Wait for update
+aws lambda wait function-updated --function-name $LambdaName --region $Region
+Write-Host "✅ Lambda function updated successfully."
+
+# Step 11 - Configure Lambda-ready Lambda settings
+Write-Host "⚙️ Configuring Lambda-ready Lambda settings..."
+aws lambda update-function-configuration `
+    --function-name $LambdaName `
+    --timeout 30 `
+    --memory-size 4096 `
+    --environment "Variables={COURSE_ID=decision,METADATA_MODE=baked,OMP_NUM_THREADS=1,MKL_NUM_THREADS=1,HF_HUB_DISABLE_TELEMETRY=1,TRANSFORMERS_CACHE=/tmp/transformers_cache,HF_HOME=/tmp/hf_home,SENTENCE_TRANSFORMERS_HOME=/tmp/sentence_transformers}" `
+    --region $Region
+
+Write-Host "✅ Lambda-ready Lambda configuration updated."
+
+# Step 12 - Create Function URL
+Write-Host "🔗 Creating Function URL..."
+aws lambda create-function-url-config `
+    --function-name $LambdaName `
+    --auth-type NONE `
+    --region $Region
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Warning "⚠️ Failed to create Function URL (may already exist)"
+} else {
+    Write-Host "✅ Function URL created successfully."
+}
+
+# Step 13 - Test deployment
+Write-Host "🧪 Testing Lambda-ready deployment..."
+Start-Sleep -Seconds 15
+
+try {
+    $functionUrl = aws lambda get-function-url-config --function-name $LambdaName --region $Region --query 'FunctionUrl' --output text 2>$null
+    
+    if ($functionUrl) {
+        Write-Host "Testing Function URL: $functionUrl"
+        $response = Invoke-WebRequest -Uri "$functionUrl/health" -UseBasicParsing -TimeoutSec 20
+        Write-Host "✅ Health check successful: $($response.StatusCode)"
+        Write-Host "Response: $($response.Content)"
+        
+        # Parse response to verify V1666 backend
+        $responseData = $response.Content | ConvertFrom-Json
+        if ($responseData.version -eq "1.6.6.6") {
+            Write-Host "✅ Real V1666 backend confirmed!"
+        }
+    } else {
+        Write-Host "ℹ️ No Function URL found, but Lambda function is deployed"
+    }
+} catch {
+    Write-Warning "⚠️ Health check failed: $_"
+    Write-Host "ℹ️ Lambda function deployed, but health check failed"
+}
+
+# Step 14 - Cleanup
+Write-Host "🧹 Cleaning up..."
+Remove-Item "Dockerfile.lambda_ready" -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force build, .venv, v1666.zip, temp_build -ErrorAction SilentlyContinue
+
+Write-Host "=== Lambda-Ready V1.6.6.6 Deployment Completed Successfully ==="
+Write-Host "🎯 Lambda-Ready Lambda Function: $LambdaName"
+Write-Host "📦 Lambda-Ready ECR Repository: $ecrUri"
+Write-Host "🌍 Region: $Region"
+Write-Host "🔗 Function URL: $functionUrl"
+Write-Host "🚀 Lambda optimizations included:"
+Write-Host "   • CPU-only PyTorch"
+Write-Host "   • Single-threaded execution"
+Write-Host "   • Lazy model loading"
+Write-Host "   • Proxy support"
+Write-Host "   • Optimized memory usage"
+Write-Host "✅ Original logic preserved:"
+Write-Host "   • Original all-mpnet-base-v2 model"
+Write-Host "   • Original concept extraction logic"
+Write-Host "   • Original domain filtering"
+Write-Host "   • Original behavioral boosting"
+Write-Host "💡 Use silent frontend warmup for best UX"

@@ -1,0 +1,122 @@
+{
+  "course_id": "decision",
+  "name": "Decision Making",
+  "version": "1.6.5",
+  "description": "Technology Management Decision Making Course",
+  "domains": {
+    "behavioral": {
+      "keywords": [
+        "team", "teams", "conflict", "conflicts", "value", "values", "behavior", "behaviour",
+        "psychology", "psychological", "bias", "biases", "cognitive", "cognition",
+        "judgment", "judgement", "leadership", "personality", "personalities",
+        "motivation", "motivational", "emotion", "emotional", "human", "people",
+        "individual", "group", "social", "interpersonal", "communication",
+        "behave", "behaving", "behaved", "psychologic", "cognitively", "judge", "judging",
+        "lead", "leading", "led", "motivate", "motivating", "motivated", "feel", "feeling",
+        "felt", "interact", "interacting", "interacted", "communicate", "communicating",
+        "reluctant", "reluctance", "convince", "convincing", "persuade", "persuasion",
+        "legacy", "legacy project", "give up", "giving up", "think differently"
+      ],
+      "concepts": [
+        "escalation of commitment", "prospect theory", "confirmation bias", 
+        "anchoring bias", "framing bias", "representative heuristic", 
+        "endowment effect", "status quo bias", "mental accounting",
+        "cognitive bias", "psychological safety", "emotional intelligence"
+      ]
+    },
+    "technical": {
+      "keywords": [
+        "model", "modeling", "modeled", "simulation", "simulate", "simulating", "simulated",
+        "forecast", "forecasting", "forecasted", "optimization", "optimize", "optimizing", 
+        "optimized", "optimum", "optimization strategy", "optimization strategies",
+        "maximization", "maximize", "maximizing", "maximized", "maximum", "minimization", 
+        "minimize", "minimizing", "minimized", "minimum", "simulation strategy", "simulation strategies",
+        "analysis", "analyze", "analyzing", "analyzed", "analytical",
+        "data", "statistical", "statistics", "mathematical", "mathematics",
+        "algorithm", "algorithms", "uncertainty", "uncertain", "uncertainties", "probability", 
+        "probabilistic", "probable", "calculate", "calculation", "calculating", "calculated",
+        "compute", "computation", "computing", "computed", "numerical", "numeric",
+        "assess", "assessment", "assessing", "assessed", "evaluate", "evaluation", 
+        "evaluating", "evaluated", "measure", "measurement", "measuring", "measured",
+        "determine", "determining", "determined", "estimate", "estimating", "estimated",
+        "predict", "predicting", "predicted", "prediction", "predictions"
+      ],
+      "concepts": [
+        "monte carlo simulation", "sensitivity analysis", "linear optimization",
+        "expected value", "scenario analysis", "scenario planning", "regression", 
+        "moving average", "solver-based simulation", "integer optimization",
+        "aggregate planning", "analytical solver"
+      ]
+    },
+    "strategic": {
+      "keywords": [
+        "strategy", "strategic", "strategically", "competitive", "advantage", "positioning",
+        "market", "industry", "business", "organization", "planning", "planned",
+        "competitive advantage", "competitive analysis", "industry analysis",
+        "strategic planning", "strategic thinking", "strategic analysis",
+        "competitive strategy", "business strategy", "corporate strategy"
+      ],
+      "concepts": [
+        "porter's five forces", "cost leadership", "differentiation strategy",
+        "portfolio management", "competitive advantage analysis", "value chain analysis",
+        "strategic framing", "stakeholder alignment", "swot analysis"
+      ]
+    },
+    "negotiation": {
+      "keywords": [
+        "negotiate", "negotiation", "bargain", "deal", "agreement", "contract",
+        "discuss", "discussion", "meeting", "conference", "settlement",
+        "bargaining", "negotiating", "deal making", "agreement making",
+        "contract negotiation", "settlement discussion", "meeting discussion"
+      ],
+      "concepts": [
+        "batna", "reservation point", "zopa", "integrative negotiation",
+        "game theory", "winner's curse", "investigative negotiation",
+        "negotiation term sheet", "distributive negotiation"
+      ]
+    }
+  },
+  "application_fields": [
+    "business_strategy", "project_management", "risk_management", 
+    "financial_analysis", "operations_management", "human_resources",
+    "change_management", "stakeholder_management", "performance_management",
+    "supply_chain_management", "quality_management", "innovation_management"
+  ],
+  "entity_types": {
+    "organizations": ["company names", "department names", "team names", "business units"],
+    "projects": ["project names", "initiative names", "campaign names", "program names"],
+    "decisions": ["decision points", "choice options", "alternatives", "options"],
+    "stakeholders": ["person names", "role names", "position titles", "team members"],
+    "resources": ["budget", "time", "people", "technology", "materials"],
+    "outcomes": ["results", "consequences", "impacts", "benefits", "risks"]
+  },
+  "answer_templates": {
+    "strategic_lens": "In this scenario, addressing {context} involves understanding {primary_domain} principles. {domain_explanation} By leveraging {key_concepts}, you can {approach}. However, it's essential to {consideration}.",
+    "story_in_action": "For instance, {character} faced a similar situation where {scenario}. By applying {concept}, they {action} which led to {outcome}.",
+    "follow_up_prompts": [
+      "How might you {action} based on {concept}?",
+      "What {consideration} should you keep in mind when {situation}?",
+      "How could you {approach} using {method}?",
+      "What {alternative} might you consider if {condition}?"
+    ]
+  },
+  "concept_selection": {
+    "primary_threshold": 0.50,
+    "secondary_threshold": 0.40,
+    "core_threshold": 0.35,
+    "max_concepts": 4,
+    "max_questions": 4
+  },
+  "answer_format": {
+    "sections": [
+      "Strategic Thinking Lens",
+      "Follow-up Prompts",
+      "Concepts & Tools"
+    ],
+    "word_limits": {
+      "strategic_lens": {"min": 120, "max": 140},
+      "follow_up_prompts": {"min": 2, "max": 4},
+      "concepts_tools": {"min": 2, "max": 4}
+    }
+  }
+} 

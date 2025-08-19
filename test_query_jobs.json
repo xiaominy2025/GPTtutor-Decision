@@ -1,0 +1,8 @@
+{
+  "httpMethod": "POST",
+  "path": "/query",
+  "body": {
+    "course_id": "decision",
+    "question": "I have two job offers, how to choose?"
+  }
+}

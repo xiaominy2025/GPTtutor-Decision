@@ -1,0 +1,20 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Install Python deps first (using lighter requirements)
+COPY requirements_lambda.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Replace query_engine.py with the optimized version
+COPY query_engine_fixed.py query_engine.py
+
+# Set environment variables
+ENV COURSE_DIR=/var/task/courses \
+    DEFAULT_COURSE=decision
+
+# Test routes handler
+CMD ["test_flask_routes_optimized.lambda_handler"]

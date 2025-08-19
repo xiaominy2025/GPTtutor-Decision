@@ -1,0 +1,13 @@
+{
+  "AllowCredentials": false,
+  "AllowHeaders": ["*"],
+  "AllowMethods": ["GET", "POST"],
+  "AllowOrigins": [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://engentlabs.com",
+    "https://www.engentlabs.com"
+  ],
+  "ExposeHeaders": ["*"],
+  "MaxAge": 86400
+}

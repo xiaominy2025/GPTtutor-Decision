@@ -1,0 +1,11 @@
+{
+  "requestContext": {
+    "http": {
+      "method": "GET"
+    }
+  },
+  "rawPath": "/health",
+  "headers": {
+    "Content-Type": "application/json"
+  }
+}
