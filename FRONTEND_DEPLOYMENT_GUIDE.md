@@ -8,13 +8,16 @@
 
 ## 🔗 Backend Communication Requirements
 
+### ✅ Working Backend Configuration
+**Lambda Function URL**: `https://uvfr5y7mwffusf4c2avkbpc3240hacyi.lambda-url.us-east-2.on.aws/`
+
 ### API Endpoints
 The frontend expects these endpoints from the V1666 backend:
 
 ```javascript
 // Health check
 GET /health
-Response: {"status": "healthy", "version": "V166-Lambda"}
+Response: {"engine_ready":true,"status":"healthy","version":"1.6.6.6"}
 
 // Query processing
 POST /query
@@ -22,9 +25,9 @@ Request: {"query": "your question", "course_id": "decision"}
 Response: {
   "status": "success",
   "data": {
-    "answer": "**Strategic Thinking Lens**\n\n[content]...",
-    "followUpPrompts": ["prompt1", "prompt2", "prompt3"],
-    "processing_time": 2.5,
+    "answer": "**Strategic Thinking Lens**\n\n[content]...\n\n**Follow-up Prompts**\n\n1. [prompt1]\n2. [prompt2]\n\n**Concepts/Tools**\n\n- [concept1]: [definition]\n- [concept2]: [definition]",
+    "conceptsToolsPractice": [...],
+    "processing_time": 2.3,
     "model": "gpt-3.5-turbo"
   }
 }
@@ -65,7 +68,15 @@ async function testBackendConnection() {
         const response = await fetch(`${getApiBaseUrl()}/health`);
         const data = await response.json();
         console.log('✅ Backend health check:', data);
-        return true;
+        
+        // Verify expected response format
+        if (data.engine_ready && data.status === 'healthy') {
+            console.log('✅ Backend is ready and healthy');
+            return true;
+        } else {
+            console.warn('⚠️ Unexpected backend response format:', data);
+            return false;
+        }
     } catch (error) {
         console.error('❌ Backend connection failed:', error);
         return false;
@@ -89,15 +100,33 @@ function displayFollowUpPrompts(prompts) {
         console.log(`Prompt ${index + 1}:`, prompt);
     });
 }
+
+// Extract follow-up prompts from the answer text
+function extractFollowUpPrompts(answerText) {
+    const followUpMatch = answerText.match(/\*\*Follow-up Prompts\*\*\s*\n\n([\s\S]*?)(?=\n\n\*\*Concepts\/Tools\*\*|$)/);
+    if (followUpMatch) {
+        const promptsText = followUpMatch[1];
+        const prompts = promptsText.split('\n').filter(line => line.trim().match(/^\d+\./));
+        return prompts.map(prompt => prompt.replace(/^\d+\.\s*/, '').trim());
+    }
+    return [];
+}
 ```
 
 ## 🚀 Deployment Checklist
+
+### ✅ Current Working Backend Configuration
+**Use this URL in your frontend:**
+```javascript
+const API_BASE_URL = 'https://uvfr5y7mwffusf4c2avkbpc3240hacyi.lambda-url.us-east-2.on.aws/';
+```
 
 ### Pre-Deployment
 - [ ] Test locally with `python -m http.server 8000`
 - [ ] Verify clickable prompts work locally
 - [ ] Check browser console for errors
 - [ ] Test API communication locally
+- [ ] Confirm backend responds with three sections (Strategic Thinking Lens, Follow-up Prompts, Concepts/Tools)
 
 ### Deployment Steps
 1. **Upload files to S3/CloudFront**

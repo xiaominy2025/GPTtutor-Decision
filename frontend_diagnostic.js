@@ -56,12 +56,12 @@
             const response = await fetch(`${diagnostics.apiUrl}/health`);
             const data = await response.json();
             
-            if (response.ok) {
+            if (response.ok && data.engine_ready && data.status === 'healthy') {
                 diagnostics.backendReachable = true;
-                console.log('✅ Backend is reachable:', data);
+                console.log('✅ Backend is reachable and healthy:', data);
             } else {
-                diagnostics.issues.push(`Backend health check failed: ${response.status}`);
-                console.warn('⚠️ Backend health check failed:', response.status);
+                diagnostics.issues.push(`Backend health check failed: ${response.status} - ${JSON.stringify(data)}`);
+                console.warn('⚠️ Backend health check failed:', response.status, data);
             }
         } catch (error) {
             diagnostics.issues.push(`Backend connection error: ${error.message}`);
