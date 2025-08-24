@@ -169,8 +169,8 @@ def process_query():
         concepts_tools_practice = []
         if hasattr(query_engine, 'extract_tools_from_section'):
             import re
-            # V1.6.3: Only look for Concepts/Tools section
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
+                    # V1.6.3: Only look for Concepts/Tools section
+        concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
             if concepts_match:
                 concepts_section = concepts_match.group(0)
                 concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)
@@ -194,20 +194,6 @@ def process_query():
                     print(f"🚨 Invalid concept entry in conceptsToolsPractice: {item}")
             concepts_tools_practice = fixed
         # --- END VALIDATION BLOCK ---
-
-        # Apply deduplication if feature is enabled
-        if hasattr(query_engine, 'FEATURE_DEDUP') and query_engine.FEATURE_DEDUP:
-            if concepts_tools_practice:
-                # Deduplicate concepts based on term names
-                seen_terms = set()
-                deduplicated_concepts = []
-                for concept in concepts_tools_practice:
-                    # Normalize term name for comparison
-                    normalized_term = "".join(ch for ch in concept['term'].lower() if ch.isalnum())
-                    if normalized_term not in seen_terms:
-                        seen_terms.add(normalized_term)
-                        deduplicated_concepts.append(concept)
-                concepts_tools_practice = deduplicated_concepts
 
         # Format V1.6 API response
         response = {

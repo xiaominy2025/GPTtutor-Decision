@@ -169,8 +169,8 @@ def process_query():
         concepts_tools_practice = []
         if hasattr(query_engine, 'extract_tools_from_section'):
             import re
-            # V1.6.3: Only look for Concepts/Tools section
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
+                    # V1.6.3: Only look for Concepts/Tools section
+        concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
             if concepts_match:
                 concepts_section = concepts_match.group(0)
                 concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)

@@ -25,6 +25,8 @@ try:
     import numpy as np
     import faiss
     import spacy
+    # Import the authoritative query_engine module
+    import query_engine
 except ImportError as e:
     print(f"❌ Missing dependencies: {e}")
     # Will handle gracefully with fallback
@@ -32,46 +34,29 @@ except ImportError as e:
 app = Flask(__name__)
 
 # === CORS CONFIGURATION - V1.6.6.6 PRODUCTION ===
-PROD_ALLOWED_ORIGINS = {
+ALLOWED_ORIGINS = {
     "https://engentlabs.com",
-    "https://www.engentlabs.com",
-    "https://d1y6s1joavl0j7.cloudfront.net"
+    "https://www.engentlabs.com"
 }
-DEFAULT_ORIGIN = "https://engentlabs.com"
-VERSION = "V1.6.6.6"
 
 def pick_origin(event):
-    try:
-        origin = event.get("headers", {}).get("origin") or event.get("headers", {}).get("Origin")
-        if origin in PROD_ALLOWED_ORIGINS:
-            return origin
-    except Exception:
-        pass
-    return DEFAULT_ORIGIN
-
-def cors_headers(event):
-    origin = pick_origin(event)
-    return {
-        "Access-Control-Allow-Origin": origin,
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type,Authorization",
-        "Access-Control-Max-Age": "86400",
-        "Content-Type": "application/json"
-    }
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin")
+    return origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
 
 def create_response(data, status="success", status_code=200, event=None):
     """Standardized response wrapper for all endpoints"""
-    headers = cors_headers(event) if event else {
-        "Access-Control-Allow-Origin": "https://engentlabs.com",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Max-Age": "86400",
-        "Content-Type": "application/json"
-    }
-    
+    ao = pick_origin(event or {})
     return {
         "statusCode": status_code,
-        "headers": headers,
+        "headers": {
+            "Access-Control-Allow-Origin": ao,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Max-Age": "86400",
+            "Content-Type": "application/json",
+            "Vary": "Origin"
+        },
         "body": json.dumps({
             "data": data,
             "status": status,
@@ -81,12 +66,16 @@ def create_response(data, status="success", status_code=200, event=None):
     }
 
 def handle_options(event):
-    headers = cors_headers(event)
-    headers.pop("Content-Type", None)  # Remove Content-Type for OPTIONS response
-    
+    ao = pick_origin(event)
     return {
         "statusCode": 200,
-        "headers": headers,
+        "headers": {
+            "Access-Control-Allow-Origin": ao,
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Max-Age": "86400",
+            "Vary": "Origin"
+        },
         "body": ""
     }
 
@@ -95,181 +84,120 @@ def handle_options(event):
 # Course configuration
 DEFAULT_COURSE = "decision"
 
-# V166 System Prompt (Exact V166 Format)
-SYSTEM_PROMPT_V166 = """You are a Decision Coach GPT. Your role is to help students make better decisions by thinking clearly, strategically, and—when appropriate—analytically.
+# Note: Using authoritative SYSTEM_PROMPT_ANALYTICS from query_engine.py
 
-CRITICAL: You must format your response with EXACTLY these section headers:
-
-**Strategic Thinking Lens**
-
-Provide a cohesive strategic narrative that flows naturally in paragraph form. Avoid bullet points or lists. Tell a story of how to approach this decision strategically. Identify the decision type and key challenge. When the decision involves uncertainty, trade-offs, optimization, or forecasting, weave relevant analytical tools naturally into the narrative (e.g., decision trees, Monte Carlo simulation, scenario analysis, SWOT analysis, sensitivity analysis, linear optimization, competitive advantage analysis).
-
-**Follow-up Prompts**
-
-Offer exactly 3 thoughtful questions to help the student apply the strategy. Format as numbered questions:
-1. [Question about specific application]
-2. [Question about implementation]  
-3. [Question about monitoring/adaptation]
-
-**Concepts/Tools**
-
-List relevant decision-making concepts and tools mentioned, with brief definitions. Format as:
-- **Concept Name**: Brief definition explaining how it helps with decision-making.
-
-Focus on insight, structure, and practical application. Avoid generic motivational advice."""
-
-def get_openai_key():
-    """Get OpenAI API key from environment variable"""
-    api_key = os.environ.get('OPENAI_API_KEY')
-    if not api_key:
-        print("❌ OpenAI API key not found in environment variables")
-        raise ValueError("OpenAI API key not configured")
-    return api_key
-
-def compute_relevance_score(query: str) -> Tuple[float, str]:
-    """Simple relevance scoring for decision-making queries"""
-    query_lower = query.lower()
-    
-    # Decision-making keywords
-    decision_keywords = [
-        'decision', 'choose', 'select', 'evaluate', 'compare', 'analyze',
-        'strategy', 'plan', 'optimize', 'risk', 'uncertainty', 'trade-off',
-        'should i', 'how to', 'what factors', 'consider', 'assess'
-    ]
-    
-    # Business/strategy keywords
-    business_keywords = [
-        'business', 'company', 'organization', 'market', 'competition',
-        'investment', 'cost', 'benefit', 'profit', 'revenue', 'growth',
-        'production', 'supply', 'demand', 'pricing', 'strategy',
-        'salary', 'compensation', 'job', 'career', 'employment', 'negotiate'
-    ]
-    
-    score = 0
-    debug_info = []
-    
-    # Check for decision-making keywords
-    for keyword in decision_keywords:
-        if keyword in query_lower:
-            score += 1
-            debug_info.append(f"decision_keyword: {keyword}")
-    
-    # Check for business keywords
-    for keyword in business_keywords:
-        if keyword in query_lower:
-            score += 0.5
-            debug_info.append(f"business_keyword: {keyword}")
-    
-    return score, ", ".join(debug_info)
-
-def detect_concepts_in_query(query: str) -> List[Tuple[str, str]]:
-    """Detect relevant concepts in the query"""
-    query_lower = query.lower()
-    detected_concepts = []
-    
-    # Simple concept detection based on keywords
-    concept_keywords = {
-        "swot analysis": ["swot", "strengths", "weaknesses", "opportunities", "threats"],
-        "decision tree": ["decision tree", "tree analysis", "branching"],
-        "cost-benefit analysis": ["cost benefit", "cost-benefit", "compare costs"],
-        "risk assessment": ["risk", "uncertainty", "threat", "assessment"],
-        "scenario planning": ["scenario", "planning", "future", "what if"],
-        "optimization": ["optimize", "optimization", "best", "efficient"],
-        "supply chain": ["supply chain", "logistics", "procurement", "distribution"]
-    }
-    
-    for concept, keywords in concept_keywords.items():
-        for keyword in keywords:
-            if keyword in query_lower:
-                detected_concepts.append((concept, f"Relevant concept for {concept}"))
-                break
-    
-    return detected_concepts
-
-def extract_application_field(query: str) -> str:
-    """Extract the application field from the query"""
-    query_lower = query.lower()
-    
-    if any(word in query_lower for word in ["production", "manufacturing", "operations"]):
-        return "Production and Operations Management"
-    elif any(word in query_lower for word in ["investment", "finance", "financial"]):
-        return "Financial Decision Making"
-    elif any(word in query_lower for word in ["marketing", "market", "customer"]):
-        return "Marketing Strategy"
-    elif any(word in query_lower for word in ["job", "career", "employment", "salary"]):
-        return "Career and Employment Decisions"
-    elif any(word in query_lower for word in ["business", "strategy", "competitive"]):
-        return "Business Strategy"
-    else:
-        return "General Decision Making"
+# Note: Removed duplicate functions - now using authoritative query_engine methods
 
 def process_query_v166_fixed(query: str) -> dict:
     """
-    Fixed V166 Query Processing - Returns formatted text response
+    Fixed V166 Query Processing - Uses authoritative query_engine.process_query()
     """
     try:
         print(f"🔄 V166 Processing Query: {query}")
         
-        # Step 1: Relevance scoring
-        score, debug_info = compute_relevance_score(query)
-        print(f"📊 Relevance Score: {score}, Debug: {debug_info}")
+        # Test file access first
+        print("🔍 Testing file access...")
+        import os
+        print(f"Current directory: {os.getcwd()}")
+        print(f"Directory contents: {os.listdir('.')}")
         
-        if score < 0.5:  # Much lower threshold for testing
-            print(f"⚠️ Query rejected due to low relevance. Debug: {debug_info}")
+        if os.path.exists('query_engine.py'):
+            print("✅ query_engine.py exists")
+        else:
+            print("❌ query_engine.py not found")
+            
+        if os.path.exists('vector_index.faiss'):
+            print("✅ vector_index.faiss exists")
+        else:
+            print("❌ vector_index.faiss not found")
+            
+        if os.path.exists('courses'):
+            print("✅ courses directory exists")
+        else:
+            print("❌ courses directory not found")
+        
+        # Check if query_engine is available
+        if not hasattr(query_engine, 'process_query'):
+            print("❌ query_engine.process_query method not found")
+            raise Exception("query_engine.process_query method not available")
+        
+        print("✅ query_engine.process_query method found")
+        
+        # Test if we can access basic query_engine functions
+        print("🔍 Testing query_engine basic functionality...")
+        try:
+            # Test if we can access the compute_relevance_score function
+            if hasattr(query_engine, 'compute_relevance_score'):
+                score, debug = query_engine.compute_relevance_score(query)
+                print(f"✅ Relevance score test: {score}, debug: {debug}")
+            else:
+                print("⚠️ compute_relevance_score not available")
+        except Exception as e:
+            print(f"⚠️ Relevance score test failed: {e}")
+        
+        # Use the authoritative query_engine.process_query() method
+        # This ensures 100% consistency with api_server.py
+        start_time = time.time()
+        try:
+            answer = query_engine.process_query(query)
+            print(f"✅ Query engine processing completed successfully")
+        except Exception as qe:
+            print(f"❌ Query engine processing failed: {qe}")
+            print(f"❌ Error type: {type(qe)}")
+            traceback.print_exc()
+            raise qe
+            
+        processing_time = time.time() - start_time
+        
+        print(f"✅ Query engine processing completed in {processing_time:.2f}s")
+        print(f"📝 Answer length: {len(answer)} characters")
+        print(f"📄 Answer preview: {answer[:200]}...")
+        
+        # Check if query was rejected by relevance filter
+        if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
+            print("⚠️ Query rejected by relevance filter")
             return {
-                "answer": "⚠️ This question doesn't appear to be related to decision-making. Try asking about decision-making tools, strategies, or business decisions.",
-                "strategicThinkingLens": "⚠️ This question doesn't appear to be related to decision-making. Try asking about decision-making tools, strategies, or business decisions.",
+                "answer": answer,
+                "strategicThinkingLens": answer,
                 "followUpPrompts": "",
-                "conceptsToolsPractice": "",
+                "conceptsToolsPractice": [],
                 "model": "relevance_filter",
-                "processing_time": 0.0
+                "processing_time": processing_time
             }
         
-        # Step 2: Build context-aware user message
-        user_message = f"Query: {query}\n\n"
+        # Extract concepts/tools as objects for frontend (EXACT same logic as api_server.py)
+        concepts_tools_practice = []
+        if hasattr(query_engine, 'extract_tools_from_section'):
+            import re
+            # V1.6.3: Only look for Concepts/Tools section
+            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
+            if concepts_match:
+                concepts_section = concepts_match.group(0)
+                concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)
         
-        # Add application field context
-        application_field = extract_application_field(query)
-        user_message += f"Application field: {application_field}\n\n"
-        
-        # Step 3: OpenAI API call with V166 system prompt
-        try:
-            openai_api_key = get_openai_key()
-            print(f"🔑 OpenAI API key retrieved: {openai_api_key[:10]}...")
-            openai.api_key = openai_api_key
-            
-            start_time = time.time()
-            
-            print("🤖 Making OpenAI API call...")
-            print(f"📝 User message: {user_message}")
-            
-            response_obj = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT_V166},
-                    {"role": "user", "content": user_message}
-                ],
-                max_tokens=1500,
-                temperature=0.3
+        # --- VALIDATION BLOCK: Ensure conceptsToolsPractice is always a list of {term, definition} objects ---
+        def is_valid_concept(obj):
+            return (
+                isinstance(obj, dict)
+                and 'term' in obj and isinstance(obj['term'], str) and obj['term'].strip() != ''
+                and 'definition' in obj and isinstance(obj['definition'], str) and obj['definition'].strip() != ''
             )
-            
-            processing_time = time.time() - start_time
-            answer = response_obj.choices[0].message.content.strip()
-            
-            print(f"✅ OpenAI Response received in {processing_time:.2f}s")
-            print(f"📝 Answer length: {len(answer)} characters")
-            print(f"📄 Answer preview: {answer[:200]}...")
-            
-        except Exception as openai_error:
-            print(f"❌ OpenAI API call failed: {openai_error}")
-            print(f"❌ Error type: {type(openai_error)}")
-            traceback.print_exc()
-            raise openai_error
+        if not isinstance(concepts_tools_practice, list):
+            print("🚨 Invalid conceptsToolsPractice format (not a list):", concepts_tools_practice)
+            concepts_tools_practice = []
+        else:
+            fixed = []
+            for item in concepts_tools_practice:
+                if is_valid_concept(item):
+                    fixed.append(item)
+                else:
+                    print(f"🚨 Invalid concept entry in conceptsToolsPractice: {item}")
+            concepts_tools_practice = fixed
+        # --- END VALIDATION BLOCK ---
         
-        # Step 4: Parse the answer into structured format
+        # Parse sections from the answer (same as api_server.py logic)
         strategic_thinking_lens = ""
         follow_up_prompts = ""
-        concepts_tools_practice = ""
         
         # Simple parsing of the answer sections
         sections = answer.split("**")
@@ -280,11 +208,8 @@ def process_query_v166_fixed(query: str) -> dict:
             elif "Follow-up Prompts" in section:
                 if i + 1 < len(sections):
                     follow_up_prompts = sections[i + 1].strip()
-            elif "Concepts/Tools" in section:
-                if i + 1 < len(sections):
-                    concepts_tools_practice = sections[i + 1].strip()
         
-        # Return structured response with required keys
+        # Return structured response with required keys (same format as api_server.py)
         return {
             "answer": answer,
             "strategicThinkingLens": strategic_thinking_lens,
@@ -304,7 +229,7 @@ def process_query_v166_fixed(query: str) -> dict:
             "answer": fallback_answer,
             "strategicThinkingLens": fallback_answer,
             "followUpPrompts": "",
-            "conceptsToolsPractice": "",
+            "conceptsToolsPractice": [],
             "model": "fallback",
             "processing_time": 0.0
         }
@@ -354,6 +279,40 @@ def lambda_handler(event, context):
                 elapsed = time.time() - start_time
                 print(f"[LOG] Health check completed in {elapsed:.3f}s")
                 return create_response({"status": "healthy"}, event=event)
+                
+            elif http_method == 'GET' and path == '/debug/files':
+                    # Debug endpoint to check file access
+                    print("🔍 Debug files endpoint called")
+                    
+                    # Use the unified path system from query_engine
+                    try:
+                        import query_engine
+                        base_dir = query_engine.get_base_dir()
+                        course_dir = query_engine.get_course_dir()
+                        idx_path = query_engine.get_idx_path()
+                        
+                        debug_info = {
+                            "base_dir": base_dir,
+                            "course_dir": course_dir,
+                            "idx_path": idx_path,
+                            "root_files": os.listdir(base_dir) if os.path.exists(base_dir) else "MISSING",
+                            "course_files": os.listdir(course_dir) if os.path.exists(course_dir) else "MISSING",
+                            "faiss_exists": os.path.exists(idx_path),
+                            "query_engine_exists": os.path.exists(os.path.join(base_dir, "query_engine.py")),
+                            "lambda_function_exists": os.path.exists(os.path.join(base_dir, "lambda_function.py")),
+                            "file_check": query_engine.assert_required_files_exist()
+                        }
+                    except Exception as e:
+                        debug_info = {
+                            "error": str(e),
+                            "error_type": type(e).__name__,
+                            "base_dir": os.getcwd(),
+                            "root_files": os.listdir(os.getcwd()) if os.path.exists(os.getcwd()) else "MISSING"
+                        }
+                    
+                    elapsed = time.time() - start_time
+                    print(f"[LOG] Debug files endpoint completed in {elapsed:.3f}s")
+                    return create_response(debug_info, event=event)
                 
             elif http_method == 'GET' and path == '/courses':
                 elapsed = time.time() - start_time
@@ -427,6 +386,7 @@ def lambda_handler(event, context):
             print(f"[LOG] Direct Lambda invocation completed in {elapsed:.3f}s")
             print("📞 Direct Lambda invocation detected")
             return create_response({
+             
                 "message": "V1.6.6.6 Lambda function is running",
                 "event_type": "Direct Invocation"
             }, event=event)

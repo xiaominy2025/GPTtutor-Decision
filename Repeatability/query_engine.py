@@ -13,7 +13,7 @@ import traceback
 import difflib
 from typing import List, Tuple, Dict, Any
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
@@ -172,18 +172,63 @@ if not openai_api_key:
     print("FAIL: Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
 
-# Define metadata loading constants
+# Unified file path resolution system
+def get_base_dir():
+    """Get the base directory where the query_engine.py file is located"""
+    return os.path.dirname(os.path.abspath(__file__))
+
+def get_course_dir():
+    """Get the course directory path"""
+    course_id = os.getenv("COURSE_ID", "decision")
+    return os.path.join(get_base_dir(), "courses", course_id)
+
+def get_idx_path():
+    """Get the FAISS index file path"""
+    return os.path.join(get_base_dir(), "vector_index.faiss")
+
+def assert_required_files_exist():
+    """Assert that all required files exist and log their paths"""
+    base_dir = get_base_dir()
+    course_dir = get_course_dir()
+    idx_path = get_idx_path()
+    
+    required_files = {
+        "vector_index.faiss": idx_path,
+        "base_metadata.json": os.path.join(course_dir, "base_metadata.json"),
+        "glossary.json": os.path.join(course_dir, "glossary.json"),
+        "ui_metadata.json": os.path.join(course_dir, "ui_metadata.json")
+    }
+    
+    print(f"DEBUG: Base directory: {base_dir}")
+    print(f"DEBUG: Course directory: {course_dir}")
+    print(f"DEBUG: FAISS index path: {idx_path}")
+    
+    missing_files = []
+    for file_name, file_path in required_files.items():
+        exists = os.path.exists(file_path)
+        print(f"DEBUG: {file_name}: {file_path} - {'EXISTS' if exists else 'MISSING'}")
+        if not exists:
+            missing_files.append(file_name)
+    
+    if missing_files:
+        raise FileNotFoundError(f"Missing required files: {missing_files}")
+    
+    return required_files
+
+# Define metadata loading constants using unified path system
 COURSE_ID = os.getenv("COURSE_ID", "decision")
+BASE_DIR = get_base_dir()
+COURSE_DIR = get_course_dir()
+IDX_PATH = get_idx_path()
 
 # 1. Runtime metadata location (Lambda cold start creates this in rebuild mode)
 TMP_META_PATH = Path(f"/tmp/courses/{COURSE_ID}/metadata.json")
 
 # 2. Baked base metadata location
-COURSE_DIR = Path(f"courses/{COURSE_ID}")
-BASE_META_PATH = COURSE_DIR / "base_metadata.json"
+BASE_META_PATH = Path(os.path.join(COURSE_DIR, "base_metadata.json"))
 
 # 3. Legacy metadata location (pre-transition)
-LEGACY_META_PATH = COURSE_DIR / "metadata.json"
+LEGACY_META_PATH = Path(os.path.join(COURSE_DIR, "metadata.json"))
 
 # Select the highest-priority existing file
 if TMP_META_PATH.exists():
@@ -234,7 +279,7 @@ def compute_relevance_score(query):
     return score, debug_info
 
 # Initialize OpenAI client
-client = OpenAI(api_key=openai_api_key)
+openai.api_key = openai_api_key
 
 # Performance timing system (moved to API server route level)
 
@@ -257,11 +302,22 @@ def load_data_lazily():
     
     if _index is None:
         try:
-            _index = faiss.read_index("vector_index.faiss")
+            # Assert all required files exist
+            assert_required_files_exist()
+            
+            # Load FAISS index using absolute path
+            print(f"DEBUG: Loading FAISS index from {IDX_PATH}")
+            _index = faiss.read_index(IDX_PATH)
+            print(f"DEBUG: FAISS index loaded, ntotal = {_index.ntotal}")
+            
+            # Load metadata using selected path
+            print(f"DEBUG: Loading metadata from {SELECTED_META_PATH}")
             with open(SELECTED_META_PATH, "r", encoding="utf-8") as f:
                 _metadata = json.load(f)
             _documents = _metadata["documents"]
             _file_names = _metadata.get("file_names", ["Unknown"] * len(_documents))
+            
+            # Load models
             _model = SentenceTransformer("all-mpnet-base-v2")
             if SPACY_AVAILABLE:
                 _nlp = spacy.load("en_core_web_sm")
@@ -273,7 +329,10 @@ def load_data_lazily():
             
         except Exception as e:
             print(f"FAIL: Error loading data: {e}")
-            sys.exit(1)
+            print(f"FAIL: Error type: {type(e)}")
+            import traceback
+            traceback.print_exc()
+            raise  # Don't call sys.exit(1), raise the exception instead
     
     return _index, _metadata, _documents, _file_names, _model, _nlp
 
@@ -290,23 +349,37 @@ def load_course_data_cached(course_id):
     Returns:
         Cached course data or loads it for the first time
     """
-    # V1.6.6.6: Always use 'decision' course regardless of course_id parameter
-    # This is a temporary workaround until V1.6.7 multi-course architecture
-    effective_course_id = "decision"
-    
-    if effective_course_id in cached_data:
-        print(f"✅ Using cached data for course: {effective_course_id}")
-        return cached_data[effective_course_id]
-    
-    print(f"🔁 First-time load for course: {effective_course_id}")
-    # Performance timing: Only measure actual data loading time
-    start_time = time.time()
-    # Load data using existing lazy loading mechanism
-    data = load_data_lazily()
-    duration = time.time() - start_time
-    cached_data[effective_course_id] = data
-    print(f"🔹 Data Load Time: {duration:.2f}s")
-    return data
+    try:
+        # V1.6.6.6: Always use 'decision' course regardless of course_id parameter
+        # This is a temporary workaround until V1.6.7 multi-course architecture
+        effective_course_id = "decision"
+        
+        if effective_course_id in cached_data:
+            print(f"✅ Using cached data for course: {effective_course_id}")
+            return cached_data[effective_course_id]
+        
+        print(f"🔁 First-time load for course: {effective_course_id}")
+        
+        # Use unified file path system
+        assert_required_files_exist()
+        
+        # Performance timing: Only measure actual data loading time
+        start_time = time.time()
+        
+        # Load data using existing lazy loading mechanism
+        data = load_data_lazily()
+        
+        duration = time.time() - start_time
+        cached_data[effective_course_id] = data
+        print(f"🔹 Data Load Time: {duration:.2f}s")
+        return data
+        
+    except Exception as e:
+        print("❌ load_course_data_cached failed:", repr(e))
+        print("❌ Error type:", type(e))
+        import traceback
+        traceback.print_exc()
+        raise  # Don't swallow — raise so CloudWatch shows the real error
 
 # Decision frameworks - Core domains of the decision-making process
 FRAMEWORKS = {
@@ -1321,7 +1394,7 @@ def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
     else:
         return 1200
 
-def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
+def robust_api_call(system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
     """Handle API calls with retries using system/user message structure"""
     tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
     messages = [
@@ -1330,7 +1403,7 @@ def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: i
     ]
     for attempt in range(max_retries):
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
                 messages=messages,
                 temperature=1.2,  # Increased for more variety
@@ -2043,7 +2116,6 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Make API call
         response, error = robust_api_call(
-            client=client,
             system_prompt=SYSTEM_PROMPT_ANALYTICS,
             user_message=user_message,
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))
