@@ -1,0 +1,96 @@
+# Windows files
+Thumbs.db
+Desktop.ini
+desktop.ini
+*.lnk
+$RECYCLE.BIN/
+System Volume Information/
+
+# macOS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual envs
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Deployment scripts and artifacts
+*.zip
+Dockerfile*
+*.ps1
+*.sh
+*.md
+docs/
+archive_*/
+
+# Tests
+test_*.py
+*_test.py
+tests/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Exclude everything except essential files
+*
+!lambda_handler.py
+!api_server.py
+!query_engine.py
+!requirements.txt
+!Dockerfile
+!vector_index.faiss
+!courses/**

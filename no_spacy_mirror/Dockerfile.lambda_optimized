@@ -1,0 +1,20 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Install Python deps first (using lighter requirements)
+COPY requirements_lambda.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Use the original V1666 query engine as-is
+# COPY query_engine_fixed.py query_engine.py
+
+# Set environment variables
+ENV COURSE_DIR=/var/task/courses \
+    DEFAULT_COURSE=decision
+
+# Lambda handler entry point
+CMD ["lambda_handler.lambda_handler"]

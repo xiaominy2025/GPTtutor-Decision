@@ -1,4 +1,1 @@
-{
-  "httpMethod": "GET",
-  "path": "/health"
-}
+{"httpMethod": "GET", "path": "/health"}

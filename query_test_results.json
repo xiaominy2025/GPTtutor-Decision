@@ -1,0 +1,21 @@
+﻿{
+    "query_2":  {
+                    "content_length":  null,
+                    "question":  "I have two job offers, how to choose?",
+                    "status_code":  null,
+                    "response":  null
+                },
+    "test_timestamp":  "2025-08-23 12:25:33",
+    "query_1":  {
+                    "content_length":  null,
+                    "question":  "Under tariff uncertainty, how do I plan my production?",
+                    "status_code":  null,
+                    "response":  null
+                },
+    "query_3":  {
+                    "content_length":  null,
+                    "question":  "How do I negotiate a better salary package with my boss?",
+                    "status_code":  null,
+                    "response":  null
+                }
+}

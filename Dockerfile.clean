@@ -1,0 +1,18 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+# Use Lambda task root
+WORKDIR ${LAMBDA_TASK_ROOT}
+
+# Install Python deps first (for better layer caching)
+COPY requirements_container.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Set environment variables
+ENV COURSE_DIR=/var/task/courses \
+    DEFAULT_COURSE=decision
+
+# Lambda handler entry point
+CMD ["lambda_handler_clean.lambda_handler"]
