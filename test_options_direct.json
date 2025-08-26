@@ -1,0 +1,12 @@
+{
+  "requestContext": {
+    "http": {
+      "method": "OPTIONS",
+      "path": "/health"
+    }
+  },
+  "headers": {
+    "origin": "https://www.engentlabs.com",
+    "Access-Control-Request-Method": "GET"
+  }
+}

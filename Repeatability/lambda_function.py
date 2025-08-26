@@ -46,16 +46,10 @@ def pick_origin(event):
 
 def create_response(data, status="success", status_code=200, event=None):
     """Standardized response wrapper for all endpoints"""
-    ao = pick_origin(event or {})
     return {
         "statusCode": status_code,
         "headers": {
-            "Access-Control-Allow-Origin": ao,
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Max-Age": "86400",
-            "Content-Type": "application/json",
-            "Vary": "Origin"
+            "Content-Type": "application/json"
         },
         "body": json.dumps({
             "data": data,
@@ -66,13 +60,19 @@ def create_response(data, status="success", status_code=200, event=None):
     }
 
 def handle_options(event):
-    ao = pick_origin(event)
+    """Handle OPTIONS preflight requests with robust CORS headers"""
+    headers = event.get("headers") or {}
+    origin = headers.get("origin") or headers.get("Origin")
+    
+    # Always return CORS headers, even for invalid origins (browser will handle)
+    cors_origin = origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
+    
     return {
         "statusCode": 200,
         "headers": {
-            "Access-Control-Allow-Origin": ao,
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+            "Access-Control-Allow-Origin": cors_origin,
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
             "Access-Control-Max-Age": "86400",
             "Vary": "Origin"
         },

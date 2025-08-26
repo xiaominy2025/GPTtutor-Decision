@@ -1,7 +1,7 @@
 {
   "AllowCredentials": false,
-  "AllowHeaders": ["*"],
-  "AllowMethods": ["*"],
+  "AllowHeaders": ["Content-Type", "Authorization"],
+  "AllowMethods": ["GET", "POST", "OPTIONS"],
   "AllowOrigins": ["https://www.engentlabs.com", "https://engentlabs.com"],
   "ExposeHeaders": ["*"],
   "MaxAge": 86400
