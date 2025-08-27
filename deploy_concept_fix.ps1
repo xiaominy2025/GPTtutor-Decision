@@ -74,7 +74,7 @@ Write-Host "✅ Lambda configuration updated successfully!" -ForegroundColor Gre
 
 # Set environment variables as per playbook
 Write-Host "🔧 Setting environment variables..." -ForegroundColor Yellow
-aws lambda update-function-configuration --function-name $FUNCTION_NAME --region $REGION --environment "Variables={OPENAI_API_KEY=<YOUR_API_KEY>,COURSE_ID=decision,FEATURE_DEDUP=1,FEATURE_STORY_MERGE=1}"
+aws lambda update-function-configuration --function-name $FUNCTION_NAME --region $REGION --environment "Variables={OPENAI_API_KEY=REPLACE_WITH_ACTUAL_KEY,COURSE_ID=decision,FEATURE_DEDUP=1,FEATURE_STORY_MERGE=1}"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ Environment variables update failed!" -ForegroundColor Red
