@@ -1452,7 +1452,8 @@ def extract_tools_from_section(content: str) -> list:
     tooltip_terms = {item['term'].lower() for item in tooltip_concepts}
     
     # Parse the standard format: "Concept Name: Definition"
-    concept_lines = re.findall(r'^([^:\n]+?):\s*([^\n]+)$', tool_section, re.MULTILINE)
+    # Modified to exclude bullet points to prevent duplicate extraction
+    concept_lines = re.findall(r'^(?![-*]\s)([^:\n]+?):\s*([^\n]+)$', tool_section, re.MULTILINE)
     for concept_name, definition in concept_lines:
         concept_name = concept_name.strip()
         definition = definition.strip()
