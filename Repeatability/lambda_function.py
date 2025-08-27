@@ -21,7 +21,6 @@ from flask import Flask, request, jsonify
 # V166 Dependencies (must be included in Lambda deployment)
 try:
     import openai
-    from sentence_transformers import SentenceTransformer
     import numpy as np
     import faiss
     import spacy
@@ -260,12 +259,26 @@ def lambda_handler(event, context):
             print(f"  path: {path}")
             print(f"  body: {body}")
             
-            # Parse body
+            # Parse body with better error handling
+            print(f"🔍 Body type: {type(body)}")
+            print(f"🔍 Body length: {len(str(body)) if body else 0}")
+            print(f"🔍 Body preview: {str(body)[:500] if body else 'None'}...")
+            
             if isinstance(body, str):
                 try:
                     body = json.loads(body)
-                except:
+                    print(f"✅ Body parsed successfully")
+                except json.JSONDecodeError as e:
+                    print(f"❌ JSON decode error: {e}")
                     body = {}
+                except Exception as e:
+                    print(f"❌ Body parsing error: {e}")
+                    body = {}
+            elif body is None:
+                print(f"⚠️ Body is None, using empty dict")
+                body = {}
+            else:
+                print(f"✅ Body is already parsed: {type(body)}")
             
             print(f"🌐 API Gateway request: {http_method} {path}")
             
@@ -340,8 +353,10 @@ def lambda_handler(event, context):
                 
             elif http_method == 'POST' and path == '/query':
                 print(f"📦 Parsed body: {body}")
+                print(f"📦 Body keys: {list(body.keys()) if isinstance(body, dict) else 'Not a dict'}")
                 
                 if not body or 'query' not in body:
+                    print(f"❌ Missing query in body: {body}")
                     return create_response(
                         {"error": "Query is required"}, 
                         status="error", 
@@ -353,10 +368,24 @@ def lambda_handler(event, context):
                 course_id = body.get('course_id', DEFAULT_COURSE)
                 
                 print(f"📚 Frontend requested course: {course_id}")
+                print(f"📝 Query: {query}")
                 print("🔄 Using Fixed V166 Query Engine")
                 
-                # Process query using fixed V166 implementation
-                response_data = process_query_v166_fixed(query)
+                try:
+                    # Process query using fixed V166 implementation
+                    response_data = process_query_v166_fixed(query)
+                    print(f"✅ Query processing completed successfully")
+                except Exception as e:
+                    print(f"❌ Query processing failed: {e}")
+                    print(f"❌ Error type: {type(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    return create_response(
+                        {"error": f"Query processing failed: {str(e)}"}, 
+                        status="error", 
+                        status_code=500,
+                        event=event
+                    )
                 
                 elapsed = time.time() - start_time
                 print(f"[LOG] Query processing completed in {elapsed:.3f}s")

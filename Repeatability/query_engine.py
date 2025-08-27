@@ -16,142 +16,38 @@ from dotenv import load_dotenv
 import openai
 import numpy as np
 import faiss
-from sentence_transformers import SentenceTransformer
+# OpenAI embeddings instead of sentence-transformers for Lambda compatibility
 from pathlib import Path
 
-# Feature flags
-FEATURE_DEDUP = os.getenv("FEATURE_DEDUP", "0") == "1"
-FEATURE_STORY_MERGE = os.getenv("FEATURE_STORY_MERGE", "1") == "1"  # Default to enabled
-
-def _dedup_list(items):
-    seen, out = set(), []
-    for x in items or []:
-        # Normalize by stripping non-alphanumeric
-        k = "".join(ch for ch in x.lower() if ch.isalnum())
-        if k not in seen:
-            seen.add(k)
-            out.append(x)
-    return out
-
-def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int) -> str:
+def cosine_similarity(vec1, vec2):
     """
-    Merge Strategic Thinking Lens and Story using GPT-3.5 to create a refined Lens.
-    
-    Args:
-        lens_text: Original Strategic Thinking Lens content (reasoning)
-        story_text: Original Story in Action content (example seed)
-        domain_count: Number of domains detected (for adaptive word count)
-        
-    Returns:
-        Merged Strategic Thinking Lens with integrated story
+    Calculate cosine similarity between two vectors
     """
-    # Calculate target length based on domain count
-    target_length = min(150, 100 + (domain_count - 1) * 25)
+    import numpy as np
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
     
-    # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
-    prompt = f"""
-You're an expert instructor helping graduate students practice strategic decision-making.
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+    
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    
+    return dot_product / (norm1 * norm2)
 
-Below are two drafts:
-1. A strategic thinking explanation for the query
-2. An illustrative story or scenario aligned with that explanation
-
-Your task is to revise and merge these into a single, cohesive answer. The result will be displayed under the section: **Strategic Thinking Lens**.
-
-✅ Do NOT add section headers or markdown titles like "Strategic Reasoning" or "Concrete Example."
-✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
-✅ Write ONLY the narrative content without any formatting headers
-✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
-✅ Use a clear, professional tone appropriate for graduate-level learners.
-✅ Keep the response concise (ideally two well-developed paragraphs).
-✅ Avoid repetition or superficial elaboration.
-
-Lens Draft:
-{lens_text}
-
-Story Draft:
-{story_text}
-"""
-
-    try:
-        print("✅ GPT call starting")
-        
-        # Call GPT-3.5 for merging
-        response, error = robust_api_call(
-            client=client,
-            system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
-            user_message=prompt,
-            max_tokens=300
-        )
-        
-        print("✅ GPT call complete")
-        
-        if error:
-            print(f"❌ GPT-3.5 merge failed: {error}")
-            # Fallback: concatenate with connector
-            merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-            print("🔄 Using fallback merge (concatenation)")
-            return merged_lens
-        
-        # Extract merged content
-        merged_content = response.choices[0].message.content.strip()
-        
-        # ✅ Clean up redundant headers in merged_content from GPT output
-        merged_content = re.sub(
-            r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-            '',
-            merged_content.strip(),
-            flags=re.IGNORECASE
-        )
-        
-        # Log success
-        tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        print(f"✅ GPT-3.5 merge successful: {tokens_used} tokens")
-        
-        return merged_content
-        
-    except Exception as e:
-        print(f"❌ Exception in merge_and_extend_with_story: {e}")
-        # Fallback: concatenate with connector
-        merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-        print("🔄 Using fallback merge (concatenation) due to exception")
-        return merged_lens
-
-def extract_sections_from_response(answer: str) -> dict:
+def batch_cosine_similarity(query_vec, reference_vecs):
     """
-    Extract sections from the GPT response.
-    
-    Args:
-        answer: Raw GPT response
-        
-    Returns:
-        Dictionary with section names as keys and content as values
+    Calculate cosine similarity between query vector and multiple reference vectors
     """
-    sections = {}
-    
-    # Extract Strategic Thinking Lens
-    lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if lens_match:
-        sections['lens'] = lens_match.group(1).strip()
-    
-    # Extract Story in Action
-    story_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if story_match:
-        sections['story'] = story_match.group(1).strip()
-    
-    # Extract Follow-up Prompts
-    prompts_match = re.search(r'\*\*Follow-up Prompts\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if prompts_match:
-        sections['prompts'] = prompts_match.group(1).strip()
-    
-    # Extract Concepts/Tools
-    concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if concepts_match:
-        sections['concepts'] = concepts_match.group(1).strip()
-    
-    return sections
+    import numpy as np
+    similarities = []
+    for ref_vec in reference_vecs:
+        sim = cosine_similarity(query_vec, ref_vec)
+        similarities.append(sim)
+    return np.array(similarities)
 
-from sentence_transformers import util
+# Removed sentence-transformers import - using custom cosine similarity
 try:
     import spacy
     SPACY_AVAILABLE = True
@@ -172,63 +68,18 @@ if not openai_api_key:
     print("FAIL: Error: OPENAI_API_KEY not set in environment variables.")
     sys.exit(1)
 
-# Unified file path resolution system
-def get_base_dir():
-    """Get the base directory where the query_engine.py file is located"""
-    return os.path.dirname(os.path.abspath(__file__))
-
-def get_course_dir():
-    """Get the course directory path"""
-    course_id = os.getenv("COURSE_ID", "decision")
-    return os.path.join(get_base_dir(), "courses", course_id)
-
-def get_idx_path():
-    """Get the FAISS index file path"""
-    return os.path.join(get_base_dir(), "vector_index.faiss")
-
-def assert_required_files_exist():
-    """Assert that all required files exist and log their paths"""
-    base_dir = get_base_dir()
-    course_dir = get_course_dir()
-    idx_path = get_idx_path()
-    
-    required_files = {
-        "vector_index.faiss": idx_path,
-        "base_metadata.json": os.path.join(course_dir, "base_metadata.json"),
-        "glossary.json": os.path.join(course_dir, "glossary.json"),
-        "ui_metadata.json": os.path.join(course_dir, "ui_metadata.json")
-    }
-    
-    print(f"DEBUG: Base directory: {base_dir}")
-    print(f"DEBUG: Course directory: {course_dir}")
-    print(f"DEBUG: FAISS index path: {idx_path}")
-    
-    missing_files = []
-    for file_name, file_path in required_files.items():
-        exists = os.path.exists(file_path)
-        print(f"DEBUG: {file_name}: {file_path} - {'EXISTS' if exists else 'MISSING'}")
-        if not exists:
-            missing_files.append(file_name)
-    
-    if missing_files:
-        raise FileNotFoundError(f"Missing required files: {missing_files}")
-    
-    return required_files
-
-# Define metadata loading constants using unified path system
+# Define metadata loading constants
 COURSE_ID = os.getenv("COURSE_ID", "decision")
-BASE_DIR = get_base_dir()
-COURSE_DIR = get_course_dir()
-IDX_PATH = get_idx_path()
 
 # 1. Runtime metadata location (Lambda cold start creates this in rebuild mode)
 TMP_META_PATH = Path(f"/tmp/courses/{COURSE_ID}/metadata.json")
 
 # 2. Baked base metadata location
-BASE_META_PATH = Path(os.path.join(COURSE_DIR, "base_metadata.json"))
+COURSE_DIR = Path(f"courses/{COURSE_ID}")
+BASE_META_PATH = COURSE_DIR / "base_metadata.json"
 
 # 3. Legacy metadata location (pre-transition)
-LEGACY_META_PATH = Path(os.path.join(COURSE_DIR, "metadata.json"))
+LEGACY_META_PATH = COURSE_DIR / "metadata.json"
 
 # Select the highest-priority existing file
 if TMP_META_PATH.exists():
@@ -278,8 +129,38 @@ def compute_relevance_score(query):
     }
     return score, debug_info
 
-# Initialize OpenAI client
+# Set OpenAI API key for old API
 openai.api_key = openai_api_key
+
+def get_openai_embedding(text):
+    """
+    Get embedding from OpenAI API for Lambda compatibility
+    """
+    try:
+        response = openai.Embedding.create(
+            model="text-embedding-ada-002",
+            input=text
+        )
+        return response['data'][0]['embedding']
+    except Exception as e:
+        print(f"Error getting OpenAI embedding: {e}")
+        # Return a zero vector as fallback
+        return [0.0] * 1536  # OpenAI ada-002 embedding dimension
+
+def get_openai_embeddings(texts):
+    """
+    Get embeddings from OpenAI API for multiple texts
+    """
+    try:
+        response = openai.Embedding.create(
+            model="text-embedding-ada-002",
+            input=texts
+        )
+        return [item['embedding'] for item in response['data']]
+    except Exception as e:
+        print(f"Error getting OpenAI embeddings: {e}")
+        # Return zero vectors as fallback
+        return [[0.0] * 1536] * len(texts)
 
 # Performance timing system (moved to API server route level)
 
@@ -302,23 +183,14 @@ def load_data_lazily():
     
     if _index is None:
         try:
-            # Assert all required files exist
-            assert_required_files_exist()
-            
-            # Load FAISS index using absolute path
-            print(f"DEBUG: Loading FAISS index from {IDX_PATH}")
-            _index = faiss.read_index(IDX_PATH)
-            print(f"DEBUG: FAISS index loaded, ntotal = {_index.ntotal}")
-            
-            # Load metadata using selected path
-            print(f"DEBUG: Loading metadata from {SELECTED_META_PATH}")
+            _index = faiss.read_index("vector_index.faiss")
             with open(SELECTED_META_PATH, "r", encoding="utf-8") as f:
                 _metadata = json.load(f)
             _documents = _metadata["documents"]
             _file_names = _metadata.get("file_names", ["Unknown"] * len(_documents))
             
-            # Load models
-            _model = SentenceTransformer("all-mpnet-base-v2")
+            # Use OpenAI embeddings instead of sentence-transformers for Lambda compatibility
+            _model = None  # Will use OpenAI API for embeddings
             if SPACY_AVAILABLE:
                 _nlp = spacy.load("en_core_web_sm")
             else:
@@ -329,10 +201,7 @@ def load_data_lazily():
             
         except Exception as e:
             print(f"FAIL: Error loading data: {e}")
-            print(f"FAIL: Error type: {type(e)}")
-            import traceback
-            traceback.print_exc()
-            raise  # Don't call sys.exit(1), raise the exception instead
+            sys.exit(1)
     
     return _index, _metadata, _documents, _file_names, _model, _nlp
 
@@ -349,37 +218,23 @@ def load_course_data_cached(course_id):
     Returns:
         Cached course data or loads it for the first time
     """
-    try:
-        # V1.6.6.6: Always use 'decision' course regardless of course_id parameter
-        # This is a temporary workaround until V1.6.7 multi-course architecture
-        effective_course_id = "decision"
-        
-        if effective_course_id in cached_data:
-            print(f"✅ Using cached data for course: {effective_course_id}")
-            return cached_data[effective_course_id]
-        
-        print(f"🔁 First-time load for course: {effective_course_id}")
-        
-        # Use unified file path system
-        assert_required_files_exist()
-        
-        # Performance timing: Only measure actual data loading time
-        start_time = time.time()
-        
-        # Load data using existing lazy loading mechanism
-        data = load_data_lazily()
-        
-        duration = time.time() - start_time
-        cached_data[effective_course_id] = data
-        print(f"🔹 Data Load Time: {duration:.2f}s")
-        return data
-        
-    except Exception as e:
-        print("❌ load_course_data_cached failed:", repr(e))
-        print("❌ Error type:", type(e))
-        import traceback
-        traceback.print_exc()
-        raise  # Don't swallow — raise so CloudWatch shows the real error
+    # V1.6.6.6: Always use 'decision' course regardless of course_id parameter
+    # This is a temporary workaround until V1.6.7 multi-course architecture
+    effective_course_id = "decision"
+    
+    if effective_course_id in cached_data:
+        print(f"✅ Using cached data for course: {effective_course_id}")
+        return cached_data[effective_course_id]
+    
+    print(f"🔁 First-time load for course: {effective_course_id}")
+    # Performance timing: Only measure actual data loading time
+    start_time = time.time()
+    # Load data using existing lazy loading mechanism
+    data = load_data_lazily()
+    duration = time.time() - start_time
+    cached_data[effective_course_id] = data
+    print(f"🔹 Data Load Time: {duration:.2f}s")
+    return data
 
 # Decision frameworks - Core domains of the decision-making process
 FRAMEWORKS = {
@@ -750,8 +605,8 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             primary_domain = 'general'
             query_domains = {}
         
-        # Generate embedding for the query
-        query_embedding = model.encode([query])
+        # Generate embedding for the query using OpenAI
+        query_embedding = get_openai_embeddings([query])
         
         # Initialize or get cached concept embeddings
         if _concept_embeddings_cache is None:
@@ -767,10 +622,10 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # This reduces false matches based on word overlap in concept names
                 concept_text = f"{definition} {name.replace('-', ' ')}"
                 concept_texts.append(concept_text)
-            _concept_embeddings_cache = model.encode(concept_texts)
+            _concept_embeddings_cache = get_openai_embeddings(concept_texts)
         
-        # Calculate cosine similarities
-        similarities = util.pytorch_cos_sim(query_embedding, _concept_embeddings_cache)[0]
+        # Calculate cosine similarities using custom function
+        similarities = batch_cosine_similarity(query_embedding[0], _concept_embeddings_cache)
         
         # Create list of (concept_name, definition, score) tuples with domain filtering
         concept_scores = []
@@ -808,7 +663,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 detected_patterns[pattern] = matches / len(keywords)  # Normalized score
         
         for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
-            score = similarities[i].item()
+            score = similarities[i]
             
             # Check if any aliases appear in the query for additional score boost
             alias_boost = 0.0
@@ -1354,9 +1209,12 @@ Concept Name: Short definition
 
 Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
 
-IMPORTANT: Use ONLY the exact definitions provided in the context. Do NOT invent new definitions or modify existing ones. If a concept is provided in the context, use its exact definition.
+CRITICAL: You MUST use ONLY the exact concepts and definitions provided in the context. Do NOT invent new concepts or definitions. Do NOT use generic concepts like "Supply Chain Analysis" or "Market Research" unless they are explicitly provided in the context.
 
-If the query is narrow or course-specific concepts do not apply, include broader decision-making concepts such as: Stakeholder Alignment, Strategic Framing, or Risk Assessment.
+If no specific concepts are provided in the context, use these core decision-making concepts with their exact definitions:
+- Stakeholder Alignment: Ensuring all parties' interests are considered and balanced
+- Strategic Framing: Structuring the decision problem to clarify objectives and alternatives  
+- Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes
 
 ---
 
@@ -1462,7 +1320,6 @@ Story Draft:
         
         # Call GPT-3.5 for merging
         response, error = robust_api_call(
-            client=client,
             system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
             user_message=prompt,
             max_tokens=300
@@ -2054,7 +1911,39 @@ def generate_domain_aware_fallback_questions(query: str, domain: str) -> list:
     
     return questions
 
-
+def extract_sections_from_response(answer: str) -> dict:
+    """
+    Extract individual sections from a ThinkPal response.
+    
+    Args:
+        answer: Complete ThinkPal response
+        
+    Returns:
+        Dictionary with section names as keys and content as values
+    """
+    sections = {}
+    
+    # Extract Strategic Thinking Lens
+    lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+    if lens_match:
+        sections['lens'] = lens_match.group(1).strip()
+    
+    # Extract Story in Action
+    story_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+    if story_match:
+        sections['story'] = story_match.group(1).strip()
+    
+    # Extract Follow-up Prompts
+    prompts_match = re.search(r'\*\*Follow-up Prompts\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+    if prompts_match:
+        sections['prompts'] = prompts_match.group(1).strip()
+    
+    # Extract Concepts/Tools
+    concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+    if concepts_match:
+        sections['concepts'] = concepts_match.group(1).strip()
+    
+    return sections
 
 def process_query(query: str, course_config: dict = None) -> str:
     """
@@ -2138,7 +2027,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         sections = extract_sections_from_response(answer)
         
         # V1.6.6.6 Step 1: Generate Lens and Story drafts separately, then merge
-        if 'lens' in sections and FEATURE_STORY_MERGE:
+        if 'lens' in sections:
             # Detect domain count for adaptive word count
             domains = detect_course_concept_domains(query)
             domain_count = len([d for d in domains.values() if d > 0.1]) or 1  # At least 1 domain
@@ -2328,20 +2217,20 @@ def detect_domain_semantic(query: str) -> dict:
             ]
         }
         
-        # Generate embeddings for query and domain references
-        query_embedding = model.encode([query])
+        # Generate embeddings for query and domain references using OpenAI
+        query_embedding = get_openai_embeddings([query])
         
         domain_scores = {}
         
         for domain, references in domain_references.items():
-            # Encode all reference texts for this domain
-            reference_embeddings = model.encode(references)
+            # Encode all reference texts for this domain using OpenAI
+            reference_embeddings = get_openai_embeddings(references)
             
-            # Calculate similarities between query and all references
-            similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
+            # Calculate similarities between query and all references using custom function
+            similarities = batch_cosine_similarity(query_embedding[0], reference_embeddings)
             
             # Take the maximum similarity as the domain score
-            max_similarity = similarities.max().item()
+            max_similarity = max(similarities)
             domain_scores[domain] = max_similarity
         
         # Normalize scores to sum to 1.0
@@ -2490,13 +2379,14 @@ def extract_application_field_semantic(query: str, model) -> str:
         ]
     }
 
-    # Encode query
-    query_embedding = model.encode([query])
+    # Encode query using OpenAI
+    query_embedding = get_openai_embeddings([query])
     field_scores = {}
 
     for field, examples in application_references.items():
-        example_embeddings = model.encode(examples)
-        similarity = util.pytorch_cos_sim(query_embedding, example_embeddings)[0].max().item()
+        example_embeddings = get_openai_embeddings(examples)
+        similarities = batch_cosine_similarity(query_embedding[0], example_embeddings)
+        similarity = max(similarities)
         field_scores[field] = similarity
 
     # Get best semantic match
@@ -2569,14 +2459,14 @@ def extract_entities_semantic(query: str, model, nlp) -> dict:
     }
     
     # Check for domain-specific entities using semantic similarity
-    query_embedding = model.encode([query])
+    query_embedding = get_openai_embeddings([query])
     
     for domain, entity_list in domain_entities.items():
-        entity_embeddings = model.encode(entity_list)
-        similarities = util.pytorch_cos_sim(query_embedding, entity_embeddings)[0]
+        entity_embeddings = get_openai_embeddings(entity_list)
+        similarities = batch_cosine_similarity(query_embedding[0], entity_embeddings)
         
         for i, entity in enumerate(entity_list):
-            similarity = similarities[i].item()
+            similarity = similarities[i]
             if similarity > 0.3:  # Threshold for entity detection
                 entities[entity] = {
                     'type': 'DOMAIN_ENTITY',
