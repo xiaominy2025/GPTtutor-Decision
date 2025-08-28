@@ -56,7 +56,7 @@ def load_course_config(course_id: str) -> dict:
     
     # Check if course directory exists
     if not os.path.exists(course_path):
-        print(f"⚠️ Course '{course_id}' not found, falling back to '{DEFAULT_COURSE}'")
+        # Course not found, falling back to default
         course_id = DEFAULT_COURSE
         course_path = os.path.join(COURSES_DIR, course_id)
     
@@ -73,9 +73,9 @@ def load_course_config(course_id: str) -> dict:
         try:
             with open(glossary_path, 'r', encoding='utf-8') as f:
                 config["glossary"] = json.load(f)
-            print(f"✅ Loaded glossary for course '{course_id}'")
+            # Loaded glossary for course
         except Exception as e:
-            print(f"❌ Failed to load glossary for course '{course_id}': {e}")
+            # Failed to load glossary
     
     # Load prompt_template.txt
     prompt_path = os.path.join(course_path, "prompt_template.txt")
@@ -83,9 +83,9 @@ def load_course_config(course_id: str) -> dict:
         try:
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 config["prompt_template"] = f.read()
-            print(f"✅ Loaded prompt template for course '{course_id}'")
+            # Loaded prompt template for course
         except Exception as e:
-            print(f"❌ Failed to load prompt template for course '{course_id}': {e}")
+            # Failed to load prompt template
     
     # Load sections_config.json
     sections_path = os.path.join(course_path, "sections_config.json")
@@ -93,18 +93,14 @@ def load_course_config(course_id: str) -> dict:
         try:
             with open(sections_path, 'r', encoding='utf-8') as f:
                 config["sections_config"] = json.load(f)
-            print(f"✅ Loaded sections config for course '{course_id}'")
+            # Loaded sections config for course
         except Exception as e:
-            print(f"❌ Failed to load sections config for course '{course_id}': {e}")
+            # Failed to load sections config
     
     return config
 
 # Initialize query engine
-print("\U0001F680 Initializing Engent Labs API Server V1.6.6.6 Final...")
-try:
-    print("\u2705 Query engine module loaded successfully")
-except Exception as e:
-    print(f"❌ Failed to load query engine: {e}")
+# Engent Labs API Server V1.6.6.6 Final
 
 
 @app.route('/health', methods=['GET'])
@@ -123,15 +119,9 @@ def process_query():
     # Process query request
     
     try:
-        print("DEBUG: raw data", request.data)
-        print("DEBUG: parsed json", request.get_json(force=True, silent=True))
         data = request.get_json()
-        print("\u26a1 [BACKEND] Received POST /query")
-        print("    Content-Type:", request.content_type)
-        print("    Payload received:", data)
 
         if not data or 'query' not in data:
-            print("❌ Missing 'query' field in request data.")
             return jsonify({
                 "success": False,
                 "error": "Query is required"
@@ -143,15 +133,12 @@ def process_query():
         
         # V1.6.6.6 Final: Bypass course configuration to ensure 100% alignment
         # Still accept course_id from frontend for compatibility, but ignore it for processing
-        print(f"📚 Frontend requested course: {course_id}")
-        print("🔄 TEMPORARY: Bypassing course config, using direct query engine call")
         
         # Process query using V1.6 query engine directly (no course_config parameter)
         answer = query_engine.process_query(query)
         
         # Check if query was rejected by relevance filter
         if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
-            print("⚠️ Query rejected by relevance filter")
             return jsonify({
                 "status": "rejected",
                 "message": answer,
@@ -183,15 +170,12 @@ def process_query():
                 and 'definition' in obj and isinstance(obj['definition'], str) and obj['definition'].strip() != ''
             )
         if not isinstance(concepts_tools_practice, list):
-            print("🚨 Invalid conceptsToolsPractice format (not a list):", concepts_tools_practice)
             concepts_tools_practice = []
         else:
             fixed = []
             for item in concepts_tools_practice:
                 if is_valid_concept(item):
                     fixed.append(item)
-                else:
-                    print(f"🚨 Invalid concept entry in conceptsToolsPractice: {item}")
             concepts_tools_practice = fixed
         # --- END VALIDATION BLOCK ---
 
@@ -209,7 +193,6 @@ def process_query():
             }
         }
 
-        print("✅ Query processed successfully.")
         return jsonify(response)
 
     except Exception as e:
@@ -362,18 +345,6 @@ def user_profile():
 
 
 if __name__ == '__main__':
-    print("🌐 Starting Engent Labs API Server V1.6.6.6 Final...")
-    print("📱 Server will be available at http://localhost:5000")
-    print("📋 Available endpoints:")
-    print("   GET  /health                    - Health check")
-    print("   POST /query                     - Process query")
-    print("   GET  /courses                   - List available courses")
-    print("   GET  /courses/<course_id>/config - Get course configuration")
-    print("   GET  /api/course/<course_id>    - Get course metadata (V1.6.6.6)")
-    print("   GET  /stats                     - Get usage statistics")
-    print("   GET  /profile                   - Get user profile")
-    print("   PUT  /profile                   - Update user profile")
-
     # Use environment variable for debug mode
     debug_mode = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     port = int(os.environ.get('PORT', 5000))

@@ -1,33 +1,35 @@
 #!/usr/bin/env python3
-import requests
-import json
+import sys
+sys.path.insert(0, r'.\Repeatability')
+import query_engine
 
-# Test query
-query = "How to convey bad news to my boss?"
+queries = [
+    "Under tariff uncertainty, how do I plan my production?",
+    "I have two job offers, how to choose?",
+    "How to convey bad news to my boss?",
+    "How do I negotiate a better salary package with my boss?",
+    "How to negotiate with a dealership?",
+    "How shall I deal with unfair critiques from my manager?"
+]
 
-# Make request
-url = "https://uvfr5y7mwffusf4c2avkbpc3240hacyi.lambda-url.us-east-2.on.aws/query"
-payload = {
-    "query": query,
-    "course_id": "decision", 
-    "user_id": "default"
-}
+print("=== QUICK QUERY ASSESSMENT ===")
+print()
 
-try:
-    response = requests.post(url, json=payload, timeout=30)
-    print(f"Status: {response.status_code}")
-    
-    if response.status_code == 200:
-        data = response.json()['data']
-        print(f"\nQuery: {query}")
-        print(f"Answer preview: {data['answer'][:300]}...")
-        print(f"Concepts found: {len(data['conceptsToolsPractice'])}")
-        print(f"Processing time: {data['processing_time']:.2f}s")
+for i, query in enumerate(queries, 1):
+    print(f"Query {i}: {query}")
+    try:
+        result = query_engine.unified_semantic_extraction(query)
+        print(f"  Primary: {result['domain']}")
+        print(f"  Selected: {result['domains_selected']}")
+        print(f"  Field: {result['application_field']}")
         
-        for concept in data['conceptsToolsPractice']:
-            print(f"  - {concept['term']}: {concept['definition']}")
-    else:
-        print(f"Error: {response.text}")
-        
-except Exception as e:
-    print(f"Exception: {e}")
+        # Quick answer test
+        answer = query_engine.process_query(query)
+        print(f"  Answer length: {len(answer)} chars")
+        print(f"  Has concepts: {'**Concepts/Tools**' in answer}")
+        print()
+    except Exception as e:
+        print(f"  Error: {e}")
+        print()
+
+print("=== ASSESSMENT COMPLETE ===")

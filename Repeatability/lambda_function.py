@@ -27,8 +27,9 @@ try:
     # Import the authoritative query_engine module
     import query_engine
 except ImportError as e:
-    print(f"❌ Missing dependencies: {e}")
+    # Missing dependencies
     # Will handle gracefully with fallback
+    pass
 
 app = Flask(__name__)
 
@@ -92,69 +93,23 @@ def process_query_v166_fixed(query: str) -> dict:
     Fixed V166 Query Processing - Uses authoritative query_engine.process_query()
     """
     try:
-        print(f"🔄 V166 Processing Query: {query}")
-        
-        # Test file access first
-        print("🔍 Testing file access...")
-        import os
-        print(f"Current directory: {os.getcwd()}")
-        print(f"Directory contents: {os.listdir('.')}")
-        
-        if os.path.exists('query_engine.py'):
-            print("✅ query_engine.py exists")
-        else:
-            print("❌ query_engine.py not found")
-            
-        if os.path.exists('vector_index.faiss'):
-            print("✅ vector_index.faiss exists")
-        else:
-            print("❌ vector_index.faiss not found")
-            
-        if os.path.exists('courses'):
-            print("✅ courses directory exists")
-        else:
-            print("❌ courses directory not found")
-        
         # Check if query_engine is available
         if not hasattr(query_engine, 'process_query'):
-            print("❌ query_engine.process_query method not found")
             raise Exception("query_engine.process_query method not available")
-        
-        print("✅ query_engine.process_query method found")
-        
-        # Test if we can access basic query_engine functions
-        print("🔍 Testing query_engine basic functionality...")
-        try:
-            # Test if we can access the compute_relevance_score function
-            if hasattr(query_engine, 'compute_relevance_score'):
-                score, debug = query_engine.compute_relevance_score(query)
-                print(f"✅ Relevance score test: {score}, debug: {debug}")
-            else:
-                print("⚠️ compute_relevance_score not available")
-        except Exception as e:
-            print(f"⚠️ Relevance score test failed: {e}")
         
         # Use the authoritative query_engine.process_query() method
         # This ensures 100% consistency with api_server.py
         start_time = time.time()
         try:
             answer = query_engine.process_query(query)
-            print(f"✅ Query engine processing completed successfully")
         except Exception as qe:
-            print(f"❌ Query engine processing failed: {qe}")
-            print(f"❌ Error type: {type(qe)}")
             traceback.print_exc()
             raise qe
             
         processing_time = time.time() - start_time
         
-        print(f"✅ Query engine processing completed in {processing_time:.2f}s")
-        print(f"📝 Answer length: {len(answer)} characters")
-        print(f"📄 Answer preview: {answer[:200]}...")
-        
         # Check if query was rejected by relevance filter
         if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
-            print("⚠️ Query rejected by relevance filter")
             return {
                 "answer": answer,
                 "strategicThinkingLens": answer,
@@ -182,15 +137,12 @@ def process_query_v166_fixed(query: str) -> dict:
                 and 'definition' in obj and isinstance(obj['definition'], str) and obj['definition'].strip() != ''
             )
         if not isinstance(concepts_tools_practice, list):
-            print("🚨 Invalid conceptsToolsPractice format (not a list):", concepts_tools_practice)
             concepts_tools_practice = []
         else:
             fixed = []
             for item in concepts_tools_practice:
                 if is_valid_concept(item):
                     fixed.append(item)
-                else:
-                    print(f"🚨 Invalid concept entry in conceptsToolsPractice: {item}")
             concepts_tools_practice = fixed
         # --- END VALIDATION BLOCK ---
         
@@ -219,7 +171,6 @@ def process_query_v166_fixed(query: str) -> dict:
         }
         
     except Exception as e:
-        print(f"❌ Error in V166 processing: {e}")
         traceback.print_exc()
         
         # Fallback response
@@ -238,11 +189,6 @@ def lambda_handler(event, context):
     Main Lambda handler for V1.6.6.6
     """
     try:
-        print(f"🚀 V1.6.6.6 Lambda Function invoked")
-        print(f"Event type: {type(event)}")
-        print(f"Event keys: {list(event.keys()) if isinstance(event, dict) else 'Not a dict'}")
-        print(f"Event preview: {str(event)[:200]}...")
-        
         # Handle different event types
         if isinstance(event, dict) and ('requestContext' in event):
             # Lambda Function URL event
@@ -252,35 +198,16 @@ def lambda_handler(event, context):
             path = http_info.get('path', '/')
             body = event.get('body', '{}')
             
-            print(f"🔍 Function URL Event Structure:")
-            print(f"  requestContext: {request_context}")
-            print(f"  http_info: {http_info}")
-            print(f"  http_method: {http_method}")
-            print(f"  path: {path}")
-            print(f"  body: {body}")
-            
             # Parse body with better error handling
-            print(f"🔍 Body type: {type(body)}")
-            print(f"🔍 Body length: {len(str(body)) if body else 0}")
-            print(f"🔍 Body preview: {str(body)[:500] if body else 'None'}...")
-            
             if isinstance(body, str):
                 try:
                     body = json.loads(body)
-                    print(f"✅ Body parsed successfully")
                 except json.JSONDecodeError as e:
-                    print(f"❌ JSON decode error: {e}")
                     body = {}
                 except Exception as e:
-                    print(f"❌ Body parsing error: {e}")
                     body = {}
             elif body is None:
-                print(f"⚠️ Body is None, using empty dict")
                 body = {}
-            else:
-                print(f"✅ Body is already parsed: {type(body)}")
-            
-            print(f"🌐 API Gateway request: {http_method} {path}")
             
             # Handle different endpoints
             start_time = time.time()
@@ -289,13 +216,10 @@ def lambda_handler(event, context):
                 return handle_options(event)
             
             if http_method == 'GET' and path == '/health':
-                elapsed = time.time() - start_time
-                print(f"[LOG] Health check completed in {elapsed:.3f}s")
                 return create_response({"status": "healthy"}, event=event)
                 
             elif http_method == 'GET' and path == '/debug/files':
                     # Debug endpoint to check file access
-                    print("🔍 Debug files endpoint called")
                     
                     # Use the unified path system from query_engine
                     try:
@@ -323,13 +247,9 @@ def lambda_handler(event, context):
                             "root_files": os.listdir(os.getcwd()) if os.path.exists(os.getcwd()) else "MISSING"
                         }
                     
-                    elapsed = time.time() - start_time
-                    print(f"[LOG] Debug files endpoint completed in {elapsed:.3f}s")
                     return create_response(debug_info, event=event)
                 
             elif http_method == 'GET' and path == '/courses':
-                elapsed = time.time() - start_time
-                print(f"[LOG] Courses endpoint completed in {elapsed:.3f}s")
                 return create_response({"courses": ["decision","marketing","strategy"]}, event=event)
                 
             elif http_method == 'GET' and path.startswith('/api/course/'):
@@ -338,12 +258,8 @@ def lambda_handler(event, context):
                 try:
                     with open(f"courses/{course_id}/ui_metadata.json") as f:
                         ui_metadata = json.load(f)
-                    elapsed = time.time() - start_time
-                    print(f"[LOG] UI metadata endpoint completed in {elapsed:.3f}s")
                     return create_response(ui_metadata, event=event)
                 except Exception as e:
-                    elapsed = time.time() - start_time
-                    print(f"[LOG] UI metadata endpoint failed in {elapsed:.3f}s: {str(e)}")
                     return create_response(
                         {"error": f"Failed to load UI metadata: {str(e)}"}, 
                         status="error", 
@@ -352,11 +268,7 @@ def lambda_handler(event, context):
                     )
                 
             elif http_method == 'POST' and path == '/query':
-                print(f"📦 Parsed body: {body}")
-                print(f"📦 Body keys: {list(body.keys()) if isinstance(body, dict) else 'Not a dict'}")
-                
                 if not body or 'query' not in body:
-                    print(f"❌ Missing query in body: {body}")
                     return create_response(
                         {"error": "Query is required"}, 
                         status="error", 
@@ -367,17 +279,10 @@ def lambda_handler(event, context):
                 query = body['query']
                 course_id = body.get('course_id', DEFAULT_COURSE)
                 
-                print(f"📚 Frontend requested course: {course_id}")
-                print(f"📝 Query: {query}")
-                print("🔄 Using Fixed V166 Query Engine")
-                
                 try:
                     # Process query using fixed V166 implementation
                     response_data = process_query_v166_fixed(query)
-                    print(f"✅ Query processing completed successfully")
                 except Exception as e:
-                    print(f"❌ Query processing failed: {e}")
-                    print(f"❌ Error type: {type(e)}")
                     import traceback
                     traceback.print_exc()
                     return create_response(
@@ -387,15 +292,10 @@ def lambda_handler(event, context):
                         event=event
                     )
                 
-                elapsed = time.time() - start_time
-                print(f"[LOG] Query processing completed in {elapsed:.3f}s")
-                print("✅ Fixed V166 Query processed successfully.")
                 return create_response(response_data, event=event)
                 
             else:
                 # Unknown endpoint
-                elapsed = time.time() - start_time
-                print(f"[LOG] Unknown endpoint {http_method} {path} completed in {elapsed:.3f}s")
                 return create_response(
                     {"error": f"Not found: {http_method} {path}"}, 
                     status="error", 
@@ -405,23 +305,12 @@ def lambda_handler(event, context):
         
         else:
             # Direct Lambda invocation
-
-
-
-
-
-            start_time = time.time()
-            elapsed = time.time() - start_time
-            print(f"[LOG] Direct Lambda invocation completed in {elapsed:.3f}s")
-            print("📞 Direct Lambda invocation detected")
             return create_response({
-             
                 "message": "V1.6.6.6 Lambda function is running",
                 "event_type": "Direct Invocation"
             }, event=event)
             
     except Exception as e:
-        print(f"❌ Lambda handler error: {e}")
         traceback.print_exc()
         
         return create_response(
@@ -433,5 +322,4 @@ def lambda_handler(event, context):
 
 if __name__ == '__main__':
     # Local development server
-    print("🧪 Running V1.6.6.6 Lambda Function locally for testing")
     app.run(debug=True, host='0.0.0.0', port=5000)

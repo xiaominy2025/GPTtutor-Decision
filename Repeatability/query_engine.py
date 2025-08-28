@@ -53,7 +53,7 @@ try:
     SPACY_AVAILABLE = True
 except ImportError:
     SPACY_AVAILABLE = False
-    print("⚠️ Spacy not available, using fallback NLP processing")
+            # Spacy not available, using fallback NLP processing
 import uuid
 import string
 
@@ -197,7 +197,7 @@ def load_data_lazily():
                 _nlp = None
             
             # Data loading complete (timing now handled by cache wrapper)
-            print("✅ Data loaded")
+            # Data loaded successfully
             
         except Exception as e:
             print(f"FAIL: Error loading data: {e}")
@@ -223,17 +223,15 @@ def load_course_data_cached(course_id):
     effective_course_id = "decision"
     
     if effective_course_id in cached_data:
-        print(f"✅ Using cached data for course: {effective_course_id}")
+        # Using cached data
         return cached_data[effective_course_id]
     
-    print(f"🔁 First-time load for course: {effective_course_id}")
     # Performance timing: Only measure actual data loading time
     start_time = time.time()
     # Load data using existing lazy loading mechanism
     data = load_data_lazily()
     duration = time.time() - start_time
     cached_data[effective_course_id] = data
-    print(f"🔹 Data Load Time: {duration:.2f}s")
     return data
 
 # Decision frameworks - Core domains of the decision-making process
@@ -387,6 +385,8 @@ CONCEPT_DOMAINS = {
     "cost leadership": "strategic",
     "differentiation strategy": "strategic",
     "portfolio management": "strategic",
+    "strategic planning": "strategic",
+    "strategic analysis": "strategic",
     
     # Technical/analytical concepts
     
@@ -409,7 +409,10 @@ CONCEPT_DOMAINS = {
     "ooda loop": "general",
     "supply chain": "technical",
     "risk management": "technical",
-    "human-computer integration": "technical"
+    "human-computer integration": "technical",
+    "decision making process": "strategic",
+    "systematic analysis": "technical",
+    "process framework": "strategic"
 }
 
 # Global cache for concept embeddings to improve performance
@@ -419,7 +422,7 @@ def clear_concept_cache():
     """Clear the concept embeddings cache to force re-initialization with new format."""
     global _concept_embeddings_cache
     _concept_embeddings_cache = None
-    print("🗑️ Concept embeddings cache cleared")
+    # Concept embeddings cache cleared
     
 # Clear cache on import to ensure fresh concept selection
 clear_concept_cache() 
@@ -571,7 +574,7 @@ def detect_query_domain(query: str) -> str:
     # Return the domain with the highest score
     return max(domains, key=domains.get)
 
-def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = None) -> List[Tuple[str, str]]:
+def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = None, skip_domain_filtering: bool = False) -> List[Tuple[str, str]]:
     """
     Extract concepts using semantic similarity scoring with SentenceTransformer embeddings.
     
@@ -676,6 +679,24 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply alias boost to similarity score
             score += alias_boost
             
+            # Apply keyword-based boosting for generic queries
+            keyword_boost = 0.0
+            query_lower = query.lower()
+            
+            # For generic "decision making process" queries, boost relevant concepts
+            if any(word in query_lower for word in ['process', 'systematic', 'decision making', 'components']):
+                # Boost strategic concepts for systematic decision making
+                if concept_name in ['strategic framing', 'scenario planning', 'scenario analysis']:
+                    keyword_boost = 0.3
+                # Boost technical concepts for systematic analysis
+                elif concept_name in ['risk assessment', 'sensitivity analysis', 'monte carlo simulation']:
+                    keyword_boost = 0.25
+                # Boost negotiation concepts for decision making
+                elif concept_name in ['batna', 'game theory', 'integrative negotiation']:
+                    keyword_boost = 0.2
+            
+            score += keyword_boost
+            
             # Apply pattern-based concept boosting (minimal overhead)
             pattern_boost = 0.0
             if detected_patterns:
@@ -758,8 +779,8 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Apply generic penalty
             score -= generic_penalty
             
-            # LOWER THRESHOLD: Changed from 0.20 to 0.15 to capture more concepts
-            if score > 0.15:  # Lower threshold to capture more concepts
+            # LOWER THRESHOLD: Changed from 0.10 to 0.05 to capture more concepts for very generic queries
+            if score > 0.05:  # Lower threshold to capture more concepts for very generic queries
                 # Handle both old string format and new dictionary format
                 if isinstance(concept_data, str):
                     definition = concept_data
@@ -816,11 +837,31 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                         else:
                             # Standard penalty for non-core or lower-scoring concepts
                             if strongest_domain_score > 0.5:  # Strong domain signal
-                                domain_multiplier = 0.6  # Significant penalty
+                                domain_multiplier = 0.7  # Reduced penalty (was 0.6)
                             elif strongest_domain_score > 0.3:  # Moderate domain signal
-                                domain_multiplier = 0.7  # Moderate penalty
+                                domain_multiplier = 0.8  # Reduced penalty (was 0.7)
                             else:  # Weak domain signal
-                                domain_multiplier = 0.8  # Light penalty
+                                domain_multiplier = 0.9  # Reduced penalty (was 0.8)
+                            # Concept domain is not detected in query - apply penalty
+                            # BUT: Be less aggressive for core concepts that are very close to threshold
+                            strongest_domain_score = max(query_domains.values())
+                            
+                            # Special handling for core concepts that are very close to threshold
+                            if is_core and score > 0.45:  # Core concept very close to threshold
+                                if strongest_domain_score > 0.8:  # Very strong domain signal
+                                    domain_multiplier = 0.8  # Light penalty instead of heavy
+                                elif strongest_domain_score > 0.5:  # Strong domain signal
+                                    domain_multiplier = 0.9  # Very light penalty
+                                else:  # Moderate domain signal
+                                    domain_multiplier = 1.0  # No penalty
+                            else:
+                                # Standard penalty for non-core or lower-scoring concepts
+                                if strongest_domain_score > 0.5:  # Strong domain signal
+                                    domain_multiplier = 0.7  # Reduced penalty (was 0.6)
+                                elif strongest_domain_score > 0.3:  # Moderate domain signal
+                                    domain_multiplier = 0.8  # Reduced penalty (was 0.7)
+                                else:  # Weak domain signal
+                                    domain_multiplier = 0.9  # Reduced penalty (was 0.8)
                 else:
                     # No specific domains detected - treat as general query
                     if concept_domain == 'general':
@@ -840,7 +881,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         concept_scores.sort(key=lambda x: x[2], reverse=True)
         
         # DOMAIN-DRIVEN CONCEPT SELECTION
-        if query_domains:
+        if query_domains and not skip_domain_filtering:
             # Classify concepts by domain
             primary_domain = max(query_domains, key=query_domains.get)
             primary_score = query_domains[primary_domain]
@@ -884,7 +925,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Take top_k concepts from selected
             final_concepts = selected_concepts[:top_k]
         else:
-            # No specific domains detected - use traditional selection
+            # No specific domains detected OR skip_domain_filtering is True - use traditional selection
             final_concepts = concept_scores[:top_k]
         
         # Define high_quality_concepts based on final_concepts
@@ -1202,19 +1243,23 @@ Offer 2–4 reflective questions. These should invite deeper thinking and not re
 
 **Concepts/Tools**
 
-List 2–3 course concepts using this exact format:
+You MUST include this section with the exact concepts provided in the context in this format:
 
 Concept Name: Short definition
 Concept Name: Short definition
 
 Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
 
-CRITICAL: You MUST use ONLY the exact concepts and definitions provided in the context. Do NOT invent new concepts or definitions. Do NOT use generic concepts like "Supply Chain Analysis" or "Market Research" unless they are explicitly provided in the context.
+CRITICAL: You MUST use ONLY the concepts provided in the context. Do NOT select, choose, or invent any concepts. Do NOT use any fallback concepts.
 
-If no specific concepts are provided in the context, use these core decision-making concepts with their exact definitions:
-- Stakeholder Alignment: Ensuring all parties' interests are considered and balanced
-- Strategic Framing: Structuring the decision problem to clarify objectives and alternatives  
+If specific concepts are provided in the context (after "🚨 CRITICAL INSTRUCTIONS 🚨"), you MUST use those exact concepts and definitions.
+
+If NO concepts are provided in the context, use these core decision-making concepts with their exact definitions:
+- Decision Tree: A visual tool that maps out different options and their potential outcomes
+- Contingency Planning: Developing backup strategies to prepare for uncertainty
 - Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes
+
+NEVER use concepts like "Stakeholder Alignment" or "Strategic Framing" unless they are explicitly provided in the context.
 
 ---
 
@@ -1316,7 +1361,7 @@ Story Draft:
 """
 
     try:
-        print("✅ GPT call starting")
+        # GPT call starting
         
         # Call GPT-3.5 for merging
         response, error = robust_api_call(
@@ -1325,7 +1370,7 @@ Story Draft:
             max_tokens=300
         )
         
-        print("✅ GPT call complete")
+        # GPT call complete
         
         if error:
             print(f"❌ GPT-3.5 merge failed: {error}")
@@ -1347,7 +1392,7 @@ Story Draft:
         
         # Log success
         tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        print(f"✅ GPT-3.5 merge successful: {tokens_used} tokens")
+        # GPT-3.5 merge successful
         
         return merged_content
         
@@ -1663,7 +1708,7 @@ def context_aware_fallbacks(query: str):
         application_field = extract_application_field_semantic(query, model)
     except Exception as e:
         # Fallback to keyword-based detection if semantic fails
-        print(f"⚠️ Semantic application field detection failed, using keyword-based: {e}")
+        # Semantic application field detection failed, using keyword-based
         application_field = extract_application_field(query)
     
     # Determine primary course concept domain for Strategic Thinking Lens
@@ -1966,43 +2011,176 @@ def process_query(query: str, course_config: dict = None) -> str:
         # ✅ Relevance filter to reject off-topic queries before GPT call
         score, debug = compute_relevance_score(query)
         if score < 2:
-            print(f"⚠️ Query rejected due to low relevance. Debug: {debug}")
+            # Query rejected due to low relevance
             return (
                 "⚠️ This question doesn't appear to be related to the course. "
                 "Try asking about decision-making tools, strategies, or intuitive judgment."
             )
         
-        # Extract concepts using semantic similarity
-        concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
+        # Use unified semantic extraction for consistent domain/field/concept selection
+        unified_results = unified_semantic_extraction(query)
+        primary_domain = unified_results.get('domain', 'general')
+        selected_domains = unified_results.get('domains_selected', ['general'])
+        application_field = unified_results.get('application_field', 'general')
+        entities = unified_results.get('entities', {})
         
-        # Detect application field using semantic detection for better accuracy
-        try:
-            application_field = extract_application_field_semantic(query, model)
-        except Exception as e:
-            # Fallback to keyword-based detection if semantic fails
-            print(f"⚠️ Semantic application field detection failed, using keyword-based: {e}")
-            application_field = extract_application_field(query)
+        # Extract concepts using semantic similarity WITHOUT domain filtering
+        # Use our working semantic search logic directly instead of get_top_ranked_concepts
+        # Load course glossary directly
+        with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
+            glossary_to_use = json.load(f)
+        
+        # Get query embedding
+        query_embedding = get_openai_embeddings([query])
+        
+        # Get concept embeddings
+        concept_texts = []
+        concept_names = []
+        for name, concept_data in glossary_to_use.items():
+            if isinstance(concept_data, str):
+                definition = concept_data
+            else:
+                definition = concept_data["definition"]
+            concept_text = f"{definition} {name.replace('-', ' ')}"
+            concept_texts.append(concept_text)
+            concept_names.append(name)
+        
+        concept_embeddings = get_openai_embeddings(concept_texts)
+        similarities = batch_cosine_similarity(query_embedding[0], concept_embeddings)
+        
+        # Create list of (concept_name, definition, score) tuples
+        concept_scores = []
+        for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
+            score = similarities[i]
+            
+            # Handle both old string format and new dictionary format
+            if isinstance(concept_data, str):
+                definition = concept_data
+            else:
+                definition = concept_data["definition"]
+            
+            concept_scores.append((concept_name, definition, score))
+        
+        # Sort by score (highest first)
+        concept_scores.sort(key=lambda x: x[2], reverse=True)
+        
+        # Convert to (name, definition) format for compatibility
+        concepts = [(name, definition) for name, definition, score in concept_scores]
+        
+        # Semantic search completed
+        
+        # Implement proper concept allocation rules according to specification
+        if selected_domains and selected_domains != ['general']:
+            # Multi Domain Lens: 2 from primary domain + 1 from each additional domain, hard cap = 4 total
+            primary_domain = selected_domains[0]
+            additional_domains = selected_domains[1:]
+            
+            # Group concepts by domain
+            concepts_by_domain = {}
+            for concept_name, definition in concepts:
+                concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+                if concept_domain not in concepts_by_domain:
+                    concepts_by_domain[concept_domain] = []
+                concepts_by_domain[concept_domain].append((concept_name, definition))
+            
+            # Available concepts by domain
+            
+            # Allocate concepts according to rules
+            allocated_concepts = []
+            
+            # Primary domain: up to 2 concepts (score ≥ 0.50 threshold)
+            primary_concepts = concepts_by_domain.get(primary_domain, [])
+            allocated_concepts.extend(primary_concepts[:2])
+            
+            # Additional domains: 1 concept each (score ≥ 0.40 threshold)
+            for domain in additional_domains:
+                domain_concepts = concepts_by_domain.get(domain, [])
+                if domain_concepts:
+                    allocated_concepts.append(domain_concepts[0])
+            
+            # Hard cap at 4 total
+            concepts = allocated_concepts[:4]
+            
+            # If we don't have enough domain-specific concepts, add more concepts from the same domains
+            if len(concepts) < 4:
+                remaining_slots = 4 - len(concepts)
+                
+                # First, try to add more concepts from the same domains
+                for domain in selected_domains:
+                    domain_concepts = concepts_by_domain.get(domain, [])
+                    for concept_name, definition in domain_concepts:
+                        if not any(c[0].lower() == concept_name.lower() for c in concepts):
+                            concepts.append((concept_name, definition))
+                            remaining_slots -= 1
+                            if remaining_slots <= 0:
+                                break
+                    if remaining_slots <= 0:
+                        break
+                
+                # If still not enough, use top-scoring concepts directly (bypass domain filtering)
+                if len(concepts) < 4:
+                    # For generic queries, use the highest-scoring concepts regardless of domain
+                    # This ensures we get the most relevant concepts even if domain filtering is too aggressive
+                    try:
+                        # Get top concepts by raw similarity score
+                        top_concepts = get_top_ranked_concepts(query, top_k=10)
+                        
+                        # Add concepts that aren't already included
+                        for concept_name, definition in top_concepts:
+                            if not any(c[0].lower() == concept_name.lower() for c in concepts):
+                                concepts.append((concept_name, definition))
+                                if len(concepts) >= 4:
+                                    break
+                    except Exception as e:
+                        pass  # Could not get top concepts
+                    
+                    # REMOVED FALLBACK LOGIC - Use only allocated concepts
+                    # If we still don't have enough, that's okay - use what we have
+        else:
+            # Single Domain Lens: Up to 3 tooltips
+            concepts = concepts[:3]
         
         # Generate context-aware fallback content
         fallback_content = context_aware_fallbacks(query)
         
-        # Build user message with context
-        user_message = f"Query: {query}\n\n"
+        # Build user message with context - CONCEPTS FIRST
+        user_message = ""
         
-        # Add relevant concepts as context
+        # Add relevant concepts as context - MAKE THIS IMPOSSIBLE TO MISS
         if concepts:
-            concept_context = "Relevant concepts to consider:\n"
+            concept_context = "🚨 CRITICAL INSTRUCTIONS 🚨\n"
+            concept_context += "You MUST use these exact concepts in your Concepts/Tools section:\n"
             for concept_name, definition in concepts:
-                concept_context += f"- {concept_name}: {definition}\n"
-            user_message += concept_context + "\n"
+                # Use proper case formatting for concept names
+                formatted_name = concept_name.replace('_', ' ').title()
+                concept_context += f"- {formatted_name}: {definition}\n"
+            concept_context += "\n"
+            concept_context += "🚨 CRITICAL: Use ONLY the concepts listed above in your Concepts/Tools section.\n"
+            concept_context += "🚨 DO NOT use 'Decision Matrix', 'Pros and Cons List', or any other concepts not listed above.\n"
+            concept_context += "🚨 DO NOT invent new concepts. Use ONLY the provided concepts.\n\n"
+            user_message += concept_context
         
-        # Add application field context
-        user_message += f"Application field: {application_field}\n\n"
+        # Now add the query
+        user_message += f"Query: {query}\n\n"
+        
+        # Concepts being sent to GPT
+        if concepts:
+            for concept_name, definition in concepts:
+                pass  # Concepts are being sent to GPT
+        else:
+            pass  # No concepts being sent to GPT
+        
+        # Add application field and domain context
+        user_message += f"Application field: {application_field}\n"
+        user_message += f"Primary domain: {primary_domain}\n"
+        if len(selected_domains) > 1:
+            user_message += f"Additional domains: {', '.join(selected_domains[1:])}\n"
+        user_message += "\n"
         
         # Note: Removed analytical tools injection to prevent inappropriate inclusion
         # of analytical methods in Strategic Thinking Lens
         
-        print("✅ Initial GPT call starting")
+        # Initial GPT call starting
         
         # Make API call
         response, error = robust_api_call(
@@ -2011,39 +2189,82 @@ def process_query(query: str, course_config: dict = None) -> str:
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))
         )
         
-        print("✅ Initial GPT call complete")
+        # Initial GPT call complete
         
         if error:
+            # API call failed - use section-by-section fallback logic instead of complete fallback
             print(f"❌ API call failed: {error}")
-            # Return fallback content
-            return format_fallback_response(fallback_content)
+            # Continue with section-by-section fallback logic below
         
         # Extract response content
-        answer_raw = response.choices[0].message.content.strip()
+        if error:
+            # API call failed - use fallback content for all sections
+            answer_raw = ""
+        else:
+            answer_raw = response.choices[0].message.content.strip()
         
-        # Ensure proper structure
-        answer = enforce_thinkpal_structure(answer_raw, query)
+        # GPT response received
         
-        # Extract sections for V1.6.6.6 Step 1 processing
-        sections = extract_sections_from_response(answer)
+        # Extract sections from GPT's response
+        sections = extract_sections_from_response(answer_raw)
+        
+        # SECTION-BY-SECTION FALLBACK: Only fill missing sections, preserve successful ones
+        final_sections = {}
+        
+        # 1. Strategic Thinking Lens - always preserve if GPT generated it
+        if 'lens' in sections:
+            final_sections['Strategic Thinking Lens'] = sections['lens']
+            # Using GPT-generated Strategic Thinking Lens
+        else:
+            # Only use fallback if GPT completely failed to generate lens
+            # No GPT lens found, using fallback
+            fallback_content = context_aware_fallbacks(query)
+            final_sections['Strategic Thinking Lens'] = fallback_content['Strategic Thinking Lens']
+        
+        # 2. Story in Action - always preserve if GPT generated it
+        if 'story' in sections:
+            final_sections['Story in Action'] = sections['story']
+            # Using GPT-generated Story in Action
+        else:
+            # Only use fallback if GPT completely failed to generate story
+            # No GPT story found, using fallback
+            fallback_content = context_aware_fallbacks(query)
+            final_sections['Story in Action'] = fallback_content['Story in Action']
+        
+        # 3. Follow-up Prompts - always preserve if GPT generated it
+        if 'prompts' in sections:
+            final_sections['Follow-up Prompts'] = sections['prompts']
+            # Using GPT-generated Follow-up Prompts
+        else:
+            # Only use fallback if GPT completely failed to generate prompts
+            # No GPT prompts found, using fallback
+            fallback_content = context_aware_fallbacks(query)
+            final_sections['Follow-up Prompts'] = fallback_content['Follow-up Prompts']
+        
+        # 4. Concepts/Tools - ALWAYS use extracted concepts, never fallback
+        if concepts:
+            # Use extracted concepts as the source of truth
+            concept_text = ""
+            for concept_name, definition in concepts:
+                formatted_name = concept_name.replace('_', ' ').title()
+                concept_text += f"- {formatted_name}: {definition}\n"
+            final_sections['Concepts/Tools'] = concept_text.strip()
+            # Using extracted concepts (source of truth)
+        else:
+            # If no concepts were extracted, that's a problem - but don't use fallback
+            final_sections['Concepts/Tools'] = "No relevant concepts found for this query."
+            # No concepts extracted - this should not happen
         
         # V1.6.6.6 Step 1: Generate Lens and Story drafts separately, then merge
-        if 'lens' in sections:
+        if 'lens' in sections and 'story' in sections:
+            # Both lens and story exist - merge them
+            # Both lens and story exist - merging with GPT
+            lens_draft = sections['lens']
+            story_draft = sections['story']
+            
             # Detect domain count for adaptive word count
             domains = detect_course_concept_domains(query)
             domain_count = len([d for d in domains.values() if d > 0.1]) or 1  # At least 1 domain
-            
-            # Get lens draft (reasoning)
-            lens_draft = sections['lens']
-            
-            # Get story draft (example seed) - use existing story or generate fallback
-            if 'story' in sections:
-                story_draft = sections['story']
-            else:
-                # Generate fallback story using context_aware_fallbacks
-                fallback_content = context_aware_fallbacks(query)
-                story_draft = fallback_content.get('Story in Action', 
-                    "A professional systematically evaluates their options using structured decision-making tools. They consider both immediate impacts and long-term consequences, ultimately making a choice that balances competing priorities and aligns with their strategic objectives.")
             
             # Merge Lens and Story using GPT-3.5
             merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
@@ -2056,64 +2277,44 @@ def process_query(query: str, course_config: dict = None) -> str:
                 flags=re.IGNORECASE
             )
             
-            # Clean up old Strategic Thinking Lens section from the original answer
-            answer = re.sub(
-                r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-
-            # Sanitize the merged content in case it still starts with a header (just to be safe)
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-
-            # Inject clean Strategic Thinking Lens section
-            answer = f"**Strategic Thinking Lens**\n\n{merged_content.strip()}\n\n" + answer
+            # Update the Strategic Thinking Lens with merged content
+            final_sections['Strategic Thinking Lens'] = merged_content.strip()
             
-            # POST-PROCESSING: Remove Part 1/Part 2 subheaders and format connectors as italic
-            answer = re.sub(r'\*\*Part \d+:[^*]*\*\*', '', answer)
-            
-            # Strip stray bold/italic around connectors first
-            answer = re.sub(r'[*_]+(For (?:example|instance)[^,:]*,?)[*_]+', r'\1', answer)
-            answer = re.sub(r'[*_]+(Consider this scenario:?)[*_]+', r'\1', answer)
-            
-            # Reapply italics consistently
-            answer = re.sub(r'(For (?:example|instance)[^,:]*,?)', r'*\1*', answer)
-            answer = re.sub(r'(Consider this scenario:?)', r'*\1*', answer)
-            
-            # Remove the original Story section to prevent duplication
-            answer = re.sub(
-                r'\*\*Story in Action\*\*.*?(?=\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-            
-            # Ensure proper section spacing
-            answer = re.sub(r'\*\*Follow-up Prompts\*\*', '\n\n**Follow-up Prompts**', answer)
-            answer = re.sub(r'\*\*Concepts/Tools\*\*', '\n\n**Concepts/Tools**', answer)
+            # Remove Story in Action since it's now integrated into the lens
+            final_sections.pop('Story in Action', None)
+            # Story integrated into Strategic Thinking Lens
         
-        # Extract and validate concepts/tools
-        concepts_tools = extract_tools_from_section(answer)
+        elif 'lens' in sections and 'story' not in sections:
+            # Only lens exists, no story to merge
+            pass
+        elif 'lens' not in sections and 'story' in sections:
+            # Only story exists, no lens to merge
+            pass
+        else:
+            # Neither lens nor story exists - both are fallbacks
+            pass
         
-        # If no valid concepts extracted, use fallback
-        if not concepts_tools:
-            fallback_concepts = generate_fallback_concepts(query)
-            if fallback_concepts:
-                # Replace concepts section with fallback
-                answer = re.sub(
-                    r'\*\*Concepts/Tools\*\*.*?(?=\n\n|$)',
-                    f'**Concepts/Tools**\n\n' + '\n'.join(fallback_concepts),
-                    answer,
-                    flags=re.DOTALL
-                )
+        # Build final answer from sections
+        answer = ""
         
-        # Query processing complete
+        # Strategic Thinking Lens (always first)
+        if 'Strategic Thinking Lens' in final_sections:
+            answer += f"**Strategic Thinking Lens**\n\n{final_sections['Strategic Thinking Lens']}\n\n"
+        
+        # Story in Action (only if not merged into lens)
+        if 'Story in Action' in final_sections:
+            answer += f"**Story in Action**\n\n{final_sections['Story in Action']}\n\n"
+        
+        # Follow-up Prompts
+        if 'Follow-up Prompts' in final_sections:
+            answer += f"**Follow-up Prompts**\n\n{final_sections['Follow-up Prompts']}\n\n"
+        
+        # Concepts/Tools (always last)
+        if 'Concepts/Tools' in final_sections:
+            answer += f"**Concepts/Tools**\n\n{final_sections['Concepts/Tools']}\n\n"
+        
+        # Clean up extra newlines
+        answer = re.sub(r'\n{3,}', '\n\n', answer).strip()
         
         return answer
         
@@ -2127,14 +2328,56 @@ def process_query(query: str, course_config: dict = None) -> str:
 def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
     """Ensure the answer follows ThinkPal structure with all required sections."""
     
-    # Check if answer already has proper structure
-    if re.search(r'\*\*Strategic Thinking Lens\*\*', answer, re.IGNORECASE) and \
-       re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE) and \
-       re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE) and \
-       re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
-        return answer
+    # Check if answer has at least 1 of the 4 required sections (very lenient)
+    sections_found = 0
+    if re.search(r'\*\*Strategic Thinking Lens\*\*', answer, re.IGNORECASE):
+        sections_found += 1
+    if re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE):
+        sections_found += 1
+    if re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE):
+        sections_found += 1
+    if re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
+        sections_found += 1
     
-    # If not, generate fallback content
+    # If GPT generated at least 1 section, keep the answer and just add missing sections
+    if sections_found >= 1:
+        # Extract existing sections from GPT's response
+        existing_sections = {}
+        
+        # Extract Strategic Thinking Lens
+        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
+        if lens_match:
+            existing_sections['Strategic Thinking Lens'] = lens_match.group(0).replace('**Strategic Thinking Lens**', '').strip()
+        
+        # Extract Story in Action
+        story_match = re.search(r'\*\*Story in Action\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
+        if story_match:
+            existing_sections['Story in Action'] = story_match.group(0).replace('**Story in Action**', '').strip()
+        
+        # Extract Follow-up Prompts
+        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
+        if prompts_match:
+            existing_sections['Follow-up Prompts'] = prompts_match.group(0).replace('**Follow-up Prompts**', '').strip()
+        
+        # Extract Concepts/Tools
+        concepts_match = re.search(r'\*\*Concepts/Tools\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
+        if concepts_match:
+            existing_sections['Concepts/Tools'] = concepts_match.group(0).replace('**Concepts/Tools**', '').strip()
+        
+        # Generate fallback content only for missing sections
+        fallback_content = context_aware_fallbacks(query)
+        
+        # Use GPT's sections when available, fallback only for missing ones
+        final_content = {}
+        final_content['Strategic Thinking Lens'] = existing_sections.get('Strategic Thinking Lens', fallback_content['Strategic Thinking Lens'])
+        final_content['Story in Action'] = existing_sections.get('Story in Action', fallback_content['Story in Action'])
+        final_content['Follow-up Prompts'] = existing_sections.get('Follow-up Prompts', fallback_content['Follow-up Prompts'])
+        final_content['Concepts/Tools'] = existing_sections.get('Concepts/Tools', fallback_content['Concepts/Tools'])
+        
+        return format_fallback_response(final_content)
+    
+    # Only use complete fallback if GPT generated 0 sections (complete failure)
+    # GPT generated 0 sections, using complete fallback
     fallback_content = context_aware_fallbacks(query)
     return format_fallback_response(fallback_content)
 
@@ -2173,14 +2416,14 @@ def detect_domain_semantic(query: str) -> dict:
         # Domain reference texts (representative examples for each domain)
         domain_references = {
             'behavioral': [
-                "how to deal with unfair criticism from manager",
-                "handling workplace conflicts and interpersonal issues",
-                "managing team dynamics and human behavior",
-                "dealing with biased feedback and workplace relationships",
-                "handling difficult conversations with colleagues",
-                "managing emotions and reactions in professional settings",
-                "dealing with unfair critiques and workplace feedback",
-                "managing personal finance and budgeting decisions"
+                "human judgment and cognitive biases in professional settings",
+                "psychological factors affecting workplace behavior",
+                "intuitive judgment versus analytical thinking",
+                "cognitive psychology and human reasoning",
+                "emotional intelligence and interpersonal dynamics",
+                "psychological activities and mental frameworks",
+                "human cognition and behavioral patterns",
+                "intuitive decision patterns and cognitive shortcuts"
             ],
             'technical': [
                 "optimizing production capacity using mathematical models",
@@ -2203,8 +2446,8 @@ def detect_domain_semantic(query: str) -> dict:
                 "bargaining strategies and tactics",
                 "contract negotiations and settlements",
                 "negotiation techniques and approaches",
-                "deal-making and agreement processes",
-                "negotiation frameworks and methods",
+                "deal-making and agreement methods",
+                "negotiation frameworks and approaches",
                 "negotiating salary packages and compensation",
                 "bargaining for better terms and conditions"
             ],
@@ -2257,7 +2500,49 @@ def unified_semantic_extraction(query: str) -> dict:
         
         # 1. SEMANTIC DOMAIN DETECTION
         domain_scores = detect_domain_semantic(query)
-        primary_domain = max(domain_scores, key=domain_scores.get) if domain_scores else 'general'
+        
+        def select_domains_with_rules(scores: dict) -> Tuple[str, List[str]]:
+            if not scores:
+                return 'general', ['general']
+
+            # General removal decision
+            general_score = scores.get('general', 0.0)
+            non_general = {k: v for k, v in scores.items() if k != 'general'}
+            next_best_domain = max(non_general, key=non_general.get) if non_general else None
+            next_best_score = non_general.get(next_best_domain, 0.0) if next_best_domain else 0.0
+            delta = general_score - next_best_score
+
+            pool = dict(scores)
+            # Keep general ONLY if (delta >= 0.08 and next_best_non_general < 0.18)
+            if not (delta >= 0.08 and next_best_score < 0.18):
+                if 'general' in pool:
+                    pool.pop('general')
+
+            # If pool empty after removal, fallback to general
+            if not pool:
+                return 'general', ['general']
+
+            # 8% inclusion band relative to pool max, cap to top 3
+            s_max = max(pool.values())
+            threshold = s_max * (1.0 - 0.08)
+
+            precedence = {
+                'strategic': 5,
+                'technical': 4,
+                'behavioral': 3,
+                'negotiation': 2,
+                'general': 1,
+            }
+
+            included = [d for d, s in pool.items() if s >= threshold]
+            # Sort by score desc, then by precedence desc
+            included.sort(key=lambda d: (pool[d], precedence.get(d, 0)), reverse=True)
+            included = included[:3]
+
+            primary = included[0]
+            return primary, included
+
+        primary_domain, selected_domains = select_domains_with_rules(domain_scores)
         
         # 2. SEMANTIC APPLICATION FIELD DETECTION
         application_field = extract_application_field_semantic(query, model)
@@ -2270,6 +2555,7 @@ def unified_semantic_extraction(query: str) -> dict:
         
         return {
             'domain': primary_domain,
+            'domains_selected': selected_domains,
             'domain_scores': domain_scores,
             'application_field': application_field,
             'concepts': concepts,
@@ -2281,6 +2567,7 @@ def unified_semantic_extraction(query: str) -> dict:
         # Fallback to individual methods
         return {
             'domain': 'general',
+            'domains_selected': ['general'],
             'domain_scores': {},
             'application_field': extract_application_field(query),
             'concepts': get_top_ranked_concepts(query, top_k=3),
@@ -2365,11 +2652,11 @@ def extract_application_field_semantic(query: str, model) -> str:
             "training effectiveness"
         ],
         'healthcare_medical': [
-            "patient care and treatment",
-            "medical diagnosis and therapy",
-            "clinical decision making",
-            "healthcare system management",
-            "medical technology adoption"
+            "patient diagnosis protocols and medical imaging",
+            "surgical treatment planning and procedures",
+            "clinical care pathways and patient outcomes",
+            "healthcare facility management and accreditation",
+            "medical device implementation and FDA compliance"
         ],
         'military_defense': [
             "military strategy and tactics",
@@ -2486,19 +2773,17 @@ if __name__ == "__main__":
             try:
                 query = input("\nAsk a question (or type 'exit'): ")
             except (EOFError, KeyboardInterrupt):
-                print("\n👋 Exiting. Goodbye!")
                 break
             
             if query.strip().lower() == "exit":
-                print("👋 Exiting. Goodbye!")
                 break
             
             if not query.strip():
-                print("⚠️ Please enter a non-empty question.")
+                # Please enter a non-empty question
                 continue
             
             answer = process_query(query)
             print(f"{answer}")
             
     except KeyboardInterrupt:
-        print("\n👋 Exiting. Goodbye!") 
+        pass 
