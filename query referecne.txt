@@ -1,0 +1,327 @@
+[
+  {
+    "id": 1,
+    "query": "How do I decide whether to expand capacity now or wait until demand is clearer?",
+    "domains": ["S", "T"]
+  },
+  {
+    "id": 2,
+    "query": "My forecasting model fits historical data but fails during shocks. How should I improve it?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 3,
+    "query": "Why do managers keep funding projects even when the numbers show it’s a loss?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 4,
+    "query": "What steps should I follow to prepare for a negotiation instead of jumping straight to offers?",
+    "domains": ["N", "S"]
+  },
+  {
+    "id": 5,
+    "query": "A team prefers short-term profit over long-term R&D. What bias is shaping this choice?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 6,
+    "query": "Two firms are negotiating a joint venture. How should they evaluate trade-offs between equity and control?",
+    "domains": ["N", "S"]
+  },
+  {
+    "id": 7,
+    "query": "In labor talks, workers distrust management’s data. How can trust be rebuilt?",
+    "domains": ["N", "H", "T"]
+  },
+  {
+    "id": 8,
+    "query": "My regression model shows high R², but it’s driven mostly by seasonal cycles. What should I check?",
+    "domains": ["T"]
+  },
+  {
+    "id": 9,
+    "query": "During strategy sessions, why do executives anchor to competitor failures?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 10,
+    "query": "A government must decide whether to protect one industry or open markets for growth. What frameworks apply?",
+    "domains": ["S"]
+  },
+  {
+    "id": 11,
+    "query": "Why do people fall into the splitting-pie trap during negotiation?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 12,
+    "query": "A predictive analytics tool shows customer churn risk, but leaders ignore it due to optimism bias. How should I respond?",
+    "domains": ["T", "H", "S"]
+  },
+  {
+    "id": 13,
+    "query": "Two competitors must decide whether to invest early in unproven technology. How should timing be evaluated?",
+    "domains": ["S", "T"]
+  },
+  {
+    "id": 14,
+    "query": "One side inflates its initial offer to frame expectations. How should the other respond?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 15,
+    "query": "What decision-making framework prevents overreacting to quarterly earnings swings?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 16,
+    "query": "In supplier negotiations, should I push for fixed pricing when forecasts are volatile?",
+    "domains": ["N", "S", "T"]
+  },
+  {
+    "id": 17,
+    "query": "Our data shows customers say one thing in surveys but act differently in purchases. How should I interpret this?",
+    "domains": ["T", "H"]
+  },
+  {
+    "id": 18,
+    "query": "In coalition negotiations, each partner maximizes their share, risking collapse. How can value be preserved?",
+    "domains": ["N", "S", "H"]
+  },
+  {
+    "id": 19,
+    "query": "Why do employees compete under a data-driven bonus system but stop collaborating?",
+    "domains": ["H", "T", "S"]
+  },
+  {
+    "id": 20,
+    "query": "What’s the systematic process I should follow to structure a negotiation rather than rely on instinct?",
+    "domains": ["N", "S"]
+  },
+  {
+    "id": 21,
+    "query": "A company considers outsourcing IT services. What should it weigh when making the decision?",
+    "domains": ["S", "T"]
+  },
+  {
+    "id": 22,
+    "query": "Why do teams get overconfident after one successful project, ignoring future risks?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 23,
+    "query": "In a merger negotiation, how can both sides avoid focusing only on dividing the pie?",
+    "domains": ["N", "H", "S"]
+  },
+  {
+    "id": 24,
+    "query": "A forecasting model suggests demand will grow, but historical accuracy is low. How should leaders proceed?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 25,
+    "query": "Why do groups often fall into groupthink when making strategic choices?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 26,
+    "query": "In a supplier negotiation, should we accept their optimistic projections?",
+    "domains": ["N", "T", "S"]
+  },
+  {
+    "id": 27,
+    "query": "What explains why managers stick to original plans even when data proves them wrong?",
+    "domains": ["H", "T", "S"]
+  },
+  {
+    "id": 28,
+    "query": "When evaluating a new product launch, how should scenario analysis be applied?",
+    "domains": ["S", "T"]
+  },
+  {
+    "id": 29,
+    "query": "In cross-cultural negotiations, how do different communication styles affect outcomes?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 30,
+    "query": "A company overestimates market size by relying on biased survey samples. How can this be corrected?",
+    "domains": ["T", "H"]
+  },
+  {
+    "id": 31,
+    "query": "What strategic risks emerge when executives react too quickly to competitor moves?",
+    "domains": ["S", "H"]
+  },
+  {
+    "id": 32,
+    "query": "How can sensitivity analysis help in deciding between alternative investment options?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 33,
+    "query": "Why do employees resist shutting down failing projects, despite evidence?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 34,
+    "query": "In labor contract negotiations, how should both sides evaluate long-term sustainability?",
+    "domains": ["N", "S", "T"]
+  },
+  {
+    "id": 35,
+    "query": "What is the role of framing effects in shaping public policy decisions?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 36,
+    "query": "A regression model shows strong correlation but weak causation. What should analysts do?",
+    "domains": ["T"]
+  },
+  {
+    "id": 37,
+    "query": "Why do leaders prefer short-term fixes over long-term solutions?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 38,
+    "query": "In joint venture negotiations, how should partners address uncertainty in future demand?",
+    "domains": ["N", "S", "T"]
+  },
+  {
+    "id": 39,
+    "query": "How can cognitive biases distort risk assessments in strategy sessions?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 40,
+    "query": "A predictive model for pricing performs poorly out of sample. What actions should be taken?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 41,
+    "query": "What explains why people anchor to initial information during negotiations?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 42,
+    "query": "A company debates whether to centralize or decentralize decision-making. What frameworks apply?",
+    "domains": ["S"]
+  },
+  {
+    "id": 43,
+    "query": "In data-driven decision processes, why do managers sometimes ignore statistical significance?",
+    "domains": ["T", "H"]
+  },
+  {
+    "id": 44,
+    "query": "How can simulation models support strategic planning in volatile markets?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 45,
+    "query": "In high-stakes negotiations, how do emotions influence concessions?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 46,
+    "query": "Why do leaders resist external advice when making strategic choices?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 47,
+    "query": "What steps should analysts take to validate a demand forecasting model?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 48,
+    "query": "In international negotiations, how can parties balance short-term wins with long-term partnerships?",
+    "domains": ["N", "S"]
+  },
+  {
+    "id": 49,
+    "query": "How do sunk cost effects distort exit decisions in business strategy?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 50,
+    "query": "A predictive analytics model suggests resource reallocation, but leadership resists. Why?",
+    "domains": ["T", "H", "S"]
+  },
+  {
+    "id": 51,
+    "query": "In multiparty negotiations, how can decision-makers ensure fairness without deadlock?",
+    "domains": ["N", "S", "H"]
+  },
+  {
+    "id": 52,
+    "query": "Why do organizations often copy competitors without testing assumptions?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 53,
+    "query": "How should regression diagnostics be applied when multicollinearity appears?",
+    "domains": ["T"]
+  },
+  {
+    "id": 54,
+    "query": "What role does loss aversion play in delaying strategic exits?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 55,
+    "query": "In supplier negotiations, how can parties use scenario planning to manage risk?",
+    "domains": ["N", "S", "T"]
+  },
+  {
+    "id": 56,
+    "query": "Why do managers overweight recent performance when evaluating employees?",
+    "domains": ["H", "T"]
+  },
+  {
+    "id": 57,
+    "query": "A firm must decide between global expansion and domestic consolidation. What strategic tools apply?",
+    "domains": ["S", "T"]
+  },
+  {
+    "id": 58,
+    "query": "In union negotiations, how do anchoring effects shape expectations?",
+    "domains": ["N", "H"]
+  },
+  {
+    "id": 59,
+    "query": "Why do leaders interpret ambiguous data to fit pre-existing beliefs?",
+    "domains": ["H", "T"]
+  },
+  {
+    "id": 60,
+    "query": "How can Monte Carlo simulation support decisions under uncertainty?",
+    "domains": ["T", "S"]
+  },
+  {
+    "id": 61,
+    "query": "In high-stakes negotiations, how should data be presented to avoid misinterpretation?",
+    "domains": ["N", "T", "H"]
+  },
+  {
+    "id": 62,
+    "query": "What explains why firms delay adopting new technologies even when data supports it?",
+    "domains": ["H", "S", "T"]
+  },
+  {
+    "id": 63,
+    "query": "How can executives avoid escalation of commitment in large projects?",
+    "domains": ["H", "S"]
+  },
+  {
+    "id": 64,
+    "query": "In trade negotiations, how can parties evaluate both economic data and political behavior?",
+    "domains": ["N", "T", "H", "S"]
+  },
+  {
+    "id": 65,
+    "query": "Why do organizations default to industry benchmarks instead of running independent analysis?",
+    "domains": ["H", "T", "S"]
+  }
+]

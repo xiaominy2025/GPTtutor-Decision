@@ -76,6 +76,7 @@ def load_course_config(course_id: str) -> dict:
             # Loaded glossary for course
         except Exception as e:
             # Failed to load glossary
+            pass
     
     # Load prompt_template.txt
     prompt_path = os.path.join(course_path, "prompt_template.txt")
@@ -86,6 +87,7 @@ def load_course_config(course_id: str) -> dict:
             # Loaded prompt template for course
         except Exception as e:
             # Failed to load prompt template
+            pass
     
     # Load sections_config.json
     sections_path = os.path.join(course_path, "sections_config.json")
@@ -96,6 +98,7 @@ def load_course_config(course_id: str) -> dict:
             # Loaded sections config for course
         except Exception as e:
             # Failed to load sections config
+            pass
     
     return config
 
@@ -156,8 +159,8 @@ def process_query():
         concepts_tools_practice = []
         if hasattr(query_engine, 'extract_tools_from_section'):
             import re
-                    # V1.6.3: Only look for Concepts/Tools section
-        concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
+            # V1.6.3: Only look for Concepts/Tools section
+            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
             if concepts_match:
                 concepts_section = concepts_match.group(0)
                 concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)
@@ -266,9 +269,9 @@ def get_course_metadata(course_id):
 
     try:
         # Use the selected metadata path based on priority
-        with open(SELECTED_META_PATH) as f:
+        with open(SELECTED_META_PATH, 'r', encoding='utf-8') as f:
             metadata = json.load(f)
-        with open(os.path.join(base_path, 'glossary.json')) as f:
+        with open(os.path.join(base_path, 'glossary.json'), 'r', encoding='utf-8') as f:
             glossary = json.load(f)
 
         return jsonify({
