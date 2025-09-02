@@ -336,8 +336,8 @@ CONCEPT_DOMAINS = {
     "zopa": "negotiation",
     "investigative negotiation": "negotiation",
     "negotiation term sheet": "negotiation",
-    "game theory": "negotiation",
-    "winner's curse": "negotiation",
+    "game theory": "strategic",
+    "winner's curse": "behavioral",
     "integrative negotiation": "negotiation",
     "distributive negotiation": "negotiation",
     
@@ -364,10 +364,15 @@ def clear_concept_cache():
 # Clear cache on import to ensure fresh concept selection
 clear_concept_cache() 
 
-def detect_course_concept_domains(query: str) -> dict:
+def detect_course_concept_domains_improved(query: str) -> dict:
     """
-    Detect multiple course concept domains of a query based on keyword analysis.
-    Returns: Dictionary with course concept domain names as keys and confidence scores as values.
+    Improved keyword-based domain detection with cluster-based selection.
+    
+    Args:
+        query: User's query text
+        
+    Returns:
+        Dictionary of selected domains with their scores
     """
     query_lower = query.lower()
     course_concept_domains = {
@@ -377,130 +382,538 @@ def detect_course_concept_domains(query: str) -> dict:
         'negotiation': 0
     }
     
-    # Behavioral/psychological indicators
-    behavioral_keywords = [
-        'team', 'teams', 'conflict', 'conflicts', 'value', 'values', 'behavior', 'behaviour',
-        'psychology', 'psychological', 'bias', 'biases', 'cognitive', 'cognition',
-        'judgment', 'judgement', 'leadership', 'personality', 'personalities',
-        'motivation', 'motivational', 'emotion', 'emotional', 'human', 'people',
-        'individual', 'group', 'social', 'interpersonal', 'communication',
-        'behave', 'behaving', 'behaved', 'psychologic', 'cognitively', 'judge', 'judging',
-        'lead', 'leading', 'led', 'motivate', 'motivating', 'motivated', 'feel', 'feeling',
-        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating',
-        # Manager and workplace relationship keywords
-        'manager', 'managers', 'boss', 'supervisor', 'supervisors', 'colleague', 'colleagues',
-        'workplace', 'office', 'professional', 'professionally', 'work', 'working',
-        'critique', 'critiques', 'criticism', 'criticisms', 'feedback', 'unfair', 'fair',
-        'approach', 'approaching', 'situation', 'circumstance', 'circumstances',
-        'relationship', 'relationships', 'interpersonal', 'communication', 'communicate',
-        'response', 'respond', 'responding', 'react', 'reacting', 'reaction', 'reactions',
-        # Money and financial behavior keywords
-        'budget', 'budgeting', 'budgeted', 'salary', 'salaries', 'expense', 'expenses', 'spending', 'spend', 'spent',
-        'money', 'financial', 'finance', 'cost', 'costs', 'price', 'prices', 'payment', 'payments',
-        'income', 'revenue', 'profit', 'loss', 'saving', 'savings', 'save', 'saved',
-        'investment', 'invest', 'investing', 'invested', 'wealth', 'wealthy', 'asset', 'assets',
-        'debt', 'credit', 'loan', 'loans', 'mortgage', 'rent', 'rental', 'utility', 'utilities',
-        'grocery', 'groceries', 'entertainment', 'transportation', 'healthcare', 'insurance'
+    # NEGOTIATION DOMAIN (Weighted)
+    negotiation_strong = [
+        'negotiation', 'negotiations', 'negotiate', 'negotiating', 'negotiated',
+        'bargain', 'bargaining', 'bargained',
+        'stalemate', 'deadlock', 'impasse', 'deadlocked',
+        'contract negotiation', 'contract negotiations'
     ]
-    for keyword in behavioral_keywords:
-        if keyword in query_lower:
-            course_concept_domains['behavioral'] += 1
     
-    # Technical/analytical indicators (FOCUSED - only truly technical terms)
-    technical_keywords = [
-        'simulation', 'simulate', 'simulating', 'simulated',
-        'forecast', 'forecasting', 'forecasted', 
-        'optimization', 'optimize', 'optimizing', 'optimized',
-        'maximization', 'maximize', 'maximizing', 'maximized',
-        'minimization', 'minimize', 'minimizing', 'minimized',
-        'algorithm', 'algorithms', 'mathematical', 'mathematics',
-        'calculate', 'calculation', 'calculating', 'calculated',
-        'compute', 'computation', 'computing', 'computed',
-        'production', 'demand', 'storage', 'capacity', 'inventory',
-        'operations', 'operational', 'manufacturing', 'logistics',
-        'data', 'statistical', 'statistics', 'numerical', 'numeric',
-        'uncertainty', 'uncertain', 'uncertainties', 'probability', 
-        'probabilistic', 'probable', 'scenario', 'scenarios',
-        'model', 'modeling', 'modeled', 'models',
-        'visualize', 'visualizing', 'visualized', 'visualization',
-        'map', 'mapping', 'mapped', 'diagram', 'diagrams',
-        'chart', 'charts', 'graph', 'graphs', 'tree', 'trees',
-        'flow', 'flows', 'flowchart', 'flowcharts'
-    ]
-    for keyword in technical_keywords:
-        if keyword in query_lower:
-            course_concept_domains['technical'] += 1
-    
-    # Strategic indicators
-    strategic_keywords = [
-        'strategy', 'strategic', 'strategically', 'market', 'markets', 'marketing',
-        'competitive', 'competition', 'competitor', 'competitors', 'compete', 'competing',
-        'advantage', 'advantageous', 'positioning', 'position', 'positioned', 'positioning',
-        'business', 'businesses', 'organization', 'organizations', 'organize', 'organizing',
-        'company', 'companies', 'industry', 'industries', 'industrial',
-        'expansion', 'expand', 'expanding', 'expanded', 'growth', 'grow', 'growing', 'grown',
-        'planning', 'plan', 'planned', 'corporate', 'enterprise', 'enterprising',
-        'swot', 'value chain', 'profitability', 'profitable', 'stakeholder', 'stakeholders',
-        'alignment', 'align', 'aligning', 'aligned', 'competitive advantage', 'market analysis', 
-        'strategic analysis', 'business strategy', 'business strategies', 'corporate strategy', 
-        'corporate strategies', 'strategic planning', 'competitive position', 'market position', 
-        'market share', 'competitive edge', 'business model', 'business plan', 'strategic thinking', 
-        'strategic decision', 'decision strategy', 'decision strategies', 'optimal strategy', 'optimal strategies', 
-        'long-term', 'long term', 'career', 'careers', 'professional', 'profession', 'job', 'jobs',
-        'offer', 'offers', 'offering', 'offered', 'opportunity', 'opportunities', 'choice', 'choices',
-        'choose', 'choosing', 'chose', 'chosen', 'decide', 'deciding', 'decided', 'decision',
-        'compare', 'comparing', 'compared', 'comparison', 'evaluate', 'evaluating', 'evaluated',
-        'assessment', 'assess', 'assessing', 'assessed', 'option', 'options', 'alternative', 'alternatives',
-        # Investment and financial keywords (business/strategic context only)
-        'portfolio', 'portfolios', 'fund', 'funds', 'funding', 'funded',
-        'return', 'returns', 'revenue', 'revenues', 'profit', 'profits', 'profitable',
-        'capital', 'equity', 'stock', 'stocks', 'bond', 'bonds', 'mutual fund', 'mutual funds', 'etf', 'etfs', 'dividend', 'dividends',
-        # Education and academic keywords
-        'college', 'colleges', 'university', 'universities', 'school', 'schools', 'academic',
-        'academics', 'education', 'educational', 'learning', 'learn', 'learned', 'studying',
-        'study', 'studies', 'course', 'courses', 'program', 'programs', 'degree', 'degrees',
-        'major', 'majors', 'minor', 'minors', 'curriculum', 'curricula', 'tuition', 'scholarship',
-        'scholarships', 'admission', 'admissions', 'enroll', 'enrollment', 'enrolled',
-        'graduate', 'graduation', 'undergraduate', 'graduate school', 'graduate schools',
-        'skill', 'skills', 'development', 'training', 'certification'
-    ]
-    for keyword in strategic_keywords:
-        if keyword in query_lower:
-            course_concept_domains['strategic'] += 1
-    
-    # Negotiation indicators
-    negotiation_keywords = [
-        'negotiate', 'negotiation', 'negotiating', 'negotiated', 'negotiator', 'negotiators',
-        'agreement', 'agree', 'agreeing', 'agreed', 'disagree', 'disagreeing', 'disagreed',
-        'bargain', 'bargaining', 'bargained', 'bargaining strategy', 'bargaining strategies', 
-        'negotiation strategy', 'negotiation strategies', 'contract', 'contracts', 'contracting', 'contracted', 
-        'settlement', 'settle', 'settling', 'settled', 'compromise', 'compromising', 'compromised',
-        'proposal', 'proposals', 'propose', 'proposing', 'proposed',
+    negotiation_moderate = [
+        'agreement', 'agree', 'agreed', 'agreeing',
+        'settlement', 'settle', 'settling', 'settled',
+        'concession', 'concessions',
         'counteroffer', 'counteroffers', 'counter-offer', 'counter-offers',
-        'terms', 'term', 'condition', 'conditions', 'concession', 'concessions',
-        'deadlock', 'impasse', 'deadlocked', 'win-win', 'win win', 'zero-sum', 'zero sum',
-        # Add missing negotiation keywords
-        'package', 'packages', 'offer', 'offers', 'offering', 'offered', 'deal', 'deals'
+        'compromise', 'compromising', 'compromised',
+        'win-win', 'win win', 'zero-sum', 'zero sum',
+        'salary negotiation', 'salary negotiations'
     ]
-    for keyword in negotiation_keywords:
+    
+    negotiation_weak = [
+        'party', 'parties', 'multi-party', 'multi party',
+        'offer', 'offers', 'offering', 'offered',
+        'stuck', 'insist', 'insists', 'insisting', 'concede', 'concedes',
+        'value', 'values', 'process', 'reframe', 'reframing',
+        'collective', 'collectively', 'mutual', 'mutually'
+    ]
+    
+    # STRATEGIC DOMAIN (Weighted)
+    strategic_strong = [
+        'strategy', 'strategic', 'strategically',
+        'competitive advantage', 'market entry', 'market positioning',
+        'business strategy', 'corporate strategy', 'strategic planning'
+    ]
+    
+    strategic_moderate = [
+        'market', 'markets', 'competitive', 'competition', 'competitor', 'competitors',
+        'business', 'businesses', 'business model', 'business plan',
+        'joint venture', 'majority ownership', 'ownership', 'equity',
+        'position', 'positioning', 'competitive position', 'market position',
+        'supplier', 'suppliers', 'logistics', 'timing', 'entry',
+        'value proposition', 'competitive landscape'
+    ]
+    
+    strategic_weak = [
+        'planning', 'plan', 'planned', 'choice', 'choices', 'option', 'options',
+        'framework', 'frameworks', 'decision', 'decisions',
+        'company', 'companies', 'industry', 'industries',
+        'organization', 'organizations', 'corporate', 'enterprise'
+    ]
+    
+    # TECHNICAL DOMAIN (Weighted)
+    technical_strong = [
+        'algorithm', 'algorithms', 'regression', 'clustering',
+        'optimization', 'optimize', 'optimizing', 'optimized',
+        'forecast', 'forecasting', 'forecasted',
+        'simulation', 'simulate', 'simulating', 'simulated',
+        'scenario analysis', 'decision-tree', 'decision tree',
+        'machine learning', 'ml', 'artificial intelligence', 'ai'
+    ]
+    
+    technical_moderate = [
+        'data', 'dataset', 'datasets', 'model', 'models', 'modeling', 'modeled',
+        'analysis', 'analytics', 'predictive', 'prediction', 'predictions',
+        'statistical', 'statistics', 'correlation', 'variance',
+        'a/b testing', 'ab testing', 'survey', 'surveys',
+        'benchmarking', 'uncertainty', 'production', 'capacity',
+        'trade-off', 'trade off', 'tradeoffs', 'efficiency', 'effectiveness'
+    ]
+    
+    technical_weak = [
+        'technical', 'technically', 'technology', 'technologies',
+        'scalability', 'robustness', 'sensitivity analysis',
+        'calculate', 'calculation', 'computing', 'computation',
+        'visualize', 'visualization', 'chart', 'charts', 'graph', 'graphs'
+    ]
+    
+    # BEHAVIORAL DOMAIN (Weighted)
+    behavioral_strong = [
+        'behavior', 'behavioral', 'behaviour', 'behavioural',
+        'bias', 'biases', 'cognitive bias', 'confirmation bias', 
+        'availability bias', 'anchoring bias',
+        'risk aversion', 'overconfidence', 'herding', 'groupthink',
+        'sunk cost', 'sunk costs', 'loss aversion',
+        'emotion', 'emotional'
+    ]
+    
+    behavioral_moderate = [
+        'judgment', 'judgement', 'judge', 'judging',
+        'anchor', 'anchoring', 'exaggerate', 'exaggerating', 'exaggerated',
+        'relationship', 'relationships', 'team', 'teams',
+        'leadership', 'manager', 'managers', 'workplace',
+        'employee', 'employees', 'colleague', 'colleagues'
+    ]
+    
+    behavioral_weak = [
+        'human', 'people', 'person', 'persons', 'individual', 'individuals',
+        'group', 'groups', 'social', 'interpersonal',
+        'motivation', 'motivational',
+        'personality', 'personalities', 'psychology', 'psychological',
+        'weak', 'strong', 'fair', 'unfair'
+    ]
+    
+    # CONTEXT-AWARE AMBIGUOUS KEYWORDS
+    ambiguous_keywords = ['budget', 'spending', 'cost', 'price', 'investment', 'profit', 'loss']
+    
+    # First pass: detect context for ambiguous keywords
+    technical_context = any(word in query_lower for word in technical_strong + technical_moderate)
+    behavioral_context = any(word in query_lower for word in behavioral_strong + behavioral_moderate)
+    strategic_context = any(word in query_lower for word in strategic_strong + strategic_moderate)
+    
+    # Assign ambiguous keywords based on context
+    for keyword in ambiguous_keywords:
         if keyword in query_lower:
-            course_concept_domains['negotiation'] += 1
+            if technical_context:
+                technical_moderate.append(keyword)
+            elif behavioral_context:
+                behavioral_weak.append(keyword)
+            elif strategic_context:
+                strategic_moderate.append(keyword)
+            else:
+                behavioral_weak.append(keyword)
     
+    # Calculate weighted scores
+    def calculate_weighted_score(strong_list, moderate_list, weak_list):
+        strong_count = sum(1 for keyword in strong_list if keyword in query_lower)
+        moderate_count = sum(1 for keyword in moderate_list if keyword in query_lower)
+        weak_count = sum(1 for keyword in weak_list if keyword in query_lower)
+        
+        return 3 * strong_count + 2 * moderate_count + 1 * weak_count
+    
+    # Calculate weighted scores for each domain
+    negotiation_weighted = calculate_weighted_score(negotiation_strong, negotiation_moderate, negotiation_weak)
+    strategic_weighted = calculate_weighted_score(strategic_strong, strategic_moderate, strategic_weak)
+    technical_weighted = calculate_weighted_score(technical_strong, technical_moderate, technical_weak)
+    behavioral_weighted = calculate_weighted_score(behavioral_strong, behavioral_moderate, behavioral_weak)
+    
+    # Create domain scores dictionary
+    domain_scores = {
+        'negotiation': negotiation_weighted,
+        'strategic': strategic_weighted,
+        'technical': technical_weighted,
+        'behavioral': behavioral_weighted
+    }
+    
+    # Apply cluster-based selection instead of simple normalization
+    selected_domains = select_domains_by_clusters_improved(domain_scores, "keyword", max_domains=3)
+    
+    return selected_domains
 
+def detect_domain_semantic_improved(query: str) -> dict:
+    """
+    Improved semantic domain detection with cluster-based selection.
     
+    Args:
+        query: User's query text
+        
+    Returns:
+        Dictionary of selected domains with their scores
+    """
+    try:
+        # Load data lazily
+        index, metadata, documents, file_names, model, nlp = load_data_lazily()
+        
+        # Domain reference texts (representative examples for each domain) - Expanded to ~75 total
+        domain_references = {
+            'behavioral': [
+                "how to deal with unfair criticism from manager",
+                "handling workplace conflicts and interpersonal issues",
+                "managing team dynamics and human behavior",
+                "dealing with biased feedback and workplace relationships",
+                "handling difficult conversations with colleagues",
+                "managing emotions and reactions in professional settings",
+                "dealing with unfair critiques and workplace feedback",
+                "managing personal finance and budgeting decisions",
+                "cognitive bias in decision making",
+                "confirmation bias and how to avoid it",
+                "anchoring bias in negotiations",
+                "availability bias in risk assessment",
+                "overconfidence in professional judgments",
+                "groupthink in team decisions",
+                "herding behavior in financial decisions",
+                "sunk cost fallacy in business",
+                "loss aversion in investment decisions",
+                "risk aversion in career choices",
+                "emotional decision making at work",
+                "interpersonal conflict resolution",
+                "workplace relationship management",
+                "team collaboration challenges",
+                "leadership decision making",
+                "employee motivation and behavior",
+                "workplace psychology and behavior"
+            ],
+            'technical': [
+                "optimizing production capacity using mathematical models",
+                "forecasting demand with statistical analysis",
+                "simulation modeling for risk assessment",
+                "linear programming for resource allocation",
+                "data analysis and statistical modeling",
+                "mathematical optimization and algorithms",
+                "machine learning for decision making",
+                "artificial intelligence in business",
+                "regression analysis for predictions",
+                "clustering algorithms for market segmentation",
+                "decision tree analysis for choices",
+                "monte carlo simulation for uncertainty",
+                "scenario analysis for planning",
+                "sensitivity analysis for robustness",
+                "statistical modeling for business",
+                "predictive analytics for forecasting",
+                "data visualization for insights",
+                "correlation analysis for relationships",
+                "variance analysis for performance",
+                "benchmarking for comparison",
+                "a/b testing for optimization",
+                "survey analysis for insights",
+                "production optimization models",
+                "capacity planning algorithms",
+                "supply chain optimization"
+            ],
+            'strategic': [
+                "developing long-term business strategy",
+                "competitive positioning and market analysis",
+                "strategic planning and corporate decisions",
+                "business expansion and growth strategy",
+                "competitive advantage and market positioning",
+                "strategic decision making for organizations",
+                "market entry strategy development",
+                "competitive landscape analysis",
+                "business model innovation",
+                "strategic partnerships and alliances",
+                "corporate restructuring decisions",
+                "market positioning strategies",
+                "competitive intelligence gathering",
+                "strategic resource allocation",
+                "business diversification strategies",
+                "market expansion planning",
+                "competitive response strategies",
+                "strategic risk management",
+                "business transformation planning",
+                "strategic cost management",
+                "value proposition development",
+                "competitive differentiation strategies",
+                "market timing decisions",
+                "strategic investment planning",
+                "business portfolio optimization"
+            ],
+            'negotiation': [
+                "negotiating business contracts and agreements",
+                "bargaining strategies for business deals",
+                "contract negotiation and settlement processes",
+                "negotiation techniques for business transactions",
+                "deal-making processes and negotiation frameworks",
+                "negotiation methods for business agreements",
+                "salary negotiation and compensation bargaining",
+                "negotiating terms and conditions for business deals",
+                "multi-party negotiation strategies",
+                "deadlock resolution in negotiations",
+                "concession management in deals",
+                "counteroffer strategies and timing",
+                "win-win negotiation approaches",
+                "zero-sum game negotiation tactics",
+                "contract terms and conditions",
+                "agreement structuring and drafting",
+                "settlement negotiation processes",
+                "compromise finding in deals",
+                "negotiation preparation and planning",
+                "bargaining power assessment",
+                "negotiation timing and strategy",
+                "deal structure optimization",
+                "negotiation outcome evaluation",
+                "relationship building in negotiations",
+                "long-term partnership negotiations"
+            ]
+        }
+        
+        # Generate embeddings for query and domain references
+        query_embedding = model.encode([query])
+        
+        domain_scores = {}
+        
+        for domain, references in domain_references.items():
+            # Encode all reference texts for this domain
+            reference_embeddings = model.encode(references)
+            
+            # Calculate similarities between query and all references
+            similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
+            
+            # Take the maximum similarity as the domain score
+            max_similarity = similarities.max().item()
+            domain_scores[domain] = max_similarity
+        
+        # Apply cluster-based selection instead of simple normalization
+        selected_domains = select_domains_by_clusters_improved(domain_scores, "semantic", max_domains=3)
+        
+        return selected_domains
+        
+    except Exception as e:
+        print(f"Error in semantic domain detection: {e}")
+        # Fallback to keyword-based detection
+        return detect_course_concept_domains(query)
 
+def detect_domain_clusters_improved(domain_scores: dict, method: str = "general") -> list:
+    """
+    Improved cluster detection with method-specific parameters for semantic, keyword, and hybrid.
     
-    # Normalize scores and filter out zero scores
-    total_keywords = sum(course_concept_domains.values())
-    if total_keywords == 0:
-        # If no domain keywords found, return empty dict (will be treated as general)
+    Args:
+        domain_scores: Dictionary with domain names as keys and scores as values
+        method: "semantic", "keyword", or "hybrid" for method-specific parameters
+        
+    Returns:
+        List of clusters, each cluster is a list of (domain, score) tuples
+    """
+    if not domain_scores:
+        return []
+    
+    # Remove general domain to reduce noise before clustering
+    # General domain should only be picked as fallback if no specific domains are selected
+    filtered_scores = {domain: score for domain, score in domain_scores.items() if domain != 'general'}
+    
+    if not filtered_scores:
+        return []
+    
+    # Method-specific clustering parameters
+    cluster_params = {
+        "semantic": {
+            "primary_gap": 0.08,      # Much tighter clustering for normalized semantic scores (0.3-1.0)
+            "secondary_gap": 0.06,    # Tight secondary cluster detection
+            "weak_threshold": 0.35    # Higher quality bar for semantic (normalized scores are higher)
+        },
+        "keyword": {
+            "primary_gap": 0.20,      # Moderate clustering for normalized keyword scores (0.1-1.0)
+            "secondary_gap": 0.15,    # Moderate secondary cluster detection
+            "weak_threshold": 0.25    # Standard quality bar for keyword
+        },
+        "hybrid": {
+            "primary_gap": 0.12,      # Balanced clustering for hybrid (combines both methods)
+            "secondary_gap": 0.10,    # Balanced secondary detection
+            "weak_threshold": 0.30    # Balanced quality requirements
+        }
+    }
+    
+    params = cluster_params.get(method, cluster_params["semantic"])
+    
+    # Sort domains by score (highest first)
+    sorted_domains = sorted(filtered_scores.items(), key=lambda x: x[1], reverse=True)
+    
+    clusters = []
+    current_cluster = [sorted_domains[0]]
+    
+    for i in range(1, len(sorted_domains)):
+        current_score = sorted_domains[i][1]
+        prev_score = sorted_domains[i-1][1]
+        gap = prev_score - current_score
+        
+        # Determine which gap threshold to use based on cluster position
+        if len(clusters) == 0:  # First cluster (primary)
+            gap_threshold = params["primary_gap"]
+        else:  # Subsequent clusters (secondary)
+            gap_threshold = params["secondary_gap"]
+        
+        if gap <= gap_threshold:
+            current_cluster.append(sorted_domains[i])
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [sorted_domains[i]]
+    
+    clusters.append(current_cluster)
+    return clusters
+
+def select_domains_by_clusters_improved(domain_scores: dict, method: str = "general", max_domains: int = 3) -> dict:
+    """
+    Improved domain selection using cluster-based logic with method-specific parameters.
+    
+    Args:
+        domain_scores: Dictionary with domain names as keys and scores as values
+        method: "semantic", "keyword", or "hybrid" for method-specific parameters
+        max_domains: Maximum number of domains to select (default 3, rarely 4)
+        
+    Returns:
+        Dictionary of selected domains with their scores
+    """
+    if not domain_scores:
         return {}
-    else:
-        # Convert to percentages
-        for domain in course_concept_domains:
-            course_concept_domains[domain] = course_concept_domains[domain] / total_keywords
     
-    return course_concept_domains
+    # Method-specific selection parameters
+    selection_params = {
+        "semantic": {
+            "primary_min_score": 0.45,    # Higher threshold for normalized semantic scores (0.3-1.0)
+            "secondary_min_score": 0.35,  # Higher secondary threshold for semantic
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        },
+        "keyword": {
+            "primary_min_score": 0.30,    # Standard threshold for normalized keyword scores (0.1-1.0)
+            "secondary_min_score": 0.25,  # Standard secondary threshold for keyword
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        },
+        "hybrid": {
+            "primary_min_score": 0.38,    # Balanced threshold for hybrid (combines both methods)
+            "secondary_min_score": 0.30,  # Balanced secondary threshold for hybrid
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        }
+    }
+    
+    params = selection_params.get(method, selection_params["semantic"])
+    
+    # Detect clusters
+    clusters = detect_domain_clusters_improved(domain_scores, method)
+    
+    if not clusters:
+        return {}
+    
+    selected_domains = {}
+    
+    # Always include primary cluster (first cluster)
+    primary_cluster = clusters[0]
+    primary_avg_score = sum(score for _, score in primary_cluster) / len(primary_cluster)
+    
+    if primary_avg_score >= params["primary_min_score"]:
+        for domain, score in primary_cluster:
+            selected_domains[domain] = score
+    
+    # Check secondary cluster if we have room and it meets criteria
+    if len(clusters) > 1 and len(selected_domains) < max_domains:
+        secondary_cluster = clusters[1]
+        secondary_avg_score = sum(score for _, score in secondary_cluster) / len(secondary_cluster)
+        
+        # Check if secondary cluster meets minimum score requirement
+        if secondary_avg_score >= params["secondary_min_score"]:
+            # Check for weak domains if weak rejection is enabled
+            if params["weak_rejection"]:
+                weak_domains = [domain for domain, score in secondary_cluster 
+                              if score < params["secondary_min_score"]]
+                
+                if not weak_domains:  # No weak domains, safe to include
+                    for domain, score in secondary_cluster:
+                        if len(selected_domains) < max_domains:
+                            selected_domains[domain] = score
+            else:
+                # Weak rejection disabled, include all domains in secondary cluster
+                for domain, score in secondary_cluster:
+                    if len(selected_domains) < max_domains:
+                        selected_domains[domain] = score
+    
+    # Rare case: if we have room and a third cluster with strong scores
+    if len(clusters) > 2 and len(selected_domains) < max_domains:
+        third_cluster = clusters[2]
+        third_avg_score = sum(score for _, score in third_cluster) / len(third_cluster)
+        
+        # Only include third cluster if it has very strong scores (rare case for 4 domains)
+        if third_avg_score >= params["primary_min_score"] and len(selected_domains) < 4:
+            for domain, score in third_cluster:
+                if len(selected_domains) < 4:  # Hard cap at 4
+                    selected_domains[domain] = score
+    
+    return selected_domains
+
+def hybrid_domain_detection_improved(query: str) -> dict:
+    """
+    Improved hybrid domain detection combining semantic and keyword methods with cluster-based selection.
+    
+    Args:
+        query: User's query text
+        
+    Returns:
+        Dictionary of selected domains with combined scores
+    """
+    try:
+        # Step 1: Get domain scores from both methods
+        semantic_scores = detect_domain_semantic(query)
+        keyword_scores = detect_course_concept_domains(query)
+        
+        # Step 2: Normalize scores within each method to prevent keyword dominance
+        # Keyword scores can be much higher due to weighted scoring (3×strong + 2×modest + 1×weak)
+        # Semantic scores are typically 0-1 cosine similarities
+        
+        normalized_semantic = {}
+        normalized_keyword = {}
+        
+        # Normalize semantic scores (already 0-1, just ensure max = 1.0)
+        if semantic_scores:
+            semantic_max = max(semantic_scores.values())
+            if semantic_max > 0:
+                normalized_semantic = {domain: score / semantic_max for domain, score in semantic_scores.items()}
+            else:
+                normalized_semantic = semantic_scores
+        
+        # Normalize keyword scores (can be 0-15+, normalize to 0-1)
+        if keyword_scores:
+            keyword_max = max(keyword_scores.values())
+            if keyword_max > 0:
+                normalized_keyword = {domain: score / keyword_max for domain, score in keyword_scores.items()}
+            else:
+                normalized_keyword = keyword_scores
+        
+        # Step 3: Apply cluster-based selection to each normalized method independently
+        semantic_selected = select_domains_by_clusters_improved(normalized_semantic, "semantic", max_domains=3)
+        keyword_selected = select_domains_by_clusters_improved(normalized_keyword, "keyword", max_domains=3)
+        
+        # Step 4: Combine normalized scores using max(semantic, keyword) for overlapping domains
+        combined_scores = {}
+        
+        # Get all unique domains from both methods
+        all_domains = set(semantic_selected.keys()) | set(keyword_selected.keys())
+        
+        for domain in all_domains:
+            semantic_score = semantic_selected.get(domain, 0)
+            keyword_score = keyword_selected.get(domain, 0)
+            
+            # Use the maximum normalized score when both methods identify the same domain
+            combined_scores[domain] = max(semantic_score, keyword_score)
+        
+        # Step 5: Apply final cluster-based selection to combined scores
+        if combined_scores:
+            final_selected = select_domains_by_clusters_improved(combined_scores, "hybrid", max_domains=3)
+            
+            # Final check: if no specific domains are selected, return general as fallback
+            # This ensures general domain is only picked when no behavioral, technical, strategic, or negotiation domains are selected
+            if not final_selected:
+                return {'general': 1.0}
+            
+            return final_selected
+        
+        # If both methods failed, return general as fallback
+        return {'general': 1.0}
+        
+    except Exception as e:
+        print(f"Error in hybrid domain detection: {e}")
+        # Fallback to semantic detection
+        try:
+            return detect_domain_semantic(query)
+        except:
+            # Final fallback to keyword detection
+            return detect_course_concept_domains(query)
 
 def detect_query_domain(query: str) -> str:
     """
@@ -534,13 +947,11 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # Use semantic domain detection for more accurate classification
-        query_domains = detect_domain_semantic(query)
+        # Use hybrid domain detection for optimal classification
+        query_domains = hybrid_domain_detection_improved(query)
         if query_domains:
-            # Only use the strongest domain to avoid broadening perspectives
+            # Get primary domain for concept filtering
             primary_domain = max(query_domains, key=query_domains.get)
-            # Convert to single-domain format to prevent multi-domain broadening
-            query_domains = {primary_domain: query_domains[primary_domain]}
         else:
             primary_domain = 'general'
             query_domains = {}
@@ -2100,90 +2511,24 @@ def format_fallback_response(fallback_content: dict) -> str:
     
     return '\n\n'.join(sections)
 
+# --- BACKWARD COMPATIBILITY WRAPPERS ---
+
 def detect_domain_semantic(query: str) -> dict:
-    """
-    Detect query domain using semantic similarity with domain-specific reference texts.
-    More accurate than keyword-based detection.
-    """
-    try:
-        # Load data lazily
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        
-        # Domain reference texts (representative examples for each domain)
-        domain_references = {
-            'behavioral': [
-                "how to deal with unfair criticism from manager",
-                "handling workplace conflicts and interpersonal issues",
-                "managing team dynamics and human behavior",
-                "dealing with biased feedback and workplace relationships",
-                "handling difficult conversations with colleagues",
-                "managing emotions and reactions in professional settings",
-                "dealing with unfair critiques and workplace feedback",
-                "managing personal finance and budgeting decisions"
-            ],
-            'technical': [
-                "optimizing production capacity using mathematical models",
-                "forecasting demand with statistical analysis",
-                "simulation modeling for risk assessment",
-                "linear programming for resource allocation",
-                "data analysis and statistical modeling",
-                "mathematical optimization and algorithms"
-            ],
-            'strategic': [
-                "developing long-term business strategy",
-                "competitive positioning and market analysis",
-                "strategic planning and corporate decisions",
-                "business expansion and growth strategy",
-                "competitive advantage and market positioning",
-                "strategic decision making for organizations"
-            ],
-            'negotiation': [
-                "negotiating deals and agreements",
-                "bargaining strategies and tactics",
-                "contract negotiations and settlements",
-                "negotiation techniques and approaches",
-                "deal-making and agreement processes",
-                "negotiation frameworks and methods",
-                "negotiating salary packages and compensation",
-                "bargaining for better terms and conditions"
-            ],
-            'general': [
-                "what tools can help me make better decisions",
-                "general decision making tools and frameworks",
-                "basic decision making approaches and methods",
-                "decision making tools and techniques",
-                "how to make better decisions",
-                "decision making frameworks and processes"
-            ]
-        }
-        
-        # Generate embeddings for query and domain references
-        query_embedding = model.encode([query])
-        
-        domain_scores = {}
-        
-        for domain, references in domain_references.items():
-            # Encode all reference texts for this domain
-            reference_embeddings = model.encode(references)
-            
-            # Calculate similarities between query and all references
-            similarities = util.pytorch_cos_sim(query_embedding, reference_embeddings)[0]
-            
-            # Take the maximum similarity as the domain score
-            max_similarity = similarities.max().item()
-            domain_scores[domain] = max_similarity
-        
-        # Normalize scores to sum to 1.0
-        total_score = sum(domain_scores.values())
-        if total_score > 0:
-            domain_scores = {domain: score / total_score for domain, score in domain_scores.items()}
-        
-        return domain_scores
-        
-    except Exception as e:
-        print(f"Error in semantic domain detection: {e}")
-        # Fallback to keyword-based detection
-        return detect_course_concept_domains(query)
+    """Backward compatibility wrapper for improved semantic domain detection."""
+    return detect_domain_semantic_improved(query)
+
+def detect_course_concept_domains(query: str) -> dict:
+    """Backward compatibility wrapper for improved keyword-based domain detection."""
+    return detect_course_concept_domains_improved(query)
+
+# --- LEGACY CLUSTER FUNCTIONS (KEPT FOR BACKWARD COMPATIBILITY) ---
+def detect_domain_clusters_fixed(domain_scores):
+    """Legacy cluster detection - kept for backward compatibility."""
+    return detect_domain_clusters_improved(domain_scores, "general")
+
+def select_domains_by_clusters_fixed(domain_scores):
+    """Legacy domain selection - kept for backward compatibility."""
+    return select_domains_by_clusters_improved(domain_scores, "general", max_domains=3)
 
 def unified_semantic_extraction(query: str) -> dict:
     """

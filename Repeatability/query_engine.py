@@ -440,112 +440,147 @@ def detect_course_concept_domains(query: str) -> dict:
         'negotiation': 0
     }
     
-    # Behavioral/psychological indicators
-    behavioral_keywords = [
-        'team', 'teams', 'conflict', 'conflicts', 'value', 'values', 'behavior', 'behaviour',
-        'psychology', 'psychological', 'bias', 'biases', 'cognitive', 'cognition',
-        'judgment', 'judgement', 'leadership', 'personality', 'personalities',
-        'motivation', 'motivational', 'emotion', 'emotional', 'human', 'people',
-        'individual', 'group', 'social', 'interpersonal', 'communication',
-        'behave', 'behaving', 'behaved', 'psychologic', 'cognitively', 'judge', 'judging',
-        'lead', 'leading', 'led', 'motivate', 'motivating', 'motivated', 'feel', 'feeling',
-        'felt', 'interact', 'interacting', 'interacted', 'communicate', 'communicating',
-        # Manager and workplace relationship keywords
-        'manager', 'managers', 'boss', 'supervisor', 'supervisors', 'colleague', 'colleagues',
-        'workplace', 'office', 'professional', 'professionally', 'work', 'working',
-        'critique', 'critiques', 'criticism', 'criticisms', 'feedback', 'unfair', 'fair',
-        'approach', 'approaching', 'situation', 'circumstance', 'circumstances',
-        'relationship', 'relationships', 'interpersonal', 'communication', 'communicate',
-        'response', 'respond', 'responding', 'react', 'reacting', 'reaction', 'reactions',
-        # Money and financial behavior keywords
-        'budget', 'budgeting', 'budgeted', 'salary', 'salaries', 'expense', 'expenses', 'spending', 'spend', 'spent',
-        'money', 'financial', 'finance', 'cost', 'costs', 'price', 'prices', 'payment', 'payments',
-        'income', 'revenue', 'profit', 'loss', 'saving', 'savings', 'save', 'saved',
-        'investment', 'invest', 'investing', 'invested', 'wealth', 'wealthy', 'asset', 'assets',
-        'debt', 'credit', 'loan', 'loans', 'mortgage', 'rent', 'rental', 'utility', 'utilities',
-        'grocery', 'groceries', 'entertainment', 'transportation', 'healthcare', 'insurance'
+    # Behavioral/psychological indicators - Three-tier weighted system
+    behavioral_keywords_strong = [
+        'psychology', 'bias', 'cognitive', 'judgment', 'motivation', 'emotion', 'behavior', 
+        'personality', 'perception', 'heuristic', 'irrational', 'mindset', 'trust', 'fairness', 
+        'prejudice', 'stereotype', 'attitude', 'habit'
     ]
-    for keyword in behavioral_keywords:
+    
+    behavioral_keywords_modest = [
+        'team', 'conflict', 'leadership', 'human', 'people', 'manager', 'workplace', 'relationship', 
+        'communication', 'group', 'culture', 'collaboration', 'cooperation', 'morale', 'satisfaction', 
+        'loyalty', 'turnover', 'incentive', 'persuasion', 'decision-bias', 'intuition', 'framing', 
+        'influence', 'authority', 'hierarchy', 'trustworthiness', 'interaction', 'miscommunication', 
+        'negotiation-style', 'reputation', 'credibility', 'empathy', 'feedback', 'cohesion', 'identity', 
+        'rivalry', 'hostility', 'compliance', 'disagreement', 'consensus', 'coordination', 
+        'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan'
+    ]
+    
+    behavioral_keywords_weak = [
+        'stress', 'fatigue', 'workload', 'distraction', 'rumor', 'gossip', 'peer-pressure', 
+        'mood', 'impulsive', 'misperception', 'misunderstanding', 'overconfidence'
+    ]
+    
+    # Apply weighted scoring for behavioral keywords
+    for keyword in behavioral_keywords_strong:
+        if keyword in query_lower:
+            course_concept_domains['behavioral'] += 3
+    
+    for keyword in behavioral_keywords_modest:
+        if keyword in query_lower:
+            course_concept_domains['behavioral'] += 2
+    
+    for keyword in behavioral_keywords_weak:
         if keyword in query_lower:
             course_concept_domains['behavioral'] += 1
     
-    # Technical/analytical indicators (FOCUSED - only truly technical terms)
-    technical_keywords = [
-        'simulation', 'simulate', 'simulating', 'simulated',
-        'forecast', 'forecasting', 'forecasted', 
-        'optimization', 'optimize', 'optimizing', 'optimized',
-        'maximization', 'maximize', 'maximizing', 'maximized',
-        'minimization', 'minimize', 'minimizing', 'minimized',
-        'algorithm', 'algorithms', 'mathematical', 'mathematics',
-        'calculate', 'calculation', 'calculating', 'calculated',
-        'compute', 'computation', 'computing', 'computed',
-        'production', 'demand', 'storage', 'capacity', 'inventory',
-        'operations', 'operational', 'manufacturing', 'logistics',
-        'data', 'statistical', 'statistics', 'numerical', 'numeric',
-        'uncertainty', 'uncertain', 'uncertainties', 'probability', 
-        'probabilistic', 'probable', 'scenario', 'scenarios',
-        'model', 'modeling', 'modeled', 'models',
-        'visualize', 'visualizing', 'visualized', 'visualization',
-        'map', 'mapping', 'mapped', 'diagram', 'diagrams',
-        'chart', 'charts', 'graph', 'graphs', 'tree', 'trees',
-        'flow', 'flows', 'flowchart', 'flowcharts'
+    # Technical/analytical indicators - Three-tier weighted system
+    technical_keywords_strong = [
+        'simulation', 'forecast', 'optimization', 'algorithm', 'mathematical', 'calculate', 'data', 
+        'statistical', 'uncertainty', 'probability', 'model', 'regression', 'correlation', 'variance', 
+        'distribution', 'equation', 'analytics', 'dataset', 'outlier', 'predictive', 'clustering', 
+        'classification', 'Monte Carlo', 'machine-learning', 'artificial-intelligence', 'computation', 
+        'quantitative', 'sampling', 'hypothesis', 'variable', 'predictor', 'coefficient', 'diagnostic', 
+        'estimator', 'measurement', 'inferential', 'likelihood', 'stochastic', 'residual', 'trend', 
+        'time-series', 'scenario-analysis', 'linear-programming', 'decision-tree', 'sensitivity-analysis', 
+        'payoff-matrix', 'probability-tree', 'risk-analysis', 'break-even', 'cost-benefit', 'expected-value', 
+        'decision-model', 'utility-function', 'solver', 'constraint', 'probability-distribution', 
+        'algorithmic-decision', 'decision-support-system', 'optimization-engine', 'predictive-analytics', 
+        'recommender-system', 'automation', 'machine-support', 'computer-assisted', 'model-driven-decision', 
+        'analytics-engine'
     ]
-    for keyword in technical_keywords:
-        if keyword in query_lower:
-            course_concept_domains['technical'] += 1
     
-    # Strategic indicators
-    strategic_keywords = [
-        'strategy', 'strategic', 'strategically', 'market', 'markets', 'marketing',
-        'competitive', 'competition', 'competitor', 'competitors', 'compete', 'competing',
-        'advantage', 'advantageous', 'positioning', 'position', 'positioned', 'positioning',
-        'business', 'businesses', 'organization', 'organizations', 'organize', 'organizing',
-        'company', 'companies', 'industry', 'industries', 'industrial',
-        'expansion', 'expand', 'expanding', 'expanded', 'growth', 'grow', 'growing', 'grown',
-        'planning', 'plan', 'planned', 'corporate', 'enterprise', 'enterprising',
-        'swot', 'value chain', 'profitability', 'profitable', 'stakeholder', 'stakeholders',
-        'alignment', 'align', 'aligning', 'aligned', 'competitive advantage', 'market analysis', 
-        'strategic analysis', 'business strategy', 'business strategies', 'corporate strategy', 
-        'corporate strategies', 'strategic planning', 'competitive position', 'market position', 
-        'market share', 'competitive edge', 'business model', 'business plan', 'strategic thinking', 
-        'strategic decision', 'decision strategy', 'decision strategies', 'optimal strategy', 'optimal strategies', 
-        'long-term', 'long term', 'career', 'careers', 'professional', 'profession', 'job', 'jobs',
-        'offer', 'offers', 'offering', 'offered', 'opportunity', 'opportunities', 'choice', 'choices',
-        'choose', 'choosing', 'chose', 'chosen', 'decide', 'deciding', 'decided', 'decision',
-        'compare', 'comparing', 'compared', 'comparison', 'evaluate', 'evaluating', 'evaluated',
-        'assessment', 'assess', 'assessing', 'assessed', 'option', 'options', 'alternative', 'alternatives',
-        # Investment and financial keywords (business/strategic context only)
-        'portfolio', 'portfolios', 'fund', 'funds', 'funding', 'funded',
-        'return', 'returns', 'revenue', 'revenues', 'profit', 'profits', 'profitable',
-        'capital', 'equity', 'stock', 'stocks', 'bond', 'bonds', 'mutual fund', 'mutual funds', 'etf', 'etfs', 'dividend', 'dividends',
-        # Education and academic keywords
-        'college', 'colleges', 'university', 'universities', 'school', 'schools', 'academic',
-        'academics', 'education', 'educational', 'learning', 'learn', 'learned', 'studying',
-        'study', 'studies', 'course', 'courses', 'program', 'programs', 'degree', 'degrees',
-        'major', 'majors', 'minor', 'minors', 'curriculum', 'curricula', 'tuition', 'scholarship',
-        'scholarships', 'admission', 'admissions', 'enroll', 'enrollment', 'enrolled',
-        'graduate', 'graduation', 'undergraduate', 'graduate school', 'graduate schools',
-        'skill', 'skills', 'development', 'training', 'certification'
+    technical_keywords_modest = [
+        'production', 'demand', 'operations', 'manufacturing', 'logistics', 'visualize', 'diagram', 
+        'chart', 'graph', 'flow', 'dashboard', 'spreadsheet', 'analysis', 'KPI', 'forecasting', 
+        'metrics', 'sensitivity', 'benchmarking', 'monitoring', 'validation', 'calibration', 'estimation', 
+        'scenario', 'projection', 'baseline', 'quantification', 'scoring', 'optimization-tool', 'modeling', 
+        'experiment', 'sampling-plan', 'workflow', 'simulation-tool', 'pipeline', 'evaluation', 
+        'trade-off-analysis', 'diagnostic-tool', 'metric', 'dashboard-tool', 'decision-aid', 'digital-twin', 
+        'simulation-platform', 'solver-tool', 'analytics-software', 'spreadsheet-model', 'data-visualization', 
+        'forecasting-tool'
     ]
-    for keyword in strategic_keywords:
+    
+    # Apply weighted scoring for technical keywords
+    for keyword in technical_keywords_strong:
+        if keyword in query_lower:
+            course_concept_domains['technical'] += 3
+    
+    for keyword in technical_keywords_modest:
+        if keyword in query_lower:
+            course_concept_domains['technical'] += 2
+    
+    # Strategic indicators - Three-tier weighted system
+    strategic_keywords_strong = [
+        'strategy', 'strategic', 'market', 'competitive', 'competition', 'business', 'organization', 
+        'company', 'industry', 'expansion', 'growth', 'planning', 'corporate', 'advantage', 'positioning', 
+        'portfolio', 'diversification', 'integration', 'outsourcing', 'restructuring', 'transformation', 
+        'governance', 'sustainability', 'vision', 'mission', 'policy', 'regulation', 'alliance', 'merger', 
+        'acquisition', 'entry', 'exit', 'leadership', 'differentiation', 'disruption', 'innovation', 
+        'resource', 'capability', 'globalization', 'scenario-planning', 'turnaround', 'pivot', 'consolidation', 
+        'scaling', 'shareholder', 'stakeholder', 'profitability', 'pricing-strategy', 'supply-chain', 
+        'distribution', 'partnership', 'long-term', 'investment-strategy', 'comparative-advantage', 'barrier', 
+        'opportunity', 'threat', 'SWOT', 'PESTEL', 'game-theory', 'prisoner\'s-dilemma', 'Nash-equilibrium', 
+        'payoff-structure', 'cooperative-strategy', 'competitive-strategy'
+    ]
+    
+    strategic_keywords_modest = [
+        'resource-allocation', 'competitive-position', 'diversification-option', 'synergy', 'alignment', 
+        'prioritization', 'policy-option', 'brand', 'market-share', 'growth-path', 'restructuring-option', 
+        'capacity-planning', 'business-model', 'strategy-map', 'investment-plan', 'sustainability-option', 
+        'R&D', 'market-entry', 'innovation-path', 'competitive-response', 'industry-trend', 'scaling-up', 
+        'divestment', 'global-strategy', 'localization', 'expansion-plan', 'portfolio'
+    ]
+    
+    strategic_keywords_weak = [
+        'career', 'job', 'task', 'project', 'assignment'
+    ]
+    
+    # Apply weighted scoring for strategic keywords
+    for keyword in strategic_keywords_strong:
+        if keyword in query_lower:
+            course_concept_domains['strategic'] += 3
+    
+    for keyword in strategic_keywords_modest:
+        if keyword in query_lower:
+            course_concept_domains['strategic'] += 2
+    
+    for keyword in strategic_keywords_weak:
         if keyword in query_lower:
             course_concept_domains['strategic'] += 1
     
-    # Negotiation indicators
-    negotiation_keywords = [
-        'negotiate', 'negotiation', 'negotiating', 'negotiated', 'negotiator', 'negotiators',
-        'agreement', 'agree', 'agreeing', 'agreed', 'disagree', 'disagreeing', 'disagreed',
-        'bargain', 'bargaining', 'bargained', 'bargaining strategy', 'bargaining strategies', 
-        'negotiation strategy', 'negotiation strategies', 'contract', 'contracts', 'contracting', 'contracted', 
-        'settlement', 'settle', 'settling', 'settled', 'compromise', 'compromising', 'compromised',
-        'proposal', 'proposals', 'propose', 'proposing', 'proposed',
-        'counteroffer', 'counteroffers', 'counter-offer', 'counter-offers',
-        'terms', 'term', 'condition', 'conditions', 'concession', 'concessions',
-        'deadlock', 'impasse', 'deadlocked', 'win-win', 'win win', 'zero-sum', 'zero sum',
-        # Add missing negotiation keywords
-        'package', 'packages', 'offer', 'offers', 'offering', 'offered', 'deal', 'deals'
+    # Negotiation indicators - Three-tier weighted system
+    negotiation_keywords_strong = [
+        'negotiate', 'negotiation', 'bargain', 'contract', 'settlement', 'concession', 'deadlock', 
+        'mediation', 'arbitration', 'bargaining', 'BATNA', 'anchoring', 'integrative', 'distributive', 
+        'bargaining-table', 'stalemate', 'negotiation-process', 'mediator', 'negotiator', 'arbitration-panel', 
+        'collective-bargaining', 'bargaining-power', 'mediation-talks', 'dispute-resolution', 'arbitration-case', 
+        'mediator-role', 'adversarial', 'positional', 'interest-based', 'concession-trade', 'negotiation-strategy', 
+        'bargaining-zone', 'impasse', 'escalation', 'face-saving', 'negotiation-outcome', 'bargaining-leverage', 
+        'distributive-bargain'
     ]
-    for keyword in negotiation_keywords:
+    
+    negotiation_keywords_modest = [
+        'merger', 'joint-venture', 'partnership', 'collaboration', 'alliance', 'treaty', 'trade-talks', 
+        'peace-talks', 'coalition', 'roundtable', 'agreement', 'compromise', 'proposal', 'deal-making', 
+        'win-win', 'mutual-gain', 'trade-off', 'contract-terms', 'agreement-terms'
+    ]
+    
+    negotiation_keywords_weak = [
+        'offer', 'offers', 'offered'
+    ]
+    
+    # Apply weighted scoring for negotiation keywords
+    for keyword in negotiation_keywords_strong:
+        if keyword in query_lower:
+            course_concept_domains['negotiation'] += 3
+    
+    for keyword in negotiation_keywords_modest:
+        if keyword in query_lower:
+            course_concept_domains['negotiation'] += 2
+    
+    for keyword in negotiation_keywords_weak:
         if keyword in query_lower:
             course_concept_domains['negotiation'] += 1
     
@@ -948,8 +983,9 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             # Domain-specific relevance checks
             if concept_domain == 'behavioral':
                 # For behavioral queries, ensure concepts relate to human behavior/psychology
-                behavioral_keywords = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response', 'unfair', 'unjust', 'boss', 'bad news']
-                if any(keyword in query_lower for keyword in behavioral_keywords):
+                # Use the main behavioral keywords from the three-tier system
+                behavioral_keywords_check = ['critique', 'criticism', 'feedback', 'manager', 'employee', 'workplace', 'bias', 'judgment', 'thinking', 'behavior', 'reaction', 'response', 'unfair', 'unjust', 'boss', 'bad news']
+                if any(keyword in query_lower for keyword in behavioral_keywords_check):
                     # Mental accounting is about money - not relevant for workplace feedback
                     if concept_name == 'mental accounting':
                         return False
@@ -2406,60 +2442,178 @@ def format_fallback_response(fallback_content: dict) -> str:
 
 def detect_domain_semantic(query: str) -> dict:
     """
-    Detect query domain using semantic similarity with domain-specific reference texts.
-    More accurate than keyword-based detection.
+    Legacy semantic domain detection function.
+    Returns raw domain scores that are then processed by cluster-based selection.
+    
+    Note: This function is called by unified_semantic_extraction which applies
+    the improved cluster-based logic for final domain selection.
     """
     try:
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # Domain reference texts (representative examples for each domain)
+        # 79 updated domain-specific reference queries (hardcoded for performance)
         domain_references = {
-            'behavioral': [
-                "human judgment and cognitive biases in professional settings",
-                "psychological factors affecting workplace behavior",
-                "intuitive judgment versus analytical thinking",
-                "cognitive psychology and human reasoning",
-                "emotional intelligence and interpersonal dynamics",
-                "psychological activities and mental frameworks",
-                "human cognition and behavioral patterns",
-                "intuitive decision patterns and cognitive shortcuts"
+            'strategic': [
+                "How do I decide whether to expand capacity now or wait until demand is clearer?",
+                "My forecasting model fits historical data but fails during shocks. How should I improve it?",
+                "Why do managers keep funding projects even when the numbers show it's a loss?",
+                
+                "A government must decide whether to protect one industry or open markets for growth. What frameworks apply?",
+                "A predictive analytics tool shows customer churn risk, but leaders ignore it due to optimism bias. How should I respond?",
+                "Two competitors must decide whether to invest early in unproven technology. How should timing be evaluated?",
+                "Why do employees compete under a data-driven bonus system but stop collaborating?",
+                "A company considers outsourcing IT services. What should it weigh when making the decision?",
+                "Why do teams get overconfident after one successful project, ignoring future risks?",
+                "In a merger negotiation, how can both sides avoid focusing only on dividing the pie?",
+                "A forecasting model suggests demand will grow, but historical accuracy is low. How should leaders proceed?",
+                "Why do groups often fall into groupthink when making strategic choices?",
+                "What explains why managers stick to original plans even when data proves them wrong?",
+                "When evaluating a new product launch, how should scenario analysis be applied?",
+                "What strategic risks emerge when executives react too quickly to competitor moves?",
+                "How can sensitivity analysis help in deciding between alternative investment options?",
+                "Why do employees resist shutting down failing projects, despite evidence?",
+                "What is the role of framing effects in shaping public policy decisions?",
+                "Why do leaders prefer short-term fixes over long-term solutions?",
+                "How can cognitive biases distort risk assessments in strategy sessions?",
+                "A predictive model for pricing performs poorly out of sample. What actions should be taken?",
+                "A company debates whether to centralize or decentralize decision-making. What frameworks apply?",
+                "How can simulation models support strategic planning in volatile markets?",
+                "Why do leaders resist external advice when making strategic choices?",
+                "What steps should analysts take to validate a demand forecasting model?",
+                "How do sunk cost effects distort exit decisions in business strategy?",
+                "A predictive analytics model suggests resource reallocation, but leadership resists. Why?",
+                
+                "Why do organizations often copy competitors without testing assumptions?",
+                "What role does loss aversion play in delaying strategic exits?",
+                "A firm must decide between global expansion and domestic consolidation. What strategic tools apply?",
+                "How can Monte Carlo simulation support decisions under uncertainty?",
+                "What explains why firms delay adopting new technologies even when data supports it?",
+                "How can executives avoid escalation of commitment in large projects?",
+                "Why do organizations default to industry benchmarks instead of running independent analysis?",
+                "What frameworks help evaluate first-mover versus late-mover advantage in new markets?",
+                "How should firms decide between diversification and focusing on a single core business?",
+                "What are the trade-offs between vertical integration and outsourcing in global supply chains?",
+                "How can scenario planning guide capacity investments under uncertainty?",
+                "What strategic risks arise when companies imitate competitor moves without independent analysis?",
+                "What role does Monte Carlo simulation play in evaluating risky investment projects?",
+                "Why does multicollinearity in predictors weaken strategic forecasting accuracy?",
+                "How does confirmation bias distort how executives interpret market signals?",
+                "Why do sunk costs cause leaders to continue failing projects?",
+                "What explains escalation of commitment in large infrastructure investments?",
+                "How does groupthink affect strategic committee decisions?",
+                "What are the key differences between distributive and integrative negotiation strategies?",
+                "What is the role of BATNA (Best Alternative to a Negotiated Agreement) in contract talks?",
+                "How should negotiators handle multi-party coalitions with conflicting agendas?",
+                "In labor talks, what strategies reduce deadlock while protecting long-term relationships?",
             ],
             'technical': [
-                "optimizing production capacity using mathematical models",
-                "forecasting demand with statistical analysis",
-                "simulation modeling for risk assessment",
-                "linear programming for resource allocation",
-                "data analysis and statistical modeling",
-                "mathematical optimization and algorithms"
+                "How do I decide whether to expand capacity now or wait until demand is clearer?",
+                "My forecasting model fits historical data but fails during shocks. How should I improve it?",
+                "My regression model shows high R², but it's driven mostly by seasonal cycles. What should I check?",
+                "A predictive analytics tool shows customer churn risk, but leaders ignore it due to optimism bias. How should I respond?",
+                "Two competitors must decide whether to invest early in unproven technology. How should timing be evaluated?",
+                "Our data shows customers say one thing in surveys but act differently in purchases. How should I interpret this?",
+                "Why do employees compete under a data-driven bonus system but stop collaborating?",
+                "A company considers outsourcing IT services. What should it weigh when making the decision?",
+                "A forecasting model suggests demand will grow, but historical accuracy is low. How should leaders proceed?",
+                "What explains why managers stick to original plans even when data proves them wrong?",
+                "When evaluating a new product launch, how should scenario analysis be applied?",
+                "A company overestimates market size by relying on biased survey samples. How can this be corrected?",
+                "How can sensitivity analysis help in deciding between alternative investment options?",
+                "A regression model shows strong correlation but weak causation. What should analysts do?",
+                "A predictive model for pricing performs poorly out of sample. What actions should be taken?",
+                "In data-driven decision processes, why do managers sometimes ignore statistical significance?",
+                "How can simulation models support strategic planning in volatile markets?",
+                "What steps should analysts take to validate a demand forecasting model?",
+                "A predictive analytics model suggests resource reallocation, but leadership resists. Why?",
+                "How should regression diagnostics be applied when multicollinearity appears?",
+                "Why do managers overweight recent performance when evaluating employees?",
+                "A firm must decide between global expansion and domestic consolidation. What strategic tools apply?",
+                "Why do leaders interpret ambiguous data to fit pre-existing beliefs?",
+                "How can Monte Carlo simulation support decisions under uncertainty?",
+                
+                "What explains why firms delay adopting new technologies even when data supports it?",
+                "Why do organizations default to industry benchmarks instead of running independent analysis?",
+                "How can scenario planning guide capacity investments under uncertainty?",
+                "How do you run regression diagnostics when residuals are not normally distributed?",
+                "What role does Monte Carlo simulation play in evaluating risky investment projects?",
+                "How can clustering algorithms reveal hidden customer segments in large datasets?",
+                "Why does multicollinearity in predictors weaken strategic forecasting accuracy?",
+                "How should predictive models be validated to ensure out-of-sample performance?",
+                "Why do managers overweight recent events when making forecasts?",
             ],
-            'strategic': [
-                "developing long-term business strategy",
-                "competitive positioning and market analysis",
-                "strategic planning and corporate decisions",
-                "business expansion and growth strategy",
-                "competitive advantage and market positioning",
-                "strategic decision making for organizations"
+            'behavioral': [
+                "Why do managers keep funding projects even when the numbers show it's a loss?",
+                "Why do people fall into the splitting-pie trap during negotiation?",
+                "A predictive analytics tool shows customer churn risk, but leaders ignore it due to optimism bias. How should I respond?",
+                "Our data shows customers say one thing in surveys but act differently in purchases. How should I interpret this?",
+                "Why do employees compete under a data-driven bonus system but stop collaborating?",
+                "Why do teams get overconfident after one successful project, ignoring future risks?",
+                "In a merger negotiation, how can both sides avoid focusing only on dividing the pie?",
+                "Why do groups often fall into groupthink when making strategic choices?",
+                "What explains why managers stick to original plans even when data proves them wrong?",
+                "In cross-cultural negotiations, how do different communication styles affect outcomes?",
+                "A company overestimates market size by relying on biased survey samples. How can this be corrected?",
+                "What strategic risks emerge when executives react too quickly to competitor moves?",
+                "Why do employees resist shutting down failing projects, despite evidence?",
+                "What is the role of framing effects in shaping public policy decisions?",
+                "Why do leaders prefer short-term fixes over long-term solutions?",
+                "How can cognitive biases distort risk assessments in strategy sessions?",
+                "What explains why people anchor to initial information during negotiations?",
+                "In data-driven decision processes, why do managers sometimes ignore statistical significance?",
+                "In high-stakes negotiations, how do emotions influence concessions?",
+                "Why do leaders resist external advice when making strategic choices?",
+                "How do sunk cost effects distort exit decisions in business strategy?",
+                "A predictive analytics model suggests resource reallocation, but leadership resists. Why?",
+                
+                "Why do organizations often copy competitors without testing assumptions?",
+                "What role does loss aversion play in delaying strategic exits?",
+                "Why do managers overweight recent performance when evaluating employees?",
+                "In union negotiations, how do anchoring effects shape expectations?",
+                "Why do leaders interpret ambiguous data to fit pre-existing beliefs?",
+                
+                "What explains why firms delay adopting new technologies even when data supports it?",
+                "How can executives avoid escalation of commitment in large projects?",
+                "Why do organizations default to industry benchmarks instead of running independent analysis?",
+                "What strategic risks arise when companies imitate competitor moves without independent analysis?",
+                "How does confirmation bias distort how executives interpret market signals?",
+                "Why do sunk costs cause leaders to continue failing projects?",
+                "What explains escalation of commitment in large infrastructure investments?",
+                "How does groupthink affect strategic committee decisions?",
+                "Why do managers overweight recent events when making forecasts?",
+                "What are the key differences between distributive and integrative negotiation strategies?",
+                "How can anchoring offers shape expectations in joint venture negotiations?",
+                "How should negotiators handle multi-party coalitions with conflicting agendas?",
+                "In labor talks, what strategies reduce deadlock while protecting long-term relationships?",
             ],
             'negotiation': [
-                "negotiating deals and agreements",
-                "bargaining strategies and tactics",
-                "contract negotiations and settlements",
-                "negotiation techniques and approaches",
-                "deal-making and agreement methods",
-                "negotiation frameworks and approaches",
-                "negotiating salary packages and compensation",
-                "bargaining for better terms and conditions"
+                "What is the optimal sequence of concessions to make during a salary negotiation?",
+                
+                "Why do people fall into the splitting-pie trap during negotiation?",
+                "In a merger negotiation, how can both sides avoid focusing only on dividing the pie?",
+                
+                "In cross-cultural negotiations, how do different communication styles affect outcomes?",
+                
+                "How should I structure the first offer in a salary negotiation to avoid anchoring too low?",
+                "What explains why people anchor to initial information during negotiations?",
+                "In high-stakes negotiations, how do emotions influence concessions?",
+                
+                "What are effective tactics for breaking deadlock when the other side refuses to move from their position?",
+                "In union negotiations, how do anchoring effects shape expectations?",
+                
+                "What are the key differences between distributive and integrative negotiation strategies?",
+                "What is the role of BATNA (Best Alternative to a Negotiated Agreement) in contract talks?",
+                "How can anchoring offers shape expectations in joint venture negotiations?",
+                "How should negotiators handle multi-party coalitions with conflicting agendas?",
+                "In labor talks, what strategies reduce deadlock while protecting long-term relationships?",
+                "How should I respond when the other side makes an extreme first offer in a negotiation?",
+                "What tactics help break deadlock in contract renegotiations?",
+                "How can I prepare fallback offers if the other side rejects my proposal?",
+                "What role do concessions play in reaching a fair agreement?",
             ],
-            'general': [
-                "what tools can help me make better decisions",
-                "general decision making tools and frameworks",
-                "basic decision making approaches and methods",
-                "decision making tools and techniques",
-                "how to make better decisions",
-                "decision making frameworks and processes"
-            ]
         }
+
         
         # Generate embeddings for query and domain references using OpenAI
         query_embedding = get_openai_embeddings([query])
@@ -2501,78 +2655,23 @@ def unified_semantic_extraction(query: str) -> dict:
         # 1. SEMANTIC DOMAIN DETECTION
         domain_scores = detect_domain_semantic(query)
         
-        def select_domains_with_rules(scores: dict) -> Tuple[str, List[str]]:
-            if not scores:
-                return 'general', ['general']
-
-            # General removal decision
-            general_score = scores.get('general', 0.0)
-            non_general = {k: v for k, v in scores.items() if k != 'general'}
-            next_best_domain = max(non_general, key=non_general.get) if non_general else None
-            next_best_score = non_general.get(next_best_domain, 0.0) if next_best_domain else 0.0
-            delta = general_score - next_best_score
-
-            pool = dict(scores)
-            # Keep general ONLY if (delta >= 0.08 and next_best_non_general < 0.18)
-            if not (delta >= 0.08 and next_best_score < 0.18):
-                if 'general' in pool:
-                    pool.pop('general')
-
-            # If pool empty after removal, fallback to general
-            if not pool:
-                return 'general', ['general']
-
-            # 8% inclusion band relative to pool max, cap to top 3
-            s_max = max(pool.values())
-            threshold = s_max * (1.0 - 0.08)
-
-            precedence = {
-                'strategic': 5,
-                'technical': 4,
-                'behavioral': 3,
-                'negotiation': 2,
-                'general': 1,
-            }
-
-            included = [d for d, s in pool.items() if s >= threshold]
-            # Sort by score desc, then by precedence desc
-            included.sort(key=lambda d: (pool[d], precedence.get(d, 0)), reverse=True)
-            included = included[:3]
-
-            primary = included[0]
-            return primary, included
-
-        primary_domain, selected_domains = select_domains_with_rules(domain_scores)
+        # Use improved cluster-based selection for semantic detection
+        selected_domains = select_domains_by_clusters_improved(domain_scores, "semantic", max_domains=3)
         
-        # 2. SEMANTIC APPLICATION FIELD DETECTION
-        application_field = extract_application_field_semantic(query, model)
+        # Normalize selected scores to sum to 1.0
+        if selected_domains:
+            total_selected = sum(selected_domains.values())
+            if total_selected > 0:
+                selected_domains = {domain: score / total_selected 
+                                  for domain, score in selected_domains.items()}
         
-        # 3. SEMANTIC CONCEPT SELECTION
-        concepts = get_top_ranked_concepts(query, top_k=3)
-        
-        # 4. SEMANTIC ENTITY EXTRACTION
-        entities = extract_entities_semantic(query, model, nlp)
-        
-        return {
-            'domain': primary_domain,
-            'domains_selected': selected_domains,
-            'domain_scores': domain_scores,
-            'application_field': application_field,
-            'concepts': concepts,
-            'entities': entities
-        }
+        # Return simplified result for now (can be expanded later)
+        return selected_domains
         
     except Exception as e:
         print(f"Error in unified semantic extraction: {e}")
         # Fallback to individual methods
-        return {
-            'domain': 'general',
-            'domains_selected': ['general'],
-            'domain_scores': {},
-            'application_field': extract_application_field(query),
-            'concepts': get_top_ranked_concepts(query, top_k=3),
-            'entities': {}
-        }
+        return {}
 
 def extract_application_field_semantic(query: str, model) -> str:
     """
@@ -2764,6 +2863,272 @@ def extract_entities_semantic(query: str, model, nlp) -> dict:
                 }
     
     return entities
+
+def detect_domain_clusters_improved(domain_scores: dict, method: str = "general") -> list:
+    """
+    Improved cluster detection with method-specific parameters for semantic, keyword, and hybrid.
+    
+    Args:
+        domain_scores: Dictionary with domain names as keys and scores as values
+        method: "semantic", "keyword", or "hybrid" for method-specific parameters
+        
+    Returns:
+        List of clusters, each cluster is a list of (domain, score) tuples
+    """
+    if not domain_scores:
+        return []
+    
+    # Remove general domain to reduce noise before clustering
+    # General domain should only be picked as fallback if no specific domains are selected
+    filtered_scores = {domain: score for domain, score in domain_scores.items() if domain != 'general'}
+    
+    if not filtered_scores:
+        return []
+    
+    # Method-specific clustering parameters
+    cluster_params = {
+        "semantic": {
+            "primary_gap": 0.08,      # Much tighter clustering for normalized semantic scores (0.3-1.0)
+            "secondary_gap": 0.06,    # Tight secondary cluster detection
+            "weak_threshold": 0.35    # Higher quality bar for semantic (normalized scores are higher)
+        },
+        "keyword": {
+            "primary_gap": 0.20,      # Moderate clustering for normalized keyword scores (0.1-1.0)
+            "secondary_gap": 0.15,    # Moderate secondary cluster detection
+            "weak_threshold": 0.25    # Standard quality bar for keyword
+        },
+        "hybrid": {
+            "primary_gap": 0.12,      # Balanced clustering for hybrid (combines both methods)
+            "secondary_gap": 0.10,    # Balanced secondary detection
+            "weak_threshold": 0.30    # Balanced quality requirements
+        }
+    }
+    
+    params = cluster_params.get(method, cluster_params["semantic"])
+    
+    # Sort domains by score (highest first)
+    sorted_domains = sorted(filtered_scores.items(), key=lambda x: x[1], reverse=True)
+    
+    clusters = []
+    current_cluster = [sorted_domains[0]]
+    
+    for i in range(1, len(sorted_domains)):
+        current_score = sorted_domains[i][1]
+        prev_score = sorted_domains[i-1][1]
+        gap = prev_score - current_score
+        
+        # Determine which gap threshold to use based on cluster position
+        if len(clusters) == 0:  # First cluster (primary)
+            gap_threshold = params["primary_gap"]
+        else:  # Subsequent clusters (secondary)
+            gap_threshold = params["secondary_gap"]
+        
+        if gap <= gap_threshold:
+            current_cluster.append(sorted_domains[i])
+        else:
+            clusters.append(current_cluster)
+            current_cluster = [sorted_domains[i]]
+    
+    clusters.append(current_cluster)
+    return clusters
+
+def select_domains_by_clusters_improved(domain_scores: dict, method: str = "general", max_domains: int = 3) -> dict:
+    """
+    Improved domain selection using cluster-based logic with method-specific parameters.
+    
+    Args:
+        domain_scores: Dictionary with domain names as keys and scores as values
+        method: "semantic", "keyword", or "hybrid" for method-specific parameters
+        max_domains: Maximum number of domains to select (default 3, rarely 4)
+        
+    Returns:
+        Dictionary of selected domains with their scores
+    """
+    if not domain_scores:
+        return {}
+    
+    # Method-specific selection parameters
+    selection_params = {
+        "semantic": {
+            "primary_min_score": 0.45,    # Higher threshold for normalized semantic scores (0.3-1.0)
+            "secondary_min_score": 0.35,  # Higher secondary threshold for semantic
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        },
+        "keyword": {
+            "primary_min_score": 0.30,    # Standard threshold for normalized keyword scores (0.1-1.0)
+            "secondary_min_score": 0.25,  # Standard secondary threshold for keyword
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        },
+        "hybrid": {
+            "primary_min_score": 0.38,    # Balanced threshold for hybrid (combines both methods)
+            "secondary_min_score": 0.30,  # Balanced secondary threshold for hybrid
+            "weak_rejection": True        # Reject secondary cluster if it contains weak domains
+        }
+    }
+    
+    params = selection_params.get(method, selection_params["semantic"])
+    
+    # Detect clusters
+    clusters = detect_domain_clusters_improved(domain_scores, method)
+    
+    if not clusters:
+        return {}
+    
+    selected_domains = {}
+    
+    # Always include primary cluster (first cluster)
+    primary_cluster = clusters[0]
+    primary_avg_score = sum(score for _, score in primary_cluster) / len(primary_cluster)
+    
+    if primary_avg_score >= params["primary_min_score"]:
+        for domain, score in primary_cluster:
+            selected_domains[domain] = score
+    
+    # Check secondary cluster if we have room and it meets criteria
+    if len(clusters) > 1 and len(selected_domains) < max_domains:
+        secondary_cluster = clusters[1]
+        secondary_avg_score = sum(score for _, score in secondary_cluster) / len(secondary_cluster)
+        
+        # Check if secondary cluster meets minimum score requirement
+        if secondary_avg_score >= params["secondary_min_score"]:
+            # Check for weak domains if weak rejection is enabled
+            if params["weak_rejection"]:
+                weak_domains = [domain for domain, score in secondary_cluster 
+                              if score < params["secondary_min_score"]]
+                
+                if not weak_domains:  # No weak domains, safe to include
+                    for domain, score in secondary_cluster:
+                        if len(selected_domains) < max_domains:
+                            selected_domains[domain] = score
+            else:
+                # Weak rejection disabled, include all domains in secondary cluster
+                for domain, score in secondary_cluster:
+                    if len(selected_domains) < max_domains:
+                        selected_domains[domain] = score
+    
+    # Rare case: if we have room and a third cluster with strong scores
+    if len(clusters) > 2 and len(selected_domains) < max_domains:
+        third_cluster = clusters[2]
+        third_avg_score = sum(score for _, score in third_cluster) / len(third_cluster)
+        
+        # Only include third cluster if it has very strong scores (rare case for 4 domains)
+        if third_avg_score >= params["primary_min_score"] and len(selected_domains) < 4:
+            for domain, score in third_cluster:
+                if len(selected_domains) < 4:  # Hard cap at 4
+                    selected_domains[domain] = score
+    
+    return selected_domains
+
+def select_domains_cluster_based_semantic(scores: dict) -> dict:
+    """
+    Cluster-based domain selection for semantic detection (updated to use improved logic).
+    
+    Parameters:
+    - Uses improved cluster detection with method-specific parameters
+    - Max domains: 3
+    - Purpose: Identify the most semantically relevant domains
+    """
+    return select_domains_by_clusters_improved(scores, "semantic", max_domains=3)
+
+def select_domains_cluster_based_keyword(scores: dict) -> dict:
+    """
+    Cluster-based domain selection for keyword detection (updated to use improved logic).
+    
+    Parameters:
+    - Uses improved cluster detection with method-specific parameters
+    - Max domains: 4
+    - Purpose: Capture relevant domains based on keyword matches
+    """
+    return select_domains_by_clusters_improved(scores, "keyword", max_domains=4)
+
+def select_domains_cluster_based_hybrid(scores: dict) -> dict:
+    """
+    Cluster-based domain selection for hybrid detection (updated to use improved logic).
+    
+    Parameters:
+    - Uses improved cluster detection with method-specific parameters
+    - Max domains: 3
+    - Purpose: Final selection after combining semantic and keyword methods
+    """
+    return select_domains_by_clusters_improved(scores, "hybrid", max_domains=3)
+
+def hybrid_domain_detection(query: str) -> dict:
+    """
+    Improved hybrid domain detection combining semantic and keyword methods with cluster-based selection.
+    
+    Args:
+        query: User's query text
+        
+    Returns:
+        Dictionary of selected domains with combined scores
+    """
+    try:
+        # Step 1: Get domain scores from both methods
+        semantic_scores = detect_domain_semantic(query)
+        keyword_scores = detect_course_concept_domains(query)
+        
+        # Step 2: Normalize scores within each method to prevent keyword dominance
+        # Keyword scores can be much higher due to weighted scoring (3×strong + 2×modest + 1×weak)
+        # Semantic scores are typically 0-1 cosine similarities
+        
+        normalized_semantic = {}
+        normalized_keyword = {}
+        
+        # Normalize semantic scores (already 0-1, just ensure max = 1.0)
+        if semantic_scores:
+            semantic_max = max(semantic_scores.values())
+            if semantic_max > 0:
+                normalized_semantic = {domain: score / semantic_max for domain, score in semantic_scores.items()}
+            else:
+                normalized_semantic = semantic_scores
+        
+        # Normalize keyword scores (can be 0-15+, normalize to 0-1)
+        if keyword_scores:
+            keyword_max = max(keyword_scores.values())
+            if keyword_max > 0:
+                normalized_keyword = {domain: score / keyword_max for domain, score in keyword_scores.items()}
+            else:
+                normalized_keyword = keyword_scores
+        
+        # Step 3: Apply cluster-based selection to each normalized method independently
+        semantic_selected = select_domains_by_clusters_improved(normalized_semantic, "semantic", max_domains=3)
+        keyword_selected = select_domains_by_clusters_improved(normalized_keyword, "keyword", max_domains=3)
+        
+        # Step 4: Combine normalized scores using max(semantic, keyword) for overlapping domains
+        combined_scores = {}
+        
+        # Get all unique domains from both methods
+        all_domains = set(semantic_selected.keys()) | set(keyword_selected.keys())
+        
+        for domain in all_domains:
+            semantic_score = semantic_selected.get(domain, 0)
+            keyword_score = keyword_selected.get(domain, 0)
+            
+            # Use the maximum normalized score when both methods identify the same domain
+            combined_scores[domain] = max(semantic_score, keyword_score)
+        
+        # Step 5: Apply final cluster-based selection to combined scores
+        if combined_scores:
+            final_selected = select_domains_by_clusters_improved(combined_scores, "hybrid", max_domains=3)
+            
+            # Final check: if no specific domains are selected, return general as fallback
+            # This ensures general domain is only picked when no behavioral, technical, strategic, or negotiation domains are selected
+            if not final_selected:
+                return {'general': 1.0}
+            
+            return final_selected
+        
+        # If both methods failed, return general as fallback
+        return {'general': 1.0}
+        
+    except Exception as e:
+        print(f"Error in hybrid domain detection: {e}")
+        # Fallback to semantic detection
+        try:
+            return detect_domain_semantic(query)
+        except:
+            # Final fallback to keyword detection
+            return detect_course_concept_domains(query)
 
 # Main execution for testing
 if __name__ == "__main__":
