@@ -396,6 +396,7 @@ CONCEPT_DOMAINS = {
     "zopa": "negotiation",
     "investigative negotiation": "negotiation",
     "negotiation term sheet": "negotiation",
+    "negotiation strategy": "negotiation",
     "game theory": "negotiation",
     "winner's curse": "negotiation",
     "integrative negotiation": "negotiation",
@@ -454,7 +455,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'influence', 'authority', 'hierarchy', 'trustworthiness', 'interaction', 'miscommunication', 
         'negotiation-style', 'reputation', 'credibility', 'empathy', 'feedback', 'cohesion', 'identity', 
         'rivalry', 'hostility', 'compliance', 'disagreement', 'consensus', 'coordination', 
-        'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan'
+        'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan', 'decision-making-process', 'decision making process', 'systematic-process', 'systematic process'
     ]
     
     behavioral_keywords_weak = [
@@ -488,7 +489,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'decision-model', 'utility-function', 'solver', 'constraint', 'probability-distribution', 
         'algorithmic-decision', 'decision-support-system', 'optimization-engine', 'predictive-analytics', 
         'recommender-system', 'automation', 'machine-support', 'computer-assisted', 'model-driven-decision', 
-        'analytics-engine'
+        'analytics-engine', 'systematic-decision-making'
     ]
     
     technical_keywords_modest = [
@@ -511,6 +512,17 @@ def detect_course_concept_domains(query: str) -> dict:
         if keyword in query_lower:
             course_concept_domains['technical'] += 2
     
+    technical_keywords_weak = [
+        'analysis', 'evaluation', 'assessment', 'measurement', 'calculation', 'computation', 
+        'processing', 'methodology', 'framework', 'approach', 'technique', 'method', 'tool', 
+        'system', 'process', 'procedure', 'protocol', 'standard', 'benchmark', 'metric', 
+        'indicator', 'measure', 'score', 'rating', 'ranking', 'comparison', 'comparative'
+    ]
+    
+    for keyword in technical_keywords_weak:
+        if keyword in query_lower:
+            course_concept_domains['technical'] += 1
+    
     # Strategic indicators - Three-tier weighted system
     strategic_keywords_strong = [
         'strategy', 'strategic', 'market', 'competitive', 'competition', 'business', 'organization', 
@@ -522,7 +534,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'scaling', 'shareholder', 'stakeholder', 'profitability', 'pricing-strategy', 'supply-chain', 
         'distribution', 'partnership', 'long-term', 'investment-strategy', 'comparative-advantage', 'barrier', 
         'opportunity', 'threat', 'SWOT', 'PESTEL', 'game-theory', 'prisoner\'s-dilemma', 'Nash-equilibrium', 
-        'payoff-structure', 'cooperative-strategy', 'competitive-strategy'
+        'payoff-structure', 'cooperative-strategy', 'competitive-strategy', 'decision-making', 'decision making'
     ]
     
     strategic_keywords_modest = [
@@ -554,21 +566,21 @@ def detect_course_concept_domains(query: str) -> dict:
     negotiation_keywords_strong = [
         'negotiate', 'negotiation', 'bargain', 'contract', 'settlement', 'concession', 'deadlock', 
         'mediation', 'arbitration', 'bargaining', 'BATNA', 'anchoring', 'integrative', 'distributive', 
-        'bargaining-table', 'stalemate', 'negotiation-process', 'mediator', 'negotiator', 'arbitration-panel', 
+        'bargaining-table', 'stalemate', 'mediator', 'negotiator', 'arbitration-panel', 
         'collective-bargaining', 'bargaining-power', 'mediation-talks', 'dispute-resolution', 'arbitration-case', 
-        'mediator-role', 'adversarial', 'positional', 'interest-based', 'concession-trade', 'negotiation-strategy', 
+        'mediator-role', 'adversarial', 'positional', 'interest-based', 'concession-trade', 
         'bargaining-zone', 'impasse', 'escalation', 'face-saving', 'negotiation-outcome', 'bargaining-leverage', 
         'distributive-bargain'
     ]
     
     negotiation_keywords_modest = [
-        'merger', 'joint-venture', 'partnership', 'collaboration', 'alliance', 'treaty', 'trade-talks', 
-        'peace-talks', 'coalition', 'roundtable', 'agreement', 'compromise', 'proposal', 'deal-making', 
-        'win-win', 'mutual-gain', 'trade-off', 'contract-terms', 'agreement-terms'
+        'merger', 'joint-venture', 'treaty', 'trade-talks', 'peace-talks', 'coalition', 'roundtable', 
+        'agreement', 'deal-making', 'win-win', 'contract-terms', 'agreement-terms'
     ]
     
     negotiation_keywords_weak = [
-        'offer', 'offers', 'offered'
+        'offer', 'offers', 'offered', 'partnership', 'collaboration', 'alliance', 'compromise', 
+        'proposal', 'mutual-gain', 'trade-off'
     ]
     
     # Apply weighted scoring for negotiation keywords
@@ -720,13 +732,20 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             
             # For generic "decision making process" queries, boost relevant concepts
             if any(word in query_lower for word in ['process', 'systematic', 'decision making', 'components']):
-                # Boost strategic concepts for systematic decision making
-                if concept_name in ['strategic framing', 'scenario planning', 'scenario analysis']:
+                # V1.6.6: Prioritize decision-making specific analytical tools over generic assessments
+                # Tier 1: Core decision-making analytical tools (highest boost)
+                if concept_name in ['decision tree', 'scenario analysis', 'monte carlo simulation', 'linear optimization', 'integer optimization', 'sensitivity analysis', 'expected value', 'utility functions']:
+                    keyword_boost = 0.4  # Strong boost for core analytical tools
+                # Tier 2: Strategic decision-making frameworks (decision-making specific)
+                elif concept_name in ['scenario planning', 'competitive advantage analysis', 'porter\'s five forces', 'value chain analysis']:
                     keyword_boost = 0.3
-                # Boost technical concepts for systematic analysis
-                elif concept_name in ['risk assessment', 'sensitivity analysis', 'monte carlo simulation']:
+                # Tier 3: Behavioral decision-making concepts
+                elif concept_name in ['framing bias', 'cognitive behaviors', 'judgment intuitive bias', 'confirmation bias', 'anchoring bias']:
                     keyword_boost = 0.25
-                # Boost negotiation concepts for decision making
+                # Tier 4: Generic assessment tools (lower boost to reduce dominance)
+                elif concept_name in ['risk assessment', 'leadership assessment']:
+                    keyword_boost = 0.0  # No boost for generic assessments
+                # Tier 5: Negotiation concepts for decision making
                 elif concept_name in ['batna', 'game theory', 'integrative negotiation']:
                     keyword_boost = 0.2
             
@@ -801,15 +820,19 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             generic_penalty = 0.0
             generic_concepts = [
                 'swot analysis',         # Generic strategic tool
-                'competitive analysis'    # Generic business analysis
+                'competitive analysis',   # Generic business analysis
+                'risk assessment',        # Generic assessment tool (could apply to many contexts)
+                'leadership assessment'   # Generic assessment tool (could apply to many contexts)
             ]
             
             if concept_name in generic_concepts:
                 # Apply penalty based on how generic the concept is
                 if concept_name == 'swot analysis':
-                    generic_penalty = 0.10  # Moderate penalty
+                    generic_penalty = 0.20  # Increased penalty for generic SWOT
                 elif concept_name == 'competitive analysis':
                     generic_penalty = 0.08  # Light penalty
+                elif concept_name in ['risk assessment', 'leadership assessment']:
+                    generic_penalty = 0.25  # Significant penalty for generic assessments
             
             # Apply generic penalty
             score -= generic_penalty
@@ -1118,23 +1141,29 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                         selected_concepts.append((name, definition))
                         break
         
-        # Fallback: if insufficient high-quality concepts, use top concepts regardless of domain
+        # Fallback: if insufficient high-quality concepts, use domain-appropriate fallbacks
         if len(selected_concepts) < 2:
-            if core_concepts_under_threshold:
-                # Include core concepts that are just under threshold
-                fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
-                # Replace weakest with core concept if available
-                if len(fallback_concepts) > 0 and core_concepts_under_threshold:
-                    weakest_score = min(score for name, definition, score, is_core in concept_scores[:min(2, top_k)] if (name, definition) in fallback_concepts)
-                    best_core = max(core_concepts_under_threshold, key=lambda x: x[2])
-                    if best_core[2] > weakest_score:
-                        # Replace weakest concept with best core concept
-                        fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)] 
-                                           if score > weakest_score and (name, definition) in fallback_concepts]
-                        fallback_concepts.append((best_core[0], best_core[1]))
+            if query_domains:  # Only use domain-restrictive fallback if domains were detected
+                # Use domain-appropriate fallback concepts from templates
+                fallback_concepts = generate_fallback_concepts(query)
                 selected_concepts = fallback_concepts
             else:
-                selected_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
+                # General query fallback - use top concepts regardless of domain
+                if core_concepts_under_threshold:
+                    # Include core concepts that are just under threshold
+                    fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
+                    # Replace weakest with core concept if available
+                    if len(fallback_concepts) > 0 and core_concepts_under_threshold:
+                        weakest_score = min(score for name, definition, score, is_core in concept_scores[:min(2, top_k)] if (name, definition) in fallback_concepts)
+                        best_core = max(core_concepts_under_threshold, key=lambda x: x[2])
+                        if best_core[2] > weakest_score:
+                            # Replace weakest concept with best core concept
+                            fallback_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)] 
+                                               if score > weakest_score and (name, definition) in fallback_concepts]
+                            fallback_concepts.append((best_core[0], best_core[1]))
+                    selected_concepts = fallback_concepts
+                else:
+                    selected_concepts = [(name, definition) for name, definition, score, is_core in concept_scores[:min(2, top_k)]]
         
         # Deduplicate selected concepts by name (case-insensitive)
         seen_names = set()
@@ -1149,7 +1178,7 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         return selected_concepts
         
     except Exception as e:
-        print(f"❌ Error in semantic concept extraction: {e}")
+        # Error in semantic concept extraction - fallback to fuzzy matching
         # Fallback to fuzzy matching if semantic extraction fails
         return extract_concepts_with_fuzzy_matching(query, threshold=0.7)
 
@@ -1409,10 +1438,8 @@ Story Draft:
         # GPT call complete
         
         if error:
-            print(f"❌ GPT-3.5 merge failed: {error}")
-            # Fallback: concatenate with connector
+            # GPT-3.5 merge failed - using fallback concatenation
             merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-            print("🔄 Using fallback merge (concatenation)")
             return merged_lens
         
         # Extract merged content
@@ -1433,10 +1460,8 @@ Story Draft:
         return merged_content
         
     except Exception as e:
-        print(f"❌ Exception in merge_and_extend_with_story: {e}")
-        # Fallback: concatenate with connector
+        # Exception in merge_and_extend_with_story - using fallback concatenation
         merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-        print("🔄 Using fallback merge (concatenation) due to exception")
         return merged_lens
 
 def clean_concepts_tools_practice(raw_items):
@@ -1519,7 +1544,7 @@ def parse_tooltip_spans(content: str) -> list:
             })
     return concepts_tools
 
-def extract_tools_from_section(content: str) -> list:
+def extract_tools_from_section(content: str, selected_domains: dict = None) -> list:
     concepts_tools = []
     section_match = re.search(r'\*\*Concepts/Tools\*\*', content, re.IGNORECASE)
     if not section_match:
@@ -1550,6 +1575,12 @@ def extract_tools_from_section(content: str) -> list:
         # Clean up the concept name
         clean_term = re.sub(r'\*\*|__', '', concept_name.strip())
         
+        # V1.6.6 fix: Enforce domain filtering if selected_domains provided
+        if selected_domains:
+            concept_domain = CONCEPT_DOMAINS.get(clean_term.lower(), 'general')
+            if concept_domain not in selected_domains:
+                continue  # Skip concepts not from detected domains
+        
         concepts_tools.append({
             "term": clean_term,
             "definition": definition
@@ -1564,6 +1595,13 @@ def extract_tools_from_section(content: str) -> list:
         tool_name = tool_name.strip()
         if tool_name.lower() in tooltip_terms:
             continue
+        
+        # V1.6.6 fix: Enforce domain filtering if selected_domains provided
+        if selected_domains:
+            concept_domain = CONCEPT_DOMAINS.get(tool_name.lower(), 'general')
+            if concept_domain not in selected_domains:
+                continue  # Skip concepts not from detected domains
+        
         if tool_def and tool_def.strip():
             definition = tool_def.strip()
         else:
@@ -1633,8 +1671,13 @@ def generate_fallback_concepts(query: str) -> List[str]:
         ]
     }
     
-    # Get domain-appropriate fallbacks
-    fallback_concepts = domain_fallbacks.get(primary_domain, domain_fallbacks['general'])
+    # Get domain-appropriate fallbacks - NEVER use general when specific domains are detected
+    if domains and len(domains) > 0:
+        # Multiple domains detected - use primary domain, never fall back to general
+        fallback_concepts = domain_fallbacks.get(primary_domain, domain_fallbacks['behavioral'])
+    else:
+        # No domains detected - only then use general
+        fallback_concepts = domain_fallbacks['general']
     
     # Return exactly 2 domain-appropriate concepts as per requirements
     return fallback_concepts[:2]
@@ -2055,13 +2098,26 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Use unified semantic extraction for consistent domain/field/concept selection
         unified_results = unified_semantic_extraction(query)
-        primary_domain = unified_results.get('domain', 'general')
-        selected_domains = unified_results.get('domains_selected', ['general'])
-        application_field = unified_results.get('application_field', 'general')
-        entities = unified_results.get('entities', {})
         
-        # Extract concepts using semantic similarity WITHOUT domain filtering
-        # Use our working semantic search logic directly instead of get_top_ranked_concepts
+        # Keep selected_domains as a dict with scores (V1.6.6 fix)
+        if unified_results and isinstance(unified_results, dict):
+            selected_domains = unified_results  # Keep as dict with scores
+            primary_domain = max(selected_domains, key=selected_domains.get) if selected_domains else 'general'
+        else:
+            selected_domains = {'general': 1.0}  # Keep as dict
+            primary_domain = 'general'
+        
+        # V1.6.6 fix: selected_domains now properly maintained as dict with scores
+        
+        
+        
+        
+        
+        application_field = 'general'  # Not implemented yet
+        entities = {}  # Not implemented yet
+        
+        # Extract concepts using semantic similarity WITH domain filtering
+        # Only select concepts from detected domains
         # Load course glossary directly
         with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
             glossary_to_use = json.load(f)
@@ -2084,7 +2140,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         concept_embeddings = get_openai_embeddings(concept_texts)
         similarities = batch_cosine_similarity(query_embedding[0], concept_embeddings)
         
-        # Create list of (concept_name, definition, score) tuples
+        # Create list of (concept_name, definition, score) tuples WITH domain filtering
         concept_scores = []
         for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
             score = similarities[i]
@@ -2095,57 +2151,108 @@ def process_query(query: str, course_config: dict = None) -> str:
             else:
                 definition = concept_data["definition"]
             
+            # DOMAIN FILTERING: Only include concepts from detected domains
+            concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+            
+            # V1.6.6 fix: Strict domain membership enforcement
+            if CONCEPT_DOMAINS.get(concept_name.lower()) not in selected_domains:
+                continue
+            
+            # V1.6.6: Apply the same scoring improvements as get_top_ranked_concepts
+            # Apply keyword-based boosting for systematic decision making queries
+            keyword_boost = 0.0
+            query_lower = query.lower()
+            if any(word in query_lower for word in ['process', 'systematic', 'decision making', 'components']):
+                # Tier 1: Core decision-making analytical tools (highest boost)
+                if concept_name in ['decision tree', 'scenario analysis', 'monte carlo simulation', 'linear optimization', 'integer optimization', 'sensitivity analysis', 'expected value', 'utility functions']:
+                    keyword_boost = 0.4
+                # Tier 2: Strategic decision-making frameworks (decision-making specific)
+                elif concept_name in ['scenario planning', 'competitive advantage analysis', 'porter\'s five forces', 'value chain analysis']:
+                    keyword_boost = 0.3
+                # Tier 3: Behavioral decision-making concepts
+                elif concept_name in ['framing bias', 'cognitive behaviors', 'judgment intuitive bias', 'confirmation bias', 'anchoring bias']:
+                    keyword_boost = 0.25
+                # Tier 4: Generic assessment tools (no boost)
+                elif concept_name in ['risk assessment', 'leadership assessment']:
+                    keyword_boost = 0.0
+            
+            score += keyword_boost
+            
+            # Apply generic assessment penalty
+            generic_penalty = 0.0
+            if concept_name == 'swot analysis':
+                generic_penalty = 0.20  # Increased penalty for generic SWOT
+            elif concept_name in ['risk assessment', 'leadership assessment']:
+                generic_penalty = 0.25
+            
+            score -= generic_penalty
+            
             concept_scores.append((concept_name, definition, score))
         
         # Sort by score (highest first)
         concept_scores.sort(key=lambda x: x[2], reverse=True)
         
+        # Keep concept_scores for allocation logic (contains scores)
         # Convert to (name, definition) format for compatibility
         concepts = [(name, definition) for name, definition, score in concept_scores]
         
         # Semantic search completed
         
         # Implement proper concept allocation rules according to specification
-        if selected_domains and selected_domains != ['general']:
+        if selected_domains and selected_domains != {'general': 1.0}:
             # Multi Domain Lens: 2 from primary domain + 1 from each additional domain, hard cap = 4 total
-            primary_domain = selected_domains[0]
-            additional_domains = selected_domains[1:]
+            # V1.6.6 fix: selected_domains is now a dict, get keys as list
+            domain_list = list(selected_domains.keys())
+            primary_domain = domain_list[0]
+            additional_domains = domain_list[1:]
             
-            # Group concepts by domain
+            # Group concepts by domain WITH SCORES
             concepts_by_domain = {}
-            for concept_name, definition in concepts:
+            for concept_name, definition, score in concept_scores:
                 concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
                 if concept_domain not in concepts_by_domain:
                     concepts_by_domain[concept_domain] = []
-                concepts_by_domain[concept_domain].append((concept_name, definition))
+                concepts_by_domain[concept_domain].append((concept_name, definition, score))
             
             # Available concepts by domain
             
-            # Allocate concepts according to rules
+            # Allocate concepts according to rules WITH SCORE THRESHOLDS
             allocated_concepts = []
             
             # Primary domain: up to 2 concepts (score ≥ 0.50 threshold)
             primary_concepts = concepts_by_domain.get(primary_domain, [])
-            allocated_concepts.extend(primary_concepts[:2])
+            # Filter by score threshold and take up to 2
+            primary_concepts_filtered = [(name, definition) for name, definition, score in primary_concepts if score >= 0.50]
+            allocated_concepts.extend(primary_concepts_filtered[:2])
             
             # Additional domains: 1 concept each (score ≥ 0.40 threshold)
             for domain in additional_domains:
                 domain_concepts = concepts_by_domain.get(domain, [])
                 if domain_concepts:
-                    allocated_concepts.append(domain_concepts[0])
+                    # Filter by score threshold and take the first one
+                    domain_concepts_filtered = [(name, definition) for name, definition, score in domain_concepts if score >= 0.40]
+                    if domain_concepts_filtered:
+                        allocated_concepts.append(domain_concepts_filtered[0])
             
             # Hard cap at 4 total
             concepts = allocated_concepts[:4]
+            
+            # V1.6.6 fix: Final enforcement pass - drop any concept not from selected_domains
+            concepts = [(name, definition) for name, definition in concepts 
+                       if CONCEPT_DOMAINS.get(name.lower(), 'general') in selected_domains]
+            
+            # V1.6.6 fix: Final enforcement pass completed
             
             # If we don't have enough domain-specific concepts, add more concepts from the same domains
             if len(concepts) < 4:
                 remaining_slots = 4 - len(concepts)
                 
-                # First, try to add more concepts from the same domains
+                # First, try to add more concepts from the same domains (with lower threshold)
                 for domain in selected_domains:
                     domain_concepts = concepts_by_domain.get(domain, [])
-                    for concept_name, definition in domain_concepts:
-                        if not any(c[0].lower() == concept_name.lower() for c in concepts):
+                    for concept_name, definition, score in domain_concepts:
+                        # Use lower threshold (0.35) for core concepts under threshold
+                        if score >= 0.35 and not any(c[0].lower() == concept_name.lower() for c in concepts):
                             concepts.append((concept_name, definition))
                             remaining_slots -= 1
                             if remaining_slots <= 0:
@@ -2153,25 +2260,9 @@ def process_query(query: str, course_config: dict = None) -> str:
                     if remaining_slots <= 0:
                         break
                 
-                # If still not enough, use top-scoring concepts directly (bypass domain filtering)
-                if len(concepts) < 4:
-                    # For generic queries, use the highest-scoring concepts regardless of domain
-                    # This ensures we get the most relevant concepts even if domain filtering is too aggressive
-                    try:
-                        # Get top concepts by raw similarity score
-                        top_concepts = get_top_ranked_concepts(query, top_k=10)
-                        
-                        # Add concepts that aren't already included
-                        for concept_name, definition in top_concepts:
-                            if not any(c[0].lower() == concept_name.lower() for c in concepts):
-                                concepts.append((concept_name, definition))
-                                if len(concepts) >= 4:
-                                    break
-                    except Exception as e:
-                        pass  # Could not get top concepts
-                    
-                    # REMOVED FALLBACK LOGIC - Use only allocated concepts
-                    # If we still don't have enough, that's okay - use what we have
+                # NEVER use fallback concepts from undetected domains
+                # Low quality concepts from the right domain are better than irrelevant fallback concepts
+                # If we don't have enough concepts from detected domains, that's acceptable
         else:
             # Single Domain Lens: Up to 3 tooltips
             concepts = concepts[:3]
@@ -2210,7 +2301,8 @@ def process_query(query: str, course_config: dict = None) -> str:
         user_message += f"Application field: {application_field}\n"
         user_message += f"Primary domain: {primary_domain}\n"
         if len(selected_domains) > 1:
-            user_message += f"Additional domains: {', '.join(selected_domains[1:])}\n"
+            additional_domains = [domain for domain in selected_domains.keys() if domain != primary_domain]
+            user_message += f"Additional domains: {', '.join(additional_domains)}\n"
         user_message += "\n"
         
         # Note: Removed analytical tools injection to prevent inappropriate inclusion
@@ -2229,8 +2321,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         if error:
             # API call failed - use section-by-section fallback logic instead of complete fallback
-            print(f"❌ API call failed: {error}")
-            # Continue with section-by-section fallback logic below
+            pass
         
         # Extract response content
         if error:
@@ -2299,8 +2390,8 @@ def process_query(query: str, course_config: dict = None) -> str:
             story_draft = sections['story']
             
             # Detect domain count for adaptive word count
-            domains = detect_course_concept_domains(query)
-            domain_count = len([d for d in domains.values() if d > 0.1]) or 1  # At least 1 domain
+            # Use the already extracted selected_domains instead of calling old function
+            domain_count = len(selected_domains) or 1  # At least 1 domain
             
             # Merge Lens and Story using GPT-3.5
             merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
@@ -2355,11 +2446,70 @@ def process_query(query: str, course_config: dict = None) -> str:
         return answer
         
     except Exception as e:
-        print(f"❌ Error in process_query: {e}")
-        traceback.print_exc()
+        # Error in process_query - returning fallback response
         # Return fallback content
         fallback_content = context_aware_fallbacks(query)
         return format_fallback_response(fallback_content)
+
+def process_query_structured(query: str, course_config: dict = None) -> dict:
+    """
+    V1.6.6: Process query and return structured data for Lambda function.
+    Eliminates need for Lambda to re-parse GPT response.
+    
+    Args:
+        query: User's question
+        course_config: Optional course-specific configuration
+        
+    Returns:
+        Dictionary with structured response data
+    """
+    try:
+        # Get the full answer from process_query
+        answer = process_query(query, course_config)
+        
+        # Extract structured data that Lambda function needs
+        # 1. Strategic Thinking Lens
+        strategic_thinking_lens = ""
+        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+        if lens_match:
+            strategic_thinking_lens = lens_match.group(1).strip()
+        
+        # 2. Follow-up Prompts
+        follow_up_prompts = ""
+        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+        if prompts_match:
+            follow_up_prompts = prompts_match.group(1).strip()
+        
+        # 3. Concepts/Tools - Use authoritative concepts from query-engine
+        concepts_tools_practice = []
+        concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
+        if concepts_match:
+            concepts_section = concepts_match.group(1).strip()
+            # Parse concepts from the authoritative query-engine output
+            concept_lines = re.findall(r'^[-*]\s*([^:\n]+?):\s*([^\n]+)$', concepts_section, re.MULTILINE)
+            for concept_name, definition in concept_lines:
+                concepts_tools_practice.append({
+                    "term": concept_name.strip(),
+                    "definition": definition.strip()
+                })
+        
+        return {
+            "answer": answer,
+            "strategicThinkingLens": strategic_thinking_lens,
+            "followUpPrompts": follow_up_prompts,
+            "conceptsToolsPractice": concepts_tools_practice,
+            "model": "gpt-3.5-turbo"
+        }
+        
+    except Exception as e:
+        # Error in process_query_structured - returning fallback response
+        return {
+            "answer": "I apologize, but I encountered an error processing your query. Please try again.",
+            "strategicThinkingLens": "",
+            "followUpPrompts": "",
+            "conceptsToolsPractice": [],
+            "model": "error"
+        }
 
 def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
     """Ensure the answer follows ThinkPal structure with all required sections."""
@@ -2469,6 +2619,7 @@ def detect_domain_semantic(query: str) -> dict:
                 "A forecasting model suggests demand will grow, but historical accuracy is low. How should leaders proceed?",
                 "Why do groups often fall into groupthink when making strategic choices?",
                 "What explains why managers stick to original plans even when data proves them wrong?",
+                "How do I implement a systematic decision-making process for strategic planning?",
                 "When evaluating a new product launch, how should scenario analysis be applied?",
                 "What strategic risks emerge when executives react too quickly to competitor moves?",
                 "How can sensitivity analysis help in deciding between alternative investment options?",
@@ -2522,6 +2673,7 @@ def detect_domain_semantic(query: str) -> dict:
                 "A company overestimates market size by relying on biased survey samples. How can this be corrected?",
                 "How can sensitivity analysis help in deciding between alternative investment options?",
                 "A regression model shows strong correlation but weak causation. What should analysts do?",
+                "How do I implement a systematic decision-making process for strategic planning?",
                 "A predictive model for pricing performs poorly out of sample. What actions should be taken?",
                 "In data-driven decision processes, why do managers sometimes ignore statistical significance?",
                 "How can simulation models support strategic planning in volatile markets?",
@@ -2557,6 +2709,7 @@ def detect_domain_semantic(query: str) -> dict:
                 "A company overestimates market size by relying on biased survey samples. How can this be corrected?",
                 "What strategic risks emerge when executives react too quickly to competitor moves?",
                 "Why do employees resist shutting down failing projects, despite evidence?",
+                "How do I implement a systematic decision-making process for strategic planning?",
                 "What is the role of framing effects in shaping public policy decisions?",
                 "Why do leaders prefer short-term fixes over long-term solutions?",
                 "How can cognitive biases distort risk assessments in strategy sessions?",
@@ -2582,35 +2735,23 @@ def detect_domain_semantic(query: str) -> dict:
                 "What explains escalation of commitment in large infrastructure investments?",
                 "How does groupthink affect strategic committee decisions?",
                 "Why do managers overweight recent events when making forecasts?",
-                "What are the key differences between distributive and integrative negotiation strategies?",
                 "How can anchoring offers shape expectations in joint venture negotiations?",
-                "How should negotiators handle multi-party coalitions with conflicting agendas?",
-                "In labor talks, what strategies reduce deadlock while protecting long-term relationships?",
             ],
             'negotiation': [
-                "What is the optimal sequence of concessions to make during a salary negotiation?",
-                
-                "Why do people fall into the splitting-pie trap during negotiation?",
                 "In a merger negotiation, how can both sides avoid focusing only on dividing the pie?",
-                
                 "In cross-cultural negotiations, how do different communication styles affect outcomes?",
-                
-                "How should I structure the first offer in a salary negotiation to avoid anchoring too low?",
-                "What explains why people anchor to initial information during negotiations?",
                 "In high-stakes negotiations, how do emotions influence concessions?",
-                
-                "What are effective tactics for breaking deadlock when the other side refuses to move from their position?",
                 "In union negotiations, how do anchoring effects shape expectations?",
-                
-                "What are the key differences between distributive and integrative negotiation strategies?",
-                "What is the role of BATNA (Best Alternative to a Negotiated Agreement) in contract talks?",
+                "What explains why people anchor to initial information during negotiations?",
+                "How can executives avoid escalation of commitment in large projects?",
+                "Why do organizations default to industry benchmarks instead of running independent analysis?",
+                "What strategic risks arise when companies imitate competitor moves without independent analysis?",
+                "How does confirmation bias distort how executives interpret market signals?",
+                "Why do sunk costs cause leaders to continue failing projects?",
+                "What explains escalation of commitment in large infrastructure investments?",
+                "How does groupthink affect strategic committee decisions?",
+                "Why do managers overweight recent events when making forecasts?",
                 "How can anchoring offers shape expectations in joint venture negotiations?",
-                "How should negotiators handle multi-party coalitions with conflicting agendas?",
-                "In labor talks, what strategies reduce deadlock while protecting long-term relationships?",
-                "How should I respond when the other side makes an extreme first offer in a negotiation?",
-                "What tactics help break deadlock in contract renegotiations?",
-                "How can I prepare fallback offers if the other side rejects my proposal?",
-                "What role do concessions play in reaching a fair agreement?",
             ],
         }
 
@@ -2621,6 +2762,11 @@ def detect_domain_semantic(query: str) -> dict:
         domain_scores = {}
         
         for domain, references in domain_references.items():
+            # Skip domains with no references to avoid API errors
+            if not references or len(references) == 0:
+                domain_scores[domain] = 0.0
+                continue
+                
             # Encode all reference texts for this domain using OpenAI
             reference_embeddings = get_openai_embeddings(references)
             
@@ -2639,7 +2785,7 @@ def detect_domain_semantic(query: str) -> dict:
         return domain_scores
         
     except Exception as e:
-        print(f"Error in semantic domain detection: {e}")
+        # Error in semantic domain detection - using fallback
         # Fallback to keyword-based detection
         return detect_course_concept_domains(query)
 
@@ -2652,24 +2798,14 @@ def unified_semantic_extraction(query: str) -> dict:
         # Load data lazily
         index, metadata, documents, file_names, model, nlp = load_data_lazily()
         
-        # 1. SEMANTIC DOMAIN DETECTION
-        domain_scores = detect_domain_semantic(query)
+        # 1. HYBRID DOMAIN DETECTION (combines semantic + keyword methods)
+        selected_domains = hybrid_domain_detection(query)
         
-        # Use improved cluster-based selection for semantic detection
-        selected_domains = select_domains_by_clusters_improved(domain_scores, "semantic", max_domains=3)
-        
-        # Normalize selected scores to sum to 1.0
-        if selected_domains:
-            total_selected = sum(selected_domains.values())
-            if total_selected > 0:
-                selected_domains = {domain: score / total_selected 
-                                  for domain, score in selected_domains.items()}
-        
-        # Return simplified result for now (can be expanded later)
+        # Return hybrid detection result
         return selected_domains
         
     except Exception as e:
-        print(f"Error in unified semantic extraction: {e}")
+        # Error in unified semantic extraction - using fallback
         # Fallback to individual methods
         return {}
 
@@ -3122,7 +3258,7 @@ def hybrid_domain_detection(query: str) -> dict:
         return {'general': 1.0}
         
     except Exception as e:
-        print(f"Error in hybrid domain detection: {e}")
+        # Error in hybrid domain detection - using fallback
         # Fallback to semantic detection
         try:
             return detect_domain_semantic(query)
@@ -3148,7 +3284,7 @@ if __name__ == "__main__":
                 continue
             
             answer = process_query(query)
-            print(f"{answer}")
+            # Test output removed for deployment
             
     except KeyboardInterrupt:
         pass 

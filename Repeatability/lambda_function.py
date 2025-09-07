@@ -90,85 +90,42 @@ DEFAULT_COURSE = "decision"
 
 def process_query_v166_fixed(query: str) -> dict:
     """
-    Fixed V166 Query Processing - Uses authoritative query_engine.process_query()
+    V1.6.6: Fixed Query Processing - Uses authoritative query_engine.process_query_structured()
+    Eliminates double work by using structured data instead of re-parsing GPT response.
     """
     try:
         # Check if query_engine is available
-        if not hasattr(query_engine, 'process_query'):
-            raise Exception("query_engine.process_query method not available")
+        if not hasattr(query_engine, 'process_query_structured'):
+            raise Exception("query_engine.process_query_structured method not available")
         
-        # Use the authoritative query_engine.process_query() method
-        # This ensures 100% consistency with api_server.py
+        # V1.6.6: Use the authoritative query_engine.process_query_structured() method
+        # This eliminates the need to re-parse GPT response and ensures 100% consistency
         start_time = time.time()
         try:
-            answer = query_engine.process_query(query)
+            structured_response = query_engine.process_query_structured(query)
         except Exception as qe:
             traceback.print_exc()
             raise qe
             
         processing_time = time.time() - start_time
         
+        # Add processing time to the structured response
+        structured_response["processing_time"] = processing_time
+        
         # Check if query was rejected by relevance filter
-        if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
+        if isinstance(structured_response.get("answer", ""), str) and structured_response["answer"].startswith("⚠️ This question doesn't appear to be related to the course"):
             return {
-                "answer": answer,
-                "strategicThinkingLens": answer,
+                "answer": structured_response["answer"],
+                "strategicThinkingLens": structured_response["answer"],
                 "followUpPrompts": "",
                 "conceptsToolsPractice": [],
                 "model": "relevance_filter",
                 "processing_time": processing_time
             }
         
-        # Extract concepts/tools as objects for frontend (EXACT same logic as api_server.py)
-        concepts_tools_practice = []
-        if hasattr(query_engine, 'extract_tools_from_section'):
-            import re
-            # V1.6.3: Only look for Concepts/Tools section
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
-            if concepts_match:
-                concepts_section = concepts_match.group(0)
-                concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)
-        
-        # --- VALIDATION BLOCK: Ensure conceptsToolsPractice is always a list of {term, definition} objects ---
-        def is_valid_concept(obj):
-            return (
-                isinstance(obj, dict)
-                and 'term' in obj and isinstance(obj['term'], str) and obj['term'].strip() != ''
-                and 'definition' in obj and isinstance(obj['definition'], str) and obj['definition'].strip() != ''
-            )
-        if not isinstance(concepts_tools_practice, list):
-            concepts_tools_practice = []
-        else:
-            fixed = []
-            for item in concepts_tools_practice:
-                if is_valid_concept(item):
-                    fixed.append(item)
-            concepts_tools_practice = fixed
-        # --- END VALIDATION BLOCK ---
-        
-        # Parse sections from the answer (same as api_server.py logic)
-        strategic_thinking_lens = ""
-        follow_up_prompts = ""
-        
-        # Simple parsing of the answer sections
-        sections = answer.split("**")
-        for i, section in enumerate(sections):
-            if "Strategic Thinking Lens" in section:
-                if i + 1 < len(sections):
-                    strategic_thinking_lens = sections[i + 1].strip()
-            elif "Follow-up Prompts" in section:
-                if i + 1 < len(sections):
-                    follow_up_prompts = sections[i + 1].strip()
-        
-        # Return structured response with required keys (same format as api_server.py)
-        return {
-            "answer": answer,
-            "strategicThinkingLens": strategic_thinking_lens,
-            "followUpPrompts": follow_up_prompts,
-            "conceptsToolsPractice": concepts_tools_practice,
-            "model": "gpt-3.5-turbo",
-            "processing_time": processing_time
-        }
+        # V1.6.6: Return the authoritative structured response directly
+        # No more re-parsing of GPT response - query-engine is the source of truth
+        return structured_response
         
     except Exception as e:
         traceback.print_exc()
