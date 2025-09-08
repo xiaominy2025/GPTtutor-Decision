@@ -137,8 +137,15 @@ def process_query():
         # V1.6.6.6 Final: Bypass course configuration to ensure 100% alignment
         # Still accept course_id from frontend for compatibility, but ignore it for processing
         
-        # Process query using V1.6 query engine directly (no course_config parameter)
-        answer = query_engine.process_query(query)
+        # Process query using V1.6 query engine structured function
+        result = query_engine.process_query_structured(query)
+        
+        # Extract structured data from process_query_structured
+        answer = result.get("answer", "")
+        concepts_tools_practice = result.get("conceptsToolsPractice", [])
+        strategic_thinking_lens = result.get("strategicThinkingLens", "")
+        follow_up_prompts = result.get("followUpPrompts", "")
+        application_field = result.get("applicationField", "general")
         
         # Check if query was rejected by relevance filter
         if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
@@ -154,16 +161,6 @@ def process_query():
                     "conceptsToolsPractice": []
                 }
             })
-        
-        # Extract concepts/tools as objects for frontend
-        concepts_tools_practice = []
-        if hasattr(query_engine, 'extract_tools_from_section'):
-            import re
-            # V1.6.3: Only look for Concepts/Tools section
-            concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\n\n|$)', answer, re.DOTALL)
-            if concepts_match:
-                concepts_section = concepts_match.group(0)
-                concepts_tools_practice = query_engine.extract_tools_from_section(concepts_section)
 
         # --- VALIDATION BLOCK: Ensure conceptsToolsPractice is always a list of {term, definition} objects ---
         def is_valid_concept(obj):
@@ -192,7 +189,8 @@ def process_query():
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "model": "gpt-3.5-turbo",
                 "processing_time": 2.3,  # Placeholder timing
-                "conceptsToolsPractice": concepts_tools_practice
+                "conceptsToolsPractice": concepts_tools_practice,
+                "applicationField": application_field
             }
         }
 

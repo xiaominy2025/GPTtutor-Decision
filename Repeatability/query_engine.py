@@ -107,8 +107,8 @@ def compute_relevance_score(query):
     except:
         application_field = extract_application_field(query)
     
-    # Extract concepts using existing function
-    concepts = get_top_ranked_concepts(query, top_k=3)
+    # Extract concepts using existing function (DEPRECATED - will be replaced)
+    concepts = get_top_ranked_concepts_DEPRECATED(query, top_k=3)
     concept_count = len(concepts)
     
     # Fuzzy fallback if no concept match
@@ -291,13 +291,14 @@ CONCEPT_GLOSSARY = {
     "zopa": {"definition": "Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation", "core": True, "aliases": ['zone of agreement', 'negotiation zone', 'agreement zone', 'bargaining zone', 'possible agreement', 'negotiation', 'zone of possible agreement', 'agreement range']},
     "supply chain": {"definition": "The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer", "core": True, "aliases": ['supply chain management', 'logistics', 'procurement', 'distribution', 'supply chain optimization', 'supply chain disruption']},
     "risk management": {"definition": "The process of identifying, assessing, and controlling threats to an organization's capital and earnings", "core": True, "aliases": ['risk assessment', 'risk mitigation', 'threat management', 'risk control', 'risk evaluation', 'risk analysis']},
-    "leadership assessment": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": False, "aliases": ['leadership evaluation', 'leadership skills', 'management assessment']},
+    "leadership style": {"definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts", "core": True, "aliases": ['leadership evaluation', 'leadership skills', 'management assessment', 'leadership assessment']},
     "cognitive behaviors": {"definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias", "core": True, "aliases": ['cognitive behavior', 'thinking patterns', 'mental models', 'cognitive bias']},
     "judgment intuitive bias": {"definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously", "core": True, "aliases": ['cognitive bias', 'judgment bias', 'thinking errors', 'decision bias']},
     "negotiation term sheet": {"definition": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted", "core": True, "aliases": ['term sheet', 'negotiation terms', 'agreement terms', 'deal sheet']},
+    "negotiation strategy": {"definition": "A systematic approach to achieving favorable outcomes in discussions and agreements", "core": True, "aliases": ['negotiation approach', 'bargaining strategy', 'deal strategy']},
     "value creation": {"definition": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction", "core": True, "aliases": ['value generation', 'benefit creation', 'stakeholder value']},
-    "risk tolerance assessment": {"definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives", "core": False, "aliases": ['risk tolerance', 'risk appetite', 'risk willingness']},
-    "human-computer integration": {"definition": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities", "core": False, "aliases": ['human computer', 'human machine', 'computer integration']},
+    "risk tolerance profile": {"definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives", "core": True, "aliases": ['risk tolerance', 'risk appetite', 'risk willingness', 'risk tolerance assessment']},
+    "human-computer integration": {"definition": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities", "core": True, "aliases": ['human computer', 'human machine', 'computer integration']},
     "competitive advantage analysis": {"definition": "A strategic evaluation of factors that allow an organization to outperform its competitors", "core": True, "aliases": ['competitive advantage', 'competitive analysis', 'advantage analysis']},
     "value chain analysis": {"definition": "A process of analyzing the activities that add value to a product or service from conception to delivery", "core": True, "aliases": ['value chain', 'chain analysis', 'value analysis', 'activity-based analysis', 'value creation activities', 'value activities', 'chain of activities']},
     "investigative negotiation": {"definition": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes", "core": True, "aliases": ['investigative', 'interest-based negotiation', 'information gathering', 'uncover interests', 'underlying interests', 'investigative negotiation']},
@@ -317,7 +318,7 @@ CONCEPT_GLOSSARY = {
     "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ['sunk cost fallacy', 'legacy project', 'continuing investment', 'failing project', 'persistent investment', 'keep investing', 'already spent', 'time investment', 'continue despite failure', 'invest more in failing', 'keep going despite problems', 'legacy']},
     "mental accounting": {"definition": "Treating money and financial resources differently based on their source or context", "core": True, "aliases": ['psychological budgeting', 'money source bias', 'financial categorization']},
     "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ['strategic games', 'payoff analysis', 'competitive interactions', 'strategic analysis', 'competitive strategy', 'strategic thinking', 'competitive analysis', 'strategic interactions', 'game theory']},
-    "winner's curse": {"definition": "Overpaying or overcommitting in competitive bidding", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', "winner's curse"]},
+    "winner's curse": {"definition": "Overpaying or overcommitting in competitive bidding", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', "winner's curse"]},
     "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ['collaborative negotiation', 'win-win bargaining', 'value creation', 'mutual benefits', 'win-win solutions', 'create value', 'collaborative approach', 'mutual gains', 'win-win']},
     "distributive negotiation": {"definition": "Zero-sum bargaining where one's gain is another's loss", "core": False, "aliases": []},
     "porter's five forces": {"definition": "Framework for analyzing industry competitiveness", "core": True, "aliases": ['five forces analysis', 'competitive', 'industry', 'competitiveness', 'industry analysis', 'competitive forces', 'industry structure', 'competitive analysis', 'five forces']},
@@ -340,8 +341,8 @@ CONCEPT_DOMAINS = {
     "cognitive behaviors": "behavioral",
     "judgment intuitive bias": "behavioral", 
     "prospect theory": "behavioral",
-    "leadership assessment": "behavioral",
-    "risk tolerance assessment": "behavioral",
+    "leadership style": "behavioral",
+    "risk tolerance profile": "behavioral",
     "confirmation bias": "behavioral",
     "anchoring bias": "behavioral",
     "framing bias": "behavioral",
@@ -546,7 +547,10 @@ def detect_course_concept_domains(query: str) -> dict:
     ]
     
     strategic_keywords_weak = [
-        'career', 'job', 'task', 'project', 'assignment'
+        'career', 'job', 'task', 'project', 'assignment', 'option', 'options',
+        'planning', 'plan', 'planned', 'choice', 'choices', 'framework', 'frameworks',
+        'decision', 'decisions', 'company', 'companies', 'industry', 'industries',
+        'organization', 'organizations', 'corporate', 'enterprise'
     ]
     
     # Apply weighted scoring for strategic keywords
@@ -621,7 +625,11 @@ def detect_query_domain(query: str) -> str:
     # Return the domain with the highest score
     return max(domains, key=domains.get)
 
-def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = None, skip_domain_filtering: bool = False) -> List[Tuple[str, str]]:
+# DEPRECATED: get_top_ranked_concepts function removed to eliminate conflicts
+# This function was causing issues with concept selection logic
+# Use the new unified select_concepts function instead
+
+def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossary: dict = None, skip_domain_filtering: bool = False) -> List[Tuple[str, str]]:
     """
     Extract concepts using semantic similarity scoring with SentenceTransformer embeddings.
     
@@ -822,13 +830,16 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 'swot analysis',         # Generic strategic tool
                 'competitive analysis',   # Generic business analysis
                 'risk assessment',        # Generic assessment tool (could apply to many contexts)
-                'leadership assessment'   # Generic assessment tool (could apply to many contexts)
+                'leadership assessment',  # Generic assessment tool (could apply to many contexts)
+                'strategic framing'       # Generic strategic concept (applies to all decision-making)
             ]
             
             if concept_name in generic_concepts:
                 # Apply penalty based on how generic the concept is
                 if concept_name == 'swot analysis':
                     generic_penalty = 0.20  # Increased penalty for generic SWOT
+                elif concept_name == 'strategic framing':
+                    generic_penalty = 0.15  # Strong penalty for generic strategic framing
                 elif concept_name == 'competitive analysis':
                     generic_penalty = 0.08  # Light penalty
                 elif concept_name in ['risk assessment', 'leadership assessment']:
@@ -836,6 +847,35 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
             
             # Apply generic penalty
             score -= generic_penalty
+            
+            # Apply context-aware penalties for concepts that are inappropriate for certain query types
+            context_penalty = 0.0
+            
+            # Check for communication/behavioral queries that shouldn't include bidding-specific concepts
+            communication_keywords = ['convey', 'communicate', 'tell', 'inform', 'deliver', 'present', 'share', 'explain', 'discuss', 'talk', 'speak', 'message', 'news', 'feedback', 'criticism', 'boss', 'manager', 'supervisor', 'employee', 'colleague', 'team', 'workplace', 'meeting', 'conversation']
+            if any(keyword in query_lower for keyword in communication_keywords):
+                # Penalize bidding-specific concepts for communication queries
+                if concept_name == "winner's curse":
+                    context_penalty = 0.50  # Strong penalty - winner's curse is specifically about bidding/auctions, not communication
+                elif concept_name in ['batna', 'integrative negotiation', 'distributive negotiation']:
+                    context_penalty = 0.30  # Moderate penalty - negotiation concepts not relevant for simple communication
+            
+            # Check for bidding/auction-specific queries that should include winner's curse
+            bidding_keywords = ['bid', 'bidding', 'auction', 'tender', 'proposal', 'offer', 'compete', 'competitive bidding', 'overpay', 'overbid', 'winning bid', 'losing bid']
+            if any(keyword in query_lower for keyword in bidding_keywords):
+                # Boost winner's curse for bidding-related queries
+                if concept_name == "winner's curse":
+                    context_penalty = -0.20  # Negative penalty = boost for bidding queries
+            
+            # Check for personal/individual queries that shouldn't include strategic business concepts
+            personal_keywords = ['my', 'personal', 'individual', 'myself', 'I', 'me', 'own', 'private', 'personal decision', 'personal choice']
+            if any(keyword in query_lower for keyword in personal_keywords):
+                # Penalize strategic business concepts for personal queries
+                if concept_name in ['porter\'s five forces', 'competitive advantage analysis', 'value chain analysis']:
+                    context_penalty = 0.35  # Strong penalty - business strategy not relevant for personal decisions
+            
+            # Apply context penalty
+            score -= context_penalty
             
             # LOWER THRESHOLD: Changed from 0.10 to 0.05 to capture more concepts for very generic queries
             if score > 0.05:  # Lower threshold to capture more concepts for very generic queries
@@ -968,11 +1008,13 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
                 # Select 2 from primary domain
                 selected_concepts = primary_domain_concepts[:2]
                 
-                # Select 1 from each secondary domain
+                # Select 1 from each secondary domain (highest scoring)
                 secondary_domains = [d for d in query_domains.keys() if d != primary_domain and query_domains[d] > 0.3]
                 for secondary_domain in secondary_domains:
                     secondary_concepts = [c for c in secondary_domain_concepts if CONCEPT_DOMAINS.get(c[0], 'general') == secondary_domain]
                     if secondary_concepts:
+                        # Sort by score (highest first) and take the best one
+                        secondary_concepts.sort(key=lambda x: x[2], reverse=True)
                         selected_concepts.append(secondary_concepts[0])
             
             # If we don't have enough concepts from domain-driven selection, fill with high-scoring concepts
@@ -1181,6 +1223,70 @@ def get_top_ranked_concepts(query: str, top_k: int = 3, custom_glossary: dict = 
         # Error in semantic concept extraction - fallback to fuzzy matching
         # Fallback to fuzzy matching if semantic extraction fails
         return extract_concepts_with_fuzzy_matching(query, threshold=0.7)
+
+def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domains: dict, primary_domain: str) -> List[Tuple[str, str]]:
+    """
+    Unified concept selection function with clear scoring and allocation logic.
+    
+    Args:
+        concept_scores: List of (concept_name, definition, score) tuples sorted by score
+        selected_domains: Dict of selected domains and their scores
+        primary_domain: The primary domain for allocation rules
+        
+    Returns:
+        List of (concept_name, definition) tuples for UI display
+    """
+    
+    # Group concepts by domain
+    concepts_by_domain = {}
+    for concept_name, definition, score in concept_scores:
+        concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+        if concept_domain not in concepts_by_domain:
+            concepts_by_domain[concept_domain] = []
+        concepts_by_domain[concept_domain].append((concept_name, definition, score))
+    
+    # Sort concepts within each domain by score (highest first)
+    for domain in concepts_by_domain:
+        concepts_by_domain[domain].sort(key=lambda x: x[2], reverse=True)
+    
+    # Apply allocation rules
+    selected_concepts = []
+    
+    if len(selected_domains) == 1:
+        # Single domain lens: return top 3
+        domain = list(selected_domains.keys())[0]
+        domain_concepts = concepts_by_domain.get(domain, [])
+        selected_concepts = [(name, definition) for name, definition, score in domain_concepts[:3]]
+    else:
+        # Multi-domain lens: top 2 from primary + top 1 from each secondary
+        domain_list = list(selected_domains.keys())
+        primary_domain = domain_list[0]
+        additional_domains = domain_list[1:]
+        
+        # Primary domain: up to 2 concepts
+        primary_concepts = concepts_by_domain.get(primary_domain, [])
+        selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
+        
+        # Additional domains: 1 concept each
+        for domain in additional_domains:
+            domain_concepts = concepts_by_domain.get(domain, [])
+            if domain_concepts:
+                selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+    
+    # Enforce hard cap of 4
+    selected_concepts = selected_concepts[:4]
+    
+    # Deduplicate concepts by normalized name
+    seen_names = set()
+    deduplicated_concepts = []
+    for name, definition in selected_concepts:
+        normalized_name = name.lower().replace('-', ' ')
+        if normalized_name not in seen_names:
+            deduplicated_concepts.append((name, definition))
+            seen_names.add(normalized_name)
+    
+    
+    return deduplicated_concepts
 
 def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> List[Tuple[str, str]]:
     """
@@ -1402,7 +1508,7 @@ def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: i
     
     # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
     prompt = f"""
-You're an expert instructor helping graduate students practice strategic decision-making.
+You're an expert instructor helping professionals practice strategic decision-making.
 
 Below are two drafts:
 1. A strategic thinking explanation for the query
@@ -1414,7 +1520,7 @@ Your task is to revise and merge these into a single, cohesive answer. The resul
 ✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
 ✅ Write ONLY the narrative content without any formatting headers
 ✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
-✅ Use a clear, professional tone appropriate for graduate-level learners.
+✅ Use a clear, professional tone appropriate for professional learners.
 ✅ Keep the response concise (ideally two well-developed paragraphs).
 ✅ Avoid repetition or superficial elaboration.
 
@@ -1635,52 +1741,8 @@ def extract_concepts_from_markdown(text: str) -> list:
     return concepts
 
 def generate_fallback_concepts(query: str) -> List[str]:
-    """Generate domain-appropriate fallback concepts when semantic extraction fails."""
-    query_lower = query.lower()
-    
-    # Detect domains for domain-appropriate fallbacks
-    domains = detect_course_concept_domains(query)
-    primary_domain = max(domains, key=domains.get) if domains else 'general'
-    
-    # Domain-specific fallback templates
-    domain_fallbacks = {
-        'behavioral': [
-            "Framing Bias: Decisions influenced by whether information is presented positively or negatively",
-            "Confirmation Bias: Favoring evidence that supports existing beliefs",
-            "Anchoring Bias: Relying too heavily on initial information"
-        ],
-        'technical': [
-            "Scenario Analysis: Exploring different future possibilities to prepare for uncertainty",
-            "Expected Value: Calculating the average outcome considering all possible scenarios",
-            "Monte Carlo Simulation: Using random sampling to model complex systems"
-        ],
-        'strategic': [
-            "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives",
-            "Competitive Analysis: Understanding your position relative to alternatives and competitors",
-            "Value Creation: Identifying opportunities to create mutual benefits"
-        ],
-        'negotiation': [
-            "BATNA: Best Alternative to a Negotiated Agreement - your strongest alternative if an agreement cannot be reached",
-            "ZOPA: Zone of Possible Agreement - the overlap between both parties' acceptable ranges in negotiation",
-            "Integrative Negotiation: Win-win bargaining through value creation"
-        ],
-        'general': [
-            "Strategic Framing: Structuring the decision problem to clarify objectives and alternatives",
-            "Stakeholder Alignment: Ensuring all parties' interests are considered and balanced",
-            "Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes"
-        ]
-    }
-    
-    # Get domain-appropriate fallbacks - NEVER use general when specific domains are detected
-    if domains and len(domains) > 0:
-        # Multiple domains detected - use primary domain, never fall back to general
-        fallback_concepts = domain_fallbacks.get(primary_domain, domain_fallbacks['behavioral'])
-    else:
-        # No domains detected - only then use general
-        fallback_concepts = domain_fallbacks['general']
-    
-    # Return exactly 2 domain-appropriate concepts as per requirements
-    return fallback_concepts[:2]
+    """Simplified fallback function - returns empty list since we use unified concept extraction."""
+    return []
 
 def deduplicate_concepts(concepts_section: str) -> str:
     """
@@ -1800,14 +1862,14 @@ def context_aware_fallbacks(query: str):
     strategic_lens = generate_course_domain_strategic_lens(query, primary_course_domain, application_field)
     
     # Use application field for Story in Action and other sections
-    if application_field == "admission":
+    if application_field == "general":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Sarah, a high school senior, compares three college offers using a weighted scoring model. She lists her priorities—academic reputation, cost, campus culture, and location. After visiting each campus and speaking with current students, she weighs the value of strong alumni networks against the appeal of lower tuition. Sarah ultimately chooses the school that best balances her career goals and financial constraints.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Decision Tree: Mapping out options and outcomes\n- Weighted Scoring Model: Comparing choices using weighted criteria"
         }
-    if application_field == "job":
+    if application_field == "people_talent_career":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
@@ -1822,28 +1884,28 @@ def context_aware_fallbacks(query: str):
             'Concepts/Tools': "- Lean Canvas: One-page business planning tool\n- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats"
         }
 
-    if application_field == "operations":
+    if application_field == "operations_management":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Lisa, an operations manager, models multiple supply chain scenarios using Monte Carlo simulation to account for demand uncertainty. She compares cost efficiency with operational flexibility, analyzing how different scenarios affect both short-term performance and long-term resilience. Her comprehensive analysis reveals that the most resilient plan balances steady operational costs with the adaptability needed to respond to demand fluctuations and supply disruptions.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Scenario Analysis: Exploring possible futures\n- Monte Carlo Simulation: Modeling uncertainty through random sampling"
         }
-    if application_field == "finance":
+    if application_field == "financial_decision_making":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "James, a mid-career professional, weighs investing in index funds versus keeping money in a money market account. He analyzes historical returns, considers his risk tolerance, and balances immediate liquidity needs with long-term growth potential. After consulting with a financial advisor and reviewing his emergency fund, James decides on an allocation that reflects both financial stability and the opportunity cost of being too conservative.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Risk Assessment: Evaluating potential threats\n- Expected Value: Estimating average outcomes under uncertainty"
         }
-    if application_field == "health":
+    if application_field == "healthcare_medical":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Maya, a young professional, compares three health insurance plans using a decision matrix. She carefully weighs monthly premiums, provider network coverage, emergency care benefits, and prescription drug coverage. After researching each plan's reputation and reading customer reviews, Maya balances affordability with comprehensive coverage, ensuring both immediate health security and long-term financial stability for unexpected medical expenses.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Risk Tolerance Assessment: Measuring comfort with uncertainty"
         }
-    if application_field == "education":
+    if application_field == "education_learning":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Daniel debates pursuing a master's degree versus earning industry certifications. He compares tuition costs, time commitments, and potential career impact for each option. After researching salary data and consulting with professionals in his field, Daniel weighs the long-term credibility of a degree against the faster skill acquisition of certifications, ultimately choosing the option best aligned with his career goals and financial constraints.",
@@ -1871,21 +1933,21 @@ def context_aware_fallbacks(query: str):
             'Follow-up Prompts': ["- How does this align with your values?", "- What are the risks of taking a public stance?"],
             'Concepts/Tools': "- Strategic Framing: Clarifying objectives and risks\n- Value Creation: Generating benefits that exceed costs"
         }
-    if application_field == "business":
+    if application_field == "business_markets":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Michael, a business analyst, evaluates strategic options using a comprehensive decision framework. He analyzes market conditions, competitive dynamics, and resource constraints to identify the optimal path forward. By weighing short-term operational efficiency against long-term strategic positioning, Michael develops a balanced approach that maximizes value creation while managing risk exposure.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats\n- Decision Matrix: Structured evaluation of multiple criteria"
         }
-    if application_field == "technology":
+    if application_field == "technology_management":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Carlos, a small business owner, considers adopting AI-powered customer support tools to improve efficiency and reduce response times. He carefully weighs the potential efficiency gains against employee training requirements, customer experience impacts, and implementation costs. After consulting with his team and researching similar implementations, Carlos's decision hinges on balancing the speed of technology adoption with his organization's readiness for change and ability to maintain service quality.",
             'Follow-up Prompts': ["- What long-term benefits could technology bring?", "- What barriers might slow adoption?"],
             'Concepts/Tools': "- Human-Computer Integration: Enhancing decisions with technology"
         }
-    if application_field == "risk_management":
+    if application_field == "risk_crisis_resilience":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Lisa, a risk manager, evaluates potential threats to her organization's supply chain. She conducts a comprehensive risk assessment, identifying vulnerabilities in supplier relationships, geopolitical factors, and natural disaster scenarios. By developing contingency plans and monitoring early warning indicators, Lisa creates a resilient framework that balances risk mitigation costs with potential impact severity.",
@@ -1899,7 +1961,7 @@ def context_aware_fallbacks(query: str):
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
             'Concepts/Tools': "- Critical Path Analysis: Identifying project bottlenecks\n- Stakeholder Management: Balancing competing interests"
         }
-    if application_field == "sustainability":
+    if application_field == "sustainability_environment":
         return {
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Emma, a sustainability director, navigates the complex trade-offs between environmental responsibility and business profitability. She evaluates carbon footprint reduction initiatives, assesses stakeholder expectations, and balances short-term costs with long-term brand value. By integrating ESG considerations into strategic decision-making, Emma creates value for both shareholders and society.",
@@ -1973,20 +2035,20 @@ def generate_course_domain_strategic_lens(query: str, course_domain: str, applic
     # Add application field specific considerations
     if application_field:
         field_considerations = {
-            'job': " Consider how this decision aligns with your career trajectory and personal values.",
+            'people_talent_career': " Consider how this decision aligns with your career trajectory and personal values.",
             'startup': " Evaluate both the immediate feasibility and long-term growth potential of each option.",
-            'finance': " Balance risk and return while considering your financial goals and constraints.",
-            'operations': " Consider both efficiency and resilience in your analysis.",
-            'health': " Prioritize both immediate needs and long-term well-being.",
-            'education': " Weigh the investment in time and money against potential career benefits.",
+            'financial_decision_making': " Balance risk and return while considering your financial goals and constraints.",
+            'operations_management': " Consider both efficiency and resilience in your analysis.",
+            'healthcare_medical': " Prioritize both immediate needs and long-term well-being.",
+            'education_learning': " Weigh the investment in time and money against potential career benefits.",
             'relocation': " Consider both personal and professional factors in your decision.",
             'leadership': " Think about how this decision will affect team dynamics and organizational culture.",
             'ethics': " Consider the moral implications and stakeholder impact of your choice.",
-            'business': " Evaluate both short-term operational efficiency and long-term strategic positioning.",
-            'technology': " Balance innovation potential with implementation challenges and user adoption.",
-            'risk_management': " Consider both probability and impact in your risk assessment.",
+            'business_markets': " Evaluate both short-term operational efficiency and long-term strategic positioning.",
+            'technology_management': " Balance innovation potential with implementation challenges and user adoption.",
+            'risk_crisis_resilience': " Consider both probability and impact in your risk assessment.",
             'project_management': " Balance scope, time, and cost constraints while maintaining quality.",
-            'sustainability': " Consider environmental, social, and governance factors alongside business objectives.",
+            'sustainability_environment': " Consider environmental, social, and governance factors alongside business objectives.",
             'innovation': " Balance breakthrough potential with implementation risk and market readiness.",
             'human_capital': " Consider both individual development and organizational needs.",
             'marketing': " Balance short-term sales targets with long-term brand building.",
@@ -2070,6 +2132,107 @@ def extract_sections_from_response(answer: str) -> dict:
     
     return sections
 
+def analyze_query_context(query_lower):
+    """Analyze the semantic context of a query to identify decision-making scenarios."""
+    context = {
+        'decision_type': 'general',
+        'scope': 'single',
+        'domain': 'general',
+        'urgency': 'normal'
+    }
+    
+    # Decision type analysis
+    if any(word in query_lower for word in ['job', 'offer', 'career', 'employment', 'hire', 'position']):
+        context['decision_type'] = 'career'
+    elif any(word in query_lower for word in ['bid', 'auction', 'tender', 'proposal', 'contract']):
+        context['decision_type'] = 'bidding'
+    elif any(word in query_lower for word in ['investment', 'portfolio', 'stock', 'bond', 'financial']):
+        context['decision_type'] = 'investment'
+    elif any(word in query_lower for word in ['project', 'initiative', 'program', 'campaign']):
+        context['decision_type'] = 'project'
+    elif any(word in query_lower for word in ['production', 'manufacturing', 'supply', 'operations']):
+        context['decision_type'] = 'operations'
+    
+    # Scope analysis
+    if any(word in query_lower for word in ['multiple', 'several', 'many', 'portfolio', 'array']):
+        context['scope'] = 'multiple'
+    elif any(word in query_lower for word in ['two', 'between', 'choose between', 'either']):
+        context['scope'] = 'binary'
+    
+    # Domain analysis
+    if any(word in query_lower for word in ['negotiate', 'bargain', 'deal', 'agreement']):
+        context['domain'] = 'negotiation'
+    elif any(word in query_lower for word in ['strategy', 'strategic', 'competitive', 'market']):
+        context['domain'] = 'strategic'
+    elif any(word in query_lower for word in ['bias', 'behavior', 'psychology', 'cognitive']):
+        context['domain'] = 'behavioral'
+    elif any(word in query_lower for word in ['model', 'analysis', 'quantitative', 'optimization']):
+        context['domain'] = 'technical'
+    
+    return context
+
+def analyze_concept_context(concept_name, definition):
+    """Analyze the semantic context of a concept based on its definition."""
+    context = {
+        'decision_type': 'general',
+        'scope': 'general',
+        'domain': 'general',
+        'specificity': 'general'
+    }
+    
+    definition_lower = definition.lower()
+    
+    # Decision type analysis based on definition
+    if any(word in definition_lower for word in ['bid', 'auction', 'tender', 'proposal', 'competitive bidding']):
+        context['decision_type'] = 'bidding'
+    elif any(word in definition_lower for word in ['job', 'career', 'employment', 'position', 'hiring']):
+        context['decision_type'] = 'career'
+    elif any(word in definition_lower for word in ['investment', 'portfolio', 'financial', 'asset']):
+        context['decision_type'] = 'investment'
+    elif any(word in definition_lower for word in ['project', 'initiative', 'program', 'multiple projects']):
+        context['decision_type'] = 'project'
+    elif any(word in definition_lower for word in ['production', 'manufacturing', 'supply', 'operations']):
+        context['decision_type'] = 'operations'
+    
+    # Scope analysis
+    if any(word in definition_lower for word in ['multiple', 'portfolio', 'array', 'collection', 'set of']):
+        context['scope'] = 'multiple'
+    elif any(word in definition_lower for word in ['single', 'individual', 'one', 'specific']):
+        context['scope'] = 'single'
+    elif any(word in definition_lower for word in ['two', 'between', 'either', 'choice between']):
+        context['scope'] = 'binary'
+    
+    # Specificity analysis
+    if any(word in definition_lower for word in ['specific', 'particular', 'narrow', 'focused']):
+        context['specificity'] = 'specific'
+    elif any(word in definition_lower for word in ['general', 'broad', 'universal', 'applicable']):
+        context['specificity'] = 'general'
+    
+    return context
+
+def calculate_context_penalty(query_context, concept_context):
+    """Calculate penalty based on semantic context mismatch."""
+    penalty = 0.0
+    
+    # Decision type mismatch penalty
+    if query_context['decision_type'] != 'general' and concept_context['decision_type'] != 'general':
+        if query_context['decision_type'] != concept_context['decision_type']:
+            penalty += 0.12  # Moderate penalty for decision type mismatch
+    
+    # Scope mismatch penalty (only for specific decision types)
+    if query_context['decision_type'] in ['career', 'investment', 'project']:
+        if query_context['scope'] == 'binary' and concept_context['scope'] == 'multiple':
+            penalty += 0.08  # Penalty for multi-scope concept in binary decision
+        elif query_context['scope'] == 'multiple' and concept_context['scope'] == 'binary':
+            penalty += 0.05  # Smaller penalty for binary concept in multi-scope decision
+    
+    # Domain mismatch penalty (only if both are specific)
+    if query_context['domain'] != 'general' and concept_context['domain'] != 'general':
+        if query_context['domain'] != concept_context['domain']:
+            penalty += 0.06  # Small penalty for domain mismatch
+    
+    return min(penalty, 0.20)  # Cap penalty at 0.20
+
 def process_query(query: str, course_config: dict = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
@@ -2116,8 +2279,9 @@ def process_query(query: str, course_config: dict = None) -> str:
         application_field = 'general'  # Not implemented yet
         entities = {}  # Not implemented yet
         
-        # Extract concepts using semantic similarity WITH domain filtering
-        # Only select concepts from detected domains
+        # UNIFIED CONCEPT EXTRACTION FLOW
+        # Step 1: Score all glossary concepts
+        
         # Load course glossary directly
         with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
             glossary_to_use = json.load(f)
@@ -2140,7 +2304,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         concept_embeddings = get_openai_embeddings(concept_texts)
         similarities = batch_cosine_similarity(query_embedding[0], concept_embeddings)
         
-        # Create list of (concept_name, definition, score) tuples WITH domain filtering
+        # Step 2: Score all concepts with complete scoring logic
         concept_scores = []
         for i, (concept_name, concept_data) in enumerate(glossary_to_use.items()):
             score = similarities[i]
@@ -2148,127 +2312,109 @@ def process_query(query: str, course_config: dict = None) -> str:
             # Handle both old string format and new dictionary format
             if isinstance(concept_data, str):
                 definition = concept_data
+                is_core = False
             else:
                 definition = concept_data["definition"]
+                is_core = concept_data.get("core", False)
             
-            # DOMAIN FILTERING: Only include concepts from detected domains
-            concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+            # Store base similarity for logging
+            base_similarity = score
             
-            # V1.6.6 fix: Strict domain membership enforcement
-            if CONCEPT_DOMAINS.get(concept_name.lower()) not in selected_domains:
-                continue
+            # Apply alias boost: +0.15 if query contains any alias
+            alias_boost = 0.0
+            if isinstance(concept_data, dict) and "aliases" in concept_data:
+                for alias in concept_data["aliases"]:
+                    if alias.lower() in query.lower():
+                        alias_boost = 0.15
+                        break
+            score += alias_boost
             
-            # V1.6.6: Apply the same scoring improvements as get_top_ranked_concepts
-            # Apply keyword-based boosting for systematic decision making queries
-            keyword_boost = 0.0
-            query_lower = query.lower()
-            if any(word in query_lower for word in ['process', 'systematic', 'decision making', 'components']):
-                # Tier 1: Core decision-making analytical tools (highest boost)
-                if concept_name in ['decision tree', 'scenario analysis', 'monte carlo simulation', 'linear optimization', 'integer optimization', 'sensitivity analysis', 'expected value', 'utility functions']:
-                    keyword_boost = 0.4
-                # Tier 2: Strategic decision-making frameworks (decision-making specific)
-                elif concept_name in ['scenario planning', 'competitive advantage analysis', 'porter\'s five forces', 'value chain analysis']:
-                    keyword_boost = 0.3
-                # Tier 3: Behavioral decision-making concepts
-                elif concept_name in ['framing bias', 'cognitive behaviors', 'judgment intuitive bias', 'confirmation bias', 'anchoring bias']:
-                    keyword_boost = 0.25
-                # Tier 4: Generic assessment tools (no boost)
-                elif concept_name in ['risk assessment', 'leadership assessment']:
-                    keyword_boost = 0.0
+            # Apply pattern boost: +0.15 for each regex pattern match
+            pattern_boost = 0.0
+            if isinstance(concept_data, dict) and "patterns" in concept_data:
+                for pattern in concept_data["patterns"]:
+                    if re.search(pattern, query, re.IGNORECASE):
+                        pattern_boost += 0.15
+            score += pattern_boost
             
-            score += keyword_boost
-            
-            # Apply generic assessment penalty
+            # Apply generic concept penalties (stronger penalties)
             generic_penalty = 0.0
             if concept_name == 'swot analysis':
-                generic_penalty = 0.20  # Increased penalty for generic SWOT
+                generic_penalty = 0.20
+            elif concept_name == 'strategic framing':
+                generic_penalty = 0.15
+            elif concept_name == 'competitive advantage analysis':
+                generic_penalty = 0.10
             elif concept_name in ['risk assessment', 'leadership assessment']:
                 generic_penalty = 0.25
-            
+            elif concept_name == 'porter\'s five forces':
+                generic_penalty = 0.05  # Small penalty to balance with other strategic frameworks
             score -= generic_penalty
+            
+            # Apply query-context boost: boost concepts that match query intent
+            context_boost = 0.0
+            query_lower = query.lower()
+            
+            # Boost concepts related to evaluation/decision-making when query mentions evaluation
+            if 'evaluation' in query_lower or 'evaluate' in query_lower:
+                if concept_name in ['value creation', 'cost-benefit analysis', 'expected value']:
+                    context_boost = 0.03  # Small boost for evaluation-related concepts
+            
+            # Boost concepts related to options/alternatives when query mentions options
+            if 'option' in query_lower or 'alternative' in query_lower:
+                if concept_name in ['value creation', 'scenario analysis', 'decision tree']:
+                    context_boost = max(context_boost, 0.03)  # Don't double-boost
+            
+            # Apply systematic context relevance analysis
+            context_penalty = 0.0
+            
+            # Analyze semantic context mismatch between query and concept definition
+            query_context = analyze_query_context(query_lower)
+            concept_context = analyze_concept_context(concept_name, definition)
+            
+            # Calculate context relevance penalty based on semantic mismatch
+            context_penalty = calculate_context_penalty(query_context, concept_context)
+            
+            score += context_boost - context_penalty
+            
+            # Apply core boost: multiplier 1.2x for core concepts
+            final_score = score
+            if is_core:
+                final_score *= 1.2
+            
+            
+            # Use final score
+            score = final_score
             
             concept_scores.append((concept_name, definition, score))
         
         # Sort by score (highest first)
         concept_scores.sort(key=lambda x: x[2], reverse=True)
         
-        # Keep concept_scores for allocation logic (contains scores)
-        # Convert to (name, definition) format for compatibility
-        concepts = [(name, definition) for name, definition, score in concept_scores]
+        # Step 3: Filter by selected domains
+        filtered_concept_scores = []
+        for concept_name, definition, score in concept_scores:
+            concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+            if concept_domain in selected_domains:
+                filtered_concept_scores.append((concept_name, definition, score))
         
-        # Semantic search completed
         
-        # Implement proper concept allocation rules according to specification
-        if selected_domains and selected_domains != {'general': 1.0}:
-            # Multi Domain Lens: 2 from primary domain + 1 from each additional domain, hard cap = 4 total
-            # V1.6.6 fix: selected_domains is now a dict, get keys as list
-            domain_list = list(selected_domains.keys())
-            primary_domain = domain_list[0]
-            additional_domains = domain_list[1:]
-            
-            # Group concepts by domain WITH SCORES
-            concepts_by_domain = {}
-            for concept_name, definition, score in concept_scores:
-                concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
-                if concept_domain not in concepts_by_domain:
-                    concepts_by_domain[concept_domain] = []
-                concepts_by_domain[concept_domain].append((concept_name, definition, score))
-            
-            # Available concepts by domain
-            
-            # Allocate concepts according to rules WITH SCORE THRESHOLDS
-            allocated_concepts = []
-            
-            # Primary domain: up to 2 concepts (score ≥ 0.50 threshold)
-            primary_concepts = concepts_by_domain.get(primary_domain, [])
-            # Filter by score threshold and take up to 2
-            primary_concepts_filtered = [(name, definition) for name, definition, score in primary_concepts if score >= 0.50]
-            allocated_concepts.extend(primary_concepts_filtered[:2])
-            
-            # Additional domains: 1 concept each (score ≥ 0.40 threshold)
-            for domain in additional_domains:
-                domain_concepts = concepts_by_domain.get(domain, [])
-                if domain_concepts:
-                    # Filter by score threshold and take the first one
-                    domain_concepts_filtered = [(name, definition) for name, definition, score in domain_concepts if score >= 0.40]
-                    if domain_concepts_filtered:
-                        allocated_concepts.append(domain_concepts_filtered[0])
-            
-            # Hard cap at 4 total
-            concepts = allocated_concepts[:4]
-            
-            # V1.6.6 fix: Final enforcement pass - drop any concept not from selected_domains
-            concepts = [(name, definition) for name, definition in concepts 
-                       if CONCEPT_DOMAINS.get(name.lower(), 'general') in selected_domains]
-            
-            # V1.6.6 fix: Final enforcement pass completed
-            
-            # If we don't have enough domain-specific concepts, add more concepts from the same domains
-            if len(concepts) < 4:
-                remaining_slots = 4 - len(concepts)
-                
-                # First, try to add more concepts from the same domains (with lower threshold)
-                for domain in selected_domains:
-                    domain_concepts = concepts_by_domain.get(domain, [])
-                    for concept_name, definition, score in domain_concepts:
-                        # Use lower threshold (0.35) for core concepts under threshold
-                        if score >= 0.35 and not any(c[0].lower() == concept_name.lower() for c in concepts):
-                            concepts.append((concept_name, definition))
-                            remaining_slots -= 1
-                            if remaining_slots <= 0:
-                                break
-                    if remaining_slots <= 0:
-                        break
-                
-                # NEVER use fallback concepts from undetected domains
-                # Low quality concepts from the right domain are better than irrelevant fallback concepts
-                # If we don't have enough concepts from detected domains, that's acceptable
-        else:
-            # Single Domain Lens: Up to 3 tooltips
-            concepts = concepts[:3]
+        # Step 4: Use unified select_concepts function for allocation
+        domain_list = list(selected_domains.keys())
+        primary_domain = domain_list[0] if domain_list else 'general'
+        concepts = select_concepts(filtered_concept_scores, selected_domains, primary_domain)
+        
+        # Check if we need fallback concepts (should be disabled)
+        if len(concepts) < 2:
+            pass  # Fallback is disabled
         
         # Generate context-aware fallback content
-        fallback_content = context_aware_fallbacks(query)
+        try:
+            fallback_content = context_aware_fallbacks(query)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            fallback_content = ""
         
         # Build user message with context - CONCEPTS FIRST
         user_message = ""
@@ -2443,13 +2589,29 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Clean up extra newlines
         answer = re.sub(r'\n{3,}', '\n\n', answer).strip()
         
-        return answer
+        
+        # Return both answer and authoritative concepts
+        return {
+            "answer": answer,
+            "concepts": concepts,  # The authoritative concepts from select_concepts
+            "selected_domains": selected_domains,
+            "primary_domain": primary_domain,
+            "application_field": application_field
+        }
         
     except Exception as e:
         # Error in process_query - returning fallback response
+        import traceback
+        traceback.print_exc()
         # Return fallback content
         fallback_content = context_aware_fallbacks(query)
-        return format_fallback_response(fallback_content)
+        return {
+            "answer": format_fallback_response(fallback_content),
+            "concepts": [],  # No concepts available on error
+            "selected_domains": {},
+            "primary_domain": "general",
+            "application_field": "general"
+        }
 
 def process_query_structured(query: str, course_config: dict = None) -> dict:
     """
@@ -2464,8 +2626,24 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
         Dictionary with structured response data
     """
     try:
-        # Get the full answer from process_query
-        answer = process_query(query, course_config)
+        # Detect application field early and ensure it's always set
+        try:
+            application_field = extract_application_field_semantic(query, None)
+        except:
+            application_field = extract_application_field(query)
+        
+        if not application_field:
+            application_field = "general"  # Safe default
+        
+        # Get the full answer and authoritative concepts from process_query
+        process_result = process_query(query, course_config)
+        
+        # Extract the answer and concepts from the result
+        answer = process_result["answer"]
+        concepts = process_result["concepts"]
+        selected_domains = process_result["selected_domains"]
+        primary_domain = process_result["primary_domain"]
+        
         
         # Extract structured data that Lambda function needs
         # 1. Strategic Thinking Lens
@@ -2480,24 +2658,27 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
         if prompts_match:
             follow_up_prompts = prompts_match.group(1).strip()
         
-        # 3. Concepts/Tools - Use authoritative concepts from query-engine
+        # 3. Concepts/Tools - ALWAYS use authoritative concepts from query-engine (IGNORE GPT output)
         concepts_tools_practice = []
-        concepts_match = re.search(r'\*\*Concepts/Tools\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-        if concepts_match:
-            concepts_section = concepts_match.group(1).strip()
-            # Parse concepts from the authoritative query-engine output
-            concept_lines = re.findall(r'^[-*]\s*([^:\n]+?):\s*([^\n]+)$', concepts_section, re.MULTILINE)
-            for concept_name, definition in concept_lines:
-                concepts_tools_practice.append({
-                    "term": concept_name.strip(),
-                    "definition": definition.strip()
-                })
+        # Use the authoritative concepts from process_query, not from GPT parsing
+        for concept_name, definition in concepts:
+            concepts_tools_practice.append({
+                "term": concept_name,
+                "definition": definition
+            })
+        
+        # Application field already extracted from process_query
+        
+        # FORCE concepts to be included even if GPT didn't generate them
+        if not concepts_tools_practice:
+            pass  # This should not happen
         
         return {
             "answer": answer,
             "strategicThinkingLens": strategic_thinking_lens,
             "followUpPrompts": follow_up_prompts,
             "conceptsToolsPractice": concepts_tools_practice,
+            "applicationField": application_field,
             "model": "gpt-3.5-turbo"
         }
         
@@ -2508,6 +2689,7 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
             "strategicThinkingLens": "",
             "followUpPrompts": "",
             "conceptsToolsPractice": [],
+            "applicationField": "general",
             "model": "error"
         }
 
@@ -3230,7 +3412,7 @@ def hybrid_domain_detection(query: str) -> dict:
         semantic_selected = select_domains_by_clusters_improved(normalized_semantic, "semantic", max_domains=3)
         keyword_selected = select_domains_by_clusters_improved(normalized_keyword, "keyword", max_domains=3)
         
-        # Step 4: Combine normalized scores using max(semantic, keyword) for overlapping domains
+        # Step 4: Combine normalized scores with improved logic to prevent false positives
         combined_scores = {}
         
         # Get all unique domains from both methods
@@ -3240,8 +3422,20 @@ def hybrid_domain_detection(query: str) -> dict:
             semantic_score = semantic_selected.get(domain, 0)
             keyword_score = keyword_selected.get(domain, 0)
             
-            # Use the maximum normalized score when both methods identify the same domain
-            combined_scores[domain] = max(semantic_score, keyword_score)
+            # V1.6.6 fix: Use average of both methods for fair comparison
+            raw_semantic_score = semantic_scores.get(domain, 0)
+            min_semantic_threshold = 0.30  # Minimum raw semantic score to consider
+            
+            # If both methods identify the domain, use average (most reliable)
+            if keyword_score > 0 and semantic_score > 0:
+                combined_scores[domain] = (keyword_score + semantic_score) / 2
+            # If only keyword detection found the domain, use keyword score
+            elif keyword_score > 0:
+                combined_scores[domain] = keyword_score
+            # If only semantic detection found the domain, require minimum raw semantic score
+            elif raw_semantic_score >= min_semantic_threshold:
+                combined_scores[domain] = semantic_score
+            # Otherwise, exclude the domain (prevents false positives from semantic detection)
         
         # Step 5: Apply final cluster-based selection to combined scores
         if combined_scores:

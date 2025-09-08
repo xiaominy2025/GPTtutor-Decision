@@ -937,7 +937,7 @@
     },
     "cost-benefit analysis": {
       "definition": "Comparing the advantages and disadvantages of different options",
-      "core": true,
+      "core": false,
       "aliases": [
         "cost benefit",
         "compare alternatives",
@@ -992,7 +992,7 @@
     },
     "bounded rationality": {
       "definition": "The recognition that good decisions don't require perfect information",
-      "core": true,
+      "core": false,
       "aliases": [
         "limited rationality",
         "satisficing",
@@ -1485,21 +1485,23 @@
         "stakeholder value"
       ]
     },
-    "risk tolerance assessment": {
+    "risk tolerance profile": {
       "definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives",
       "core": true,
       "aliases": [
         "risk appetite",
         "risk preference",
+        "risk tolerance assessment",
         "risk capacity"
       ]
     },
-    "leadership assessment": {
+    "leadership style": {
       "definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts",
       "core": true,
       "aliases": [
         "leadership evaluation",
         "management assessment",
+        "leadership assessment",
         "leadership style"
       ]
     },
