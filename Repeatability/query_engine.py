@@ -265,7 +265,7 @@ ANALYTICAL_TOOLS = [
     ("Negotiation Term Sheet", "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted."),
     ("Value Creation", "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction."),
     ("Expected Value", "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios."),
-    ("Risk Tolerance Assessment", "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives."),
+    ("Risk Tolerance Profile", "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives."),
     ("Leadership Assessment", "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts."),
     ("Human-Computer Integration", "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities.")
 ]
@@ -456,7 +456,8 @@ def detect_course_concept_domains(query: str) -> dict:
         'influence', 'authority', 'hierarchy', 'trustworthiness', 'interaction', 'miscommunication', 
         'negotiation-style', 'reputation', 'credibility', 'empathy', 'feedback', 'cohesion', 'identity', 
         'rivalry', 'hostility', 'compliance', 'disagreement', 'consensus', 'coordination', 
-        'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan', 'decision-making-process', 'decision making process', 'systematic-process', 'systematic process'
+        'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan', 'decision-making-process', 'decision making process', 'systematic-process', 'systematic process',
+        'systematic decision', 'decision making', 'decision-making', 'process', 'systematic'
     ]
     
     behavioral_keywords_weak = [
@@ -578,13 +579,14 @@ def detect_course_concept_domains(query: str) -> dict:
     ]
     
     negotiation_keywords_modest = [
-        'merger', 'joint-venture', 'treaty', 'trade-talks', 'peace-talks', 'coalition', 'roundtable', 
-        'agreement', 'deal-making', 'win-win', 'contract-terms', 'agreement-terms'
+        'merger', 'joint-venture', 'treaty', 'trade-talks', 'peace-talks', 'coalition', 'roundtable',
+        # keep only negotiation-specific signals; remove generic terms like 'agreement' or 'deal'
+        'deal-making', 'contract-terms', 'agreement-terms'
     ]
     
     negotiation_keywords_weak = [
-        'offer', 'offers', 'offered', 'partnership', 'collaboration', 'alliance', 'compromise', 
-        'proposal', 'mutual-gain', 'trade-off'
+        # remove overly generic terms that create false positives
+        'compromise', 'mutual-gain'
     ]
     
     # Apply weighted scoring for negotiation keywords
@@ -977,6 +979,19 @@ def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossa
         
         # Sort by adjusted score (highest first)
         concept_scores.sort(key=lambda x: x[2], reverse=True)
+
+        # Suppress negotiation concepts unless negotiation is the primary domain or explicit negotiation terms exist
+        query_lower_for_neg = query.lower()
+        explicit_neg_terms = ['negotiate', 'negotiation', 'bargain', 'batna', 'zopa', 'anchoring']
+        negotiation_allowed = False
+        if query_domains:
+            primary_domain_tmp = max(query_domains, key=query_domains.get)
+            if primary_domain_tmp == 'negotiation':
+                negotiation_allowed = True
+        if not negotiation_allowed and any(term in query_lower_for_neg for term in explicit_neg_terms):
+            negotiation_allowed = True
+        if not negotiation_allowed:
+            concept_scores = [c for c in concept_scores if CONCEPT_DOMAINS.get(c[0], 'general') != 'negotiation']
         
         # DOMAIN-DRIVEN CONCEPT SELECTION
         if query_domains and not skip_domain_filtering:
@@ -1903,7 +1918,7 @@ def context_aware_fallbacks(query: str):
             'Strategic Thinking Lens': strategic_lens,
             'Story in Action': "Maya, a young professional, compares three health insurance plans using a decision matrix. She carefully weighs monthly premiums, provider network coverage, emergency care benefits, and prescription drug coverage. After researching each plan's reputation and reading customer reviews, Maya balances affordability with comprehensive coverage, ensuring both immediate health security and long-term financial stability for unexpected medical expenses.",
             'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Tolerance Assessment: Measuring comfort with uncertainty"
+            'Concepts/Tools': "- Risk Tolerance Profile: Measuring comfort with uncertainty"
         }
     if application_field == "education_learning":
         return {
@@ -3206,9 +3221,9 @@ def detect_domain_clusters_improved(domain_scores: dict, method: str = "general"
     # Method-specific clustering parameters
     cluster_params = {
         "semantic": {
-            "primary_gap": 0.08,      # Much tighter clustering for normalized semantic scores (0.3-1.0)
-            "secondary_gap": 0.06,    # Tight secondary cluster detection
-            "weak_threshold": 0.35    # Higher quality bar for semantic (normalized scores are higher)
+            "primary_gap": 0.10,      # Slightly looser clustering for normalized semantic scores (0.3-1.0)
+            "secondary_gap": 0.08,    # Slightly looser secondary cluster detection
+            "weak_threshold": 0.25    # Lowered quality bar to include behavioral domain
         },
         "keyword": {
             "primary_gap": 0.20,      # Moderate clustering for normalized keyword scores (0.1-1.0)
@@ -3269,7 +3284,7 @@ def select_domains_by_clusters_improved(domain_scores: dict, method: str = "gene
     selection_params = {
         "semantic": {
             "primary_min_score": 0.45,    # Higher threshold for normalized semantic scores (0.3-1.0)
-            "secondary_min_score": 0.35,  # Higher secondary threshold for semantic
+            "secondary_min_score": 0.25,  # Lowered secondary threshold to include behavioral domain
             "weak_rejection": True        # Reject secondary cluster if it contains weak domains
         },
         "keyword": {
