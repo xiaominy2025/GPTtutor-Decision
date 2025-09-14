@@ -1241,7 +1241,7 @@ def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossa
 
 def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domains: dict, primary_domain: str) -> List[Tuple[str, str]]:
     """
-    Unified concept selection function with clear scoring and allocation logic.
+    V1666.6 concept selection function implementing new thresholds and allocation rules.
     
     Args:
         concept_scores: List of (concept_name, definition, score) tuples sorted by score
@@ -1264,42 +1264,132 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
     for domain in concepts_by_domain:
         concepts_by_domain[domain].sort(key=lambda x: x[2], reverse=True)
     
-    # Apply allocation rules
+    # V1666.6 THRESHOLD RULES
+    # 1. Primary domain concepts: keep if score ≥ 0.50
+    # 2. Secondary domain concepts: keep if score ≥ 0.45  
+    # 3. Core concept "grace zone": if primary domain score ≥ 0.35 but < 0.50, allow inclusion
+    # 4. Grace zone applies ONLY to primary domain concepts, never to secondary domains
+    
+    # Apply thresholds first
+    filtered_concepts_by_domain = {}
+    for domain, concepts in concepts_by_domain.items():
+        filtered_concepts = []
+        is_primary_domain = domain == primary_domain
+        
+        for concept_name, definition, score in concepts:
+            # Check if concept meets thresholds
+            if is_primary_domain:
+                # Primary domain: score ≥ 0.50 OR (score ≥ 0.35 AND is core concept)
+                if score >= 0.50:
+                    filtered_concepts.append((concept_name, definition, score))
+                elif score >= 0.35:
+                    # Check if this is a core concept for grace zone
+                    concept_data = CONCEPT_GLOSSARY.get(concept_name, {})
+                    if isinstance(concept_data, dict) and concept_data.get("core", False):
+                        filtered_concepts.append((concept_name, definition, score))
+            else:
+                # Secondary domain: score ≥ 0.45 (no grace zone)
+                if score >= 0.45:
+                    filtered_concepts.append((concept_name, definition, score))
+        
+        if filtered_concepts:
+            filtered_concepts_by_domain[domain] = filtered_concepts
+    
+    # V1666.6 DISPERSION PENALTY (Domain Coherence Rule)
+    # If there are ≥2 primary domain concepts with score ≥ 0.60:
+    #   - Allow at most 1 secondary domain concept, even if others meet thresholds
+    # If the primary domain is weak (no concept ≥ 0.50) and multiple secondary domains barely qualify (≥0.45):
+    #   - Keep at most 1 secondary domain concept total
+    
+    primary_concepts = filtered_concepts_by_domain.get(primary_domain, [])
+    high_scoring_primary = [c for c in primary_concepts if c[2] >= 0.60]
+    
+    if len(high_scoring_primary) >= 2:
+        # Strong primary domain: limit secondary domains to 1 concept total
+        secondary_domains = {k: v for k, v in filtered_concepts_by_domain.items() if k != primary_domain}
+        if len(secondary_domains) > 1:
+            # Keep only the highest scoring secondary domain concept
+            best_secondary_concept = None
+            best_secondary_score = 0
+            best_secondary_domain = None
+            
+            for domain, concepts in secondary_domains.items():
+                if concepts and concepts[0][2] > best_secondary_score:
+                    best_secondary_concept = concepts[0]
+                    best_secondary_score = concepts[0][2]
+                    best_secondary_domain = domain
+            
+            # Replace secondary domains with just the best one
+            if best_secondary_domain:
+                filtered_concepts_by_domain = {k: v for k, v in filtered_concepts_by_domain.items() if k == primary_domain}
+                filtered_concepts_by_domain[best_secondary_domain] = [best_secondary_concept]
+    
+    # Check for weak primary domain scenario
+    primary_strong_concepts = [c for c in primary_concepts if c[2] >= 0.50]
+    if not primary_strong_concepts:
+        # Weak primary domain: limit to 1 secondary domain concept total
+        secondary_domains = {k: v for k, v in filtered_concepts_by_domain.items() if k != primary_domain}
+        if len(secondary_domains) > 1:
+            # Keep only the highest scoring secondary domain concept
+            best_secondary_concept = None
+            best_secondary_score = 0
+            best_secondary_domain = None
+            
+            for domain, concepts in secondary_domains.items():
+                if concepts and concepts[0][2] > best_secondary_score:
+                    best_secondary_concept = concepts[0]
+                    best_secondary_score = concepts[0][2]
+                    best_secondary_domain = domain
+            
+            # Replace secondary domains with just the best one
+            if best_secondary_domain:
+                filtered_concepts_by_domain = {k: v for k, v in filtered_concepts_by_domain.items() if k == primary_domain}
+                filtered_concepts_by_domain[best_secondary_domain] = [best_secondary_concept]
+    
+    # V1666.6 ALLOCATION RULES
+    # Single-domain lens: up to 3 tooltips
+    # Multi-domain lens: 2 from the primary domain, +1 from each additional domain
+    # Hard cap: 4 total concepts
+    
     selected_concepts = []
     
-    if len(selected_domains) == 1:
-        # Single domain lens: return top 3
-        domain = list(selected_domains.keys())[0]
-        domain_concepts = concepts_by_domain.get(domain, [])
+    if len(filtered_concepts_by_domain) == 1:
+        # Single domain lens: up to 3 concepts
+        domain = list(filtered_concepts_by_domain.keys())[0]
+        domain_concepts = filtered_concepts_by_domain[domain]
         selected_concepts = [(name, definition) for name, definition, score in domain_concepts[:3]]
     else:
-        # Multi-domain lens: top 2 from primary + top 1 from each secondary
-        domain_list = list(selected_domains.keys())
-        primary_domain = domain_list[0]
-        additional_domains = domain_list[1:]
-        
-        # Primary domain: up to 2 concepts
-        primary_concepts = concepts_by_domain.get(primary_domain, [])
-        selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
-        
-        # Additional domains: 1 concept each
-        for domain in additional_domains:
-            domain_concepts = concepts_by_domain.get(domain, [])
-            if domain_concepts:
-                selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+        # Multi-domain lens: 2 from primary + 1 from each additional domain
+        domain_list = list(filtered_concepts_by_domain.keys())
+        if primary_domain in domain_list:
+            # Primary domain: up to 2 concepts
+            primary_concepts = filtered_concepts_by_domain[primary_domain]
+            selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
+            
+            # Additional domains: 1 concept each
+            for domain in domain_list:
+                if domain != primary_domain:
+                    domain_concepts = filtered_concepts_by_domain[domain]
+                    if domain_concepts:
+                        selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+        else:
+            # Fallback if primary domain not in filtered results
+            for domain in domain_list:
+                domain_concepts = filtered_concepts_by_domain[domain]
+                if domain_concepts:
+                    selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
     
-    # Enforce hard cap of 4
+    # V1666.6 HARD CAP: 4 total concepts maximum
     selected_concepts = selected_concepts[:4]
     
-    # Deduplicate concepts by normalized name
+    # V1666.6 DEDUPLICATION: Deduplicate for clarity
     seen_names = set()
     deduplicated_concepts = []
     for name, definition in selected_concepts:
-        normalized_name = name.lower().replace('-', ' ')
+        normalized_name = name.lower().replace('-', ' ').replace('_', ' ')
         if normalized_name not in seen_names:
             deduplicated_concepts.append((name, definition))
             seen_names.add(normalized_name)
-    
     
     return deduplicated_concepts
 
