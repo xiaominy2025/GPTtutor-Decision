@@ -398,8 +398,9 @@ CONCEPT_DOMAINS = {
     "investigative negotiation": "negotiation",
     "negotiation term sheet": "negotiation",
     "negotiation strategy": "negotiation",
-    "game theory": "negotiation",
-    "winner's curse": "negotiation",
+    # Domain corrections per V1666.6.1
+    "game theory": "strategic",
+    "winner's curse": "behavioral",
     "integrative negotiation": "negotiation",
     "distributive negotiation": "negotiation",
     
@@ -2385,12 +2386,75 @@ def process_query(query: str, course_config: dict = None) -> str:
         entities = {}  # Not implemented yet
         
         # UNIFIED CONCEPT EXTRACTION FLOW
-        # Step 1: Score all glossary concepts
+        # Step 0: Load glossary and perform exact/fuzzy phrase detection (high precision)
         
         # Load course glossary directly
         with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
             glossary_to_use = json.load(f)
+
+        # Build normalized phrase index: concept names + aliases → canonical concept
+        def _normalize_text(s: str) -> str:
+            return re.sub(r"\s+", " ", s.lower().replace('-', ' ').replace('_', ' ')).strip()
+
+        phrase_to_concept = {}
+        for concept_name, concept_data in glossary_to_use.items():
+            canonical = concept_name
+            base_norm = _normalize_text(concept_name)
+            phrase_to_concept[base_norm] = canonical
+            # Add simple plural variant for single-token names (e.g., auction -> auctions)
+            if len(base_norm.split()) == 1 and len(base_norm) > 2:
+                if not base_norm.endswith('s'):
+                    phrase_to_concept[base_norm + 's'] = canonical
+                if base_norm.endswith('y'):
+                    phrase_to_concept[base_norm[:-1] + 'ies'] = canonical
+            if isinstance(concept_data, dict) and 'aliases' in concept_data:
+                for alias in concept_data['aliases']:
+                    an = _normalize_text(alias)
+                    phrase_to_concept[an] = canonical
+                    # Add plural variants for single-token aliases
+                    if len(an.split()) == 1 and len(an) > 2:
+                        if not an.endswith('s'):
+                            phrase_to_concept[an + 's'] = canonical
+                        if an.endswith('y'):
+                            phrase_to_concept[an[:-1] + 'ies'] = canonical
+
+        query_norm = _normalize_text(query)
+
+        # Whole-phrase exact match: word-boundary contains of any concept phrase (>=2 chars)
+        forced_concepts = set()
+        for phrase, canonical in phrase_to_concept.items():
+            if len(phrase) < 2:
+                continue
+            # word-boundary search
+            if re.search(rf"(?<!\w){re.escape(phrase)}(?!\w)", query_norm):
+                forced_concepts.add(canonical)
+
+        # Conservative fuzzy match for small variations (>= 0.85) for multi-word phrases only
+        def _fuzzy_ratio(a: str, b: str) -> float:
+            # Simple normalized similarity using SequenceMatcher
+            try:
+                from difflib import SequenceMatcher
+                return SequenceMatcher(None, a, b).ratio()
+            except Exception:
+                return 0.0
+
+        for phrase, canonical in phrase_to_concept.items():
+            if canonical in forced_concepts:
+                continue
+            # Only attempt fuzzy for phrases with at least two tokens to avoid single-word noise like "framing"
+            if len(phrase.split()) < 2:
+                continue
+            if _fuzzy_ratio(phrase, query_norm) >= 0.85:
+                forced_concepts.add(canonical)
+
+        # Ensure parent domains for forced concepts are represented in selected_domains
+        for c in forced_concepts:
+            d = CONCEPT_DOMAINS.get(c, 'general')
+            if d not in selected_domains:
+                # add with conservative score so allocation rules can pick it when relevant
+                selected_domains[d] = 0.6
         
+        # Step 1: Score all glossary concepts
         # Get query embedding
         query_embedding = get_openai_embeddings([query])
         
@@ -2481,6 +2545,9 @@ def process_query(query: str, course_config: dict = None) -> str:
             context_penalty = calculate_context_penalty(query_context, concept_context)
             
             score += context_boost - context_penalty
+
+            # Conservative filtering: prefer fewer but more accurate concepts
+            # If concept was not exact/fuzzy forced, require stronger baseline later
             
             # Apply core boost: multiplier 1.2x for core concepts
             final_score = score
@@ -2496,18 +2563,44 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Sort by score (highest first)
         concept_scores.sort(key=lambda x: x[2], reverse=True)
         
-        # Step 3: Filter by selected domains
+        # Step 3: Filter by selected domains with conservative thresholds
         filtered_concept_scores = []
         for concept_name, definition, score in concept_scores:
             concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
             if concept_domain in selected_domains:
-                filtered_concept_scores.append((concept_name, definition, score))
+                # Keep if forced by exact/fuzzy matching
+                if concept_name in forced_concepts:
+                    filtered_concept_scores.append((concept_name, definition, score))
+                    continue
+                # Otherwise, enforce conservative thresholds (same as V1666.6 but stricter for secondaries on low scores)
+                if concept_domain == primary_domain:
+                    if score >= 0.50:
+                        filtered_concept_scores.append((concept_name, definition, score))
+                else:
+                    if score >= 0.45:
+                        filtered_concept_scores.append((concept_name, definition, score))
+
+        # Additional conservative rule: avoid mapping single-word query "framing" to "framing bias"
+        q_tokens = query_norm.split()
+        if len(q_tokens) == 1 and q_tokens[0] == 'framing':
+            filtered_concept_scores = [t for t in filtered_concept_scores if t[0].lower() != 'framing bias']
         
         
         # Step 4: Use unified select_concepts function for allocation
         domain_list = list(selected_domains.keys())
         primary_domain = domain_list[0] if domain_list else 'general'
         concepts = select_concepts(filtered_concept_scores, selected_domains, primary_domain)
+
+        # Ensure forced concepts are included (respect hard cap and dedup later in select_concepts output)
+        if forced_concepts:
+            # Merge definitions for forced concepts
+            name_to_def = {n: d for (n, d) in concepts}
+            for fc in forced_concepts:
+                if fc not in name_to_def and fc in glossary_to_use:
+                    cdata = glossary_to_use[fc]
+                    fdef = cdata if isinstance(cdata, str) else cdata.get('definition', fc)
+                    concepts.append((fc, fdef))
+            # Cap will be enforced downstream in Concepts/Tools rendering
         
         # Check if we need fallback concepts (should be disabled)
         if len(concepts) < 2:

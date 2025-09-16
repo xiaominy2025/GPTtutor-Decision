@@ -217,11 +217,11 @@
       "seasonal"
     ]
   },
-  "regression": {
+  "regression analysis": {
     "definition": "A statistical technique for estimating relationships among variables and predicting future values based on historical data",
     "core": true,
     "aliases": [
-      "regression analysis",
+      "regression",
       "statistical regression",
       "prediction model",
       "forecast",
