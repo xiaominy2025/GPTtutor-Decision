@@ -13,7 +13,7 @@ import traceback
 import difflib
 from typing import List, Tuple, Dict, Any
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
@@ -101,8 +101,177 @@ def compute_relevance_score(query):
     }
     return score, debug_info
 
-# Initialize OpenAI client
-client = OpenAI(api_key=openai_api_key)
+# Initialize OpenAI client (legacy API)
+openai.api_key = openai_api_key
+
+def parse_gpt_output(raw_output, application_field, model, processing_time):
+    """Parse natural language GPT output into structured JSON format."""
+    try:
+        # Extract strategic lens (everything before follow-up prompts)
+        lines = raw_output.strip().split('\n')
+        strategic_lens = ""
+        follow_up_prompts = []
+        
+        in_followups = False
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Check if we've reached follow-up prompts section
+            if any(keyword in line.lower() for keyword in ['follow-up', 'followup', 'questions', 'prompts']):
+                in_followups = True
+                continue
+            
+            if in_followups:
+                # Extract follow-up prompts
+                if line.startswith(('1.', '2.', '3.', '4.', '5.', '-', '*')):
+                    # Clean up the prompt
+                    prompt = line
+                    for prefix in ['1.', '2.', '3.', '4.', '5.', '-', '*']:
+                        if prompt.startswith(prefix):
+                            prompt = prompt[len(prefix):].strip()
+                            break
+                    if prompt:
+                        follow_up_prompts.append(prompt)
+            else:
+                # This is part of the strategic lens
+                if strategic_lens:
+                    strategic_lens += "\n"
+                strategic_lens += line
+        
+        # If no follow-up prompts found, generate defaults
+        if not follow_up_prompts:
+            follow_up_prompts = [
+                "What is the primary objective you are optimizing for?",
+                "What are the top two options and their trade-offs?",
+                "What evidence would most reduce uncertainty?",
+                "What is your next reversible step?"
+            ]
+        
+        return {
+            "strategicThinkingLens": strategic_lens.strip(),
+            "followUpPrompts": follow_up_prompts,
+            "applicationField": application_field,
+            "model": model,
+            "processing_time": processing_time
+        }
+        
+    except Exception as e:
+        print(f"Error parsing GPT output: {e}")
+        return {
+            "strategicThinkingLens": raw_output.strip(),
+            "followUpPrompts": [
+                "What is the primary objective you are optimizing for?",
+                "What are the top two options and their trade-offs?",
+                "What evidence would most reduce uncertainty?",
+                "What is your next reversible step?"
+            ],
+            "applicationField": application_field,
+            "model": model,
+            "processing_time": processing_time
+        }
+
+def validate_answer(parsed_output, require_behavioral=False):
+    """Validate the generated answer for quality and completeness."""
+    try:
+        strategic_lens = parsed_output.get("strategicThinkingLens", "")
+        follow_up_prompts = parsed_output.get("followUpPrompts", [])
+        
+        # Check word count
+        word_count = len(strategic_lens.split())
+        if word_count < 180:
+            return False, f"Too short: {word_count} words (minimum 180)"
+        
+        # Check for example/scenario
+        has_example = any(keyword in strategic_lens.lower() for keyword in [
+            'for example', 'consider', 'imagine', 'case study', 'scenario', 'instance'
+        ])
+        if not has_example:
+            return False, "Missing example or scenario"
+        
+        # Check behavioral coverage if required
+        if require_behavioral:
+            has_behavioral = any(keyword in strategic_lens.lower() for keyword in [
+                'bias', 'intuition', 'overconfidence', 'risk tolerance', 'judgment', 'emotional', 'psychological'
+            ])
+            if not has_behavioral:
+                return False, "Missing behavioral factors"
+        
+        # Check follow-up prompts
+        if len(follow_up_prompts) < 3:
+            return False, f"Too few follow-up prompts: {len(follow_up_prompts)}"
+        
+        return True, "Valid answer"
+        
+    except Exception as e:
+        return False, f"Validation error: {e}"
+
+def generate_answer_with_retry(user_prompt, base_prompt, require_behavioral=False, concepts=None, application_field="general", start_time=None):
+    """Generate answer with validation and retry logic."""
+    system_prompt = base_prompt
+    
+    for attempt in range(2):  # First attempt + one retry
+        try:
+            # Use legacy OpenAI v0.28 API for Lambda compatibility
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.6 if attempt == 0 else 0.8,
+                max_tokens=1600
+            )
+            raw_output = response["choices"][0]["message"]["content"]
+            
+            # Parse natural language output instead of JSON
+            parsed_output = parse_gpt_output(
+                raw_output,
+                application_field,
+                "gpt-3.5-turbo",
+                time.time() - (start_time or time.time())
+            )
+            
+            is_valid, reason = validate_answer(parsed_output, require_behavioral)
+            print(f"Validation attempt {attempt}: {reason}")
+            
+            if is_valid:
+                return parsed_output
+            elif attempt == 0:
+                system_prompt += """
+IMPORTANT: Expand further. Minimum 250 words required. 
+Include a 6–8 sentence example (~100 words) woven naturally into the narrative. 
+Avoid formulaic phrasing — vary your style and tone.
+"""
+                continue
+            else:
+                print(f"Returning best-effort answer. Reason: {reason}")
+                return parsed_output
+                
+        except Exception as e:
+            print(f"Exception in generate_answer_with_retry (attempt {attempt}): {e}")
+            import traceback
+            traceback.print_exc()
+            if attempt == 0:
+                continue
+            fallback_lens = (
+                "Here is a concise, practical answer focused on decisions, trade-offs, and next steps. "
+                "Prioritize clarity of objectives, map options with consequences, and choose the highest-value path under constraints. "
+                "Use a short example to ground the guidance, then identify two concrete actions to move forward."
+            )
+            fallback_followups = [
+                "Which objectives matter most in this situation?",
+                "What are the top two options and their biggest trade-offs?",
+                "What evidence would most reduce uncertainty before committing?"
+            ]
+            return {
+                "strategicThinkingLens": fallback_lens,
+                "followUpPrompts": fallback_followups,
+                "applicationField": application_field,
+                "model": "gpt-3.5-turbo",
+                "processing_time": round(time.time() - (start_time or time.time()), 2)
+            }
 
 # Performance timing system (moved to API server route level)
 
@@ -908,12 +1077,19 @@ def hybrid_domain_detection_improved(query: str) -> dict:
         
     except Exception as e:
         print(f"Error in hybrid domain detection: {e}")
+        import traceback
+        traceback.print_exc()
         # Fallback to semantic detection
         try:
-            return detect_domain_semantic(query)
-        except:
+            result = detect_domain_semantic(query)
+            print(f"Fallback semantic result: {result}")
+            return result
+        except Exception as e2:
+            print(f"Semantic fallback failed: {e2}")
             # Final fallback to keyword detection
-            return detect_course_concept_domains(query)
+            result = detect_course_concept_domains(query)
+            print(f"Final keyword fallback result: {result}")
+            return result
 
 def detect_query_domain(query: str) -> str:
     """
@@ -1527,6 +1703,27 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
     return found_concepts 
 
 # 1. V1.6.3 System Prompt - ThinkPal Decision Coach
+SYSTEM_PROMPT_ONE_CALL = """You are ThinkPal: Decision Coach, a conversational coaching assistant that helps people think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
+
+Your role is to provide thoughtful, practical guidance in a natural, conversational style. Avoid repetitive phrasing and vary your sentence structure. Write in a flowing, organic way that feels like a knowledgeable mentor speaking directly to the person.
+
+When responding to decision-making questions:
+
+1. **Reflective Thought**: Start with a brief reflection on the situation or challenge
+2. **Exploration of Perspectives**: Explore different angles and considerations naturally
+3. **Detailed Example**: Include a realistic, detailed example (6-8 sentences, ~100 words) that illustrates the concepts
+4. **Coaching Advice**: Provide practical, actionable guidance
+
+**Output Format**: Write your response as natural, flowing text. At the end, include 3-4 follow-up questions that help the person think deeper about their situation.
+
+**Length**: Aim for at least 220 words to provide comprehensive guidance.
+
+**Behavioral Elements**: When the query involves judgment, stress, personal/career decisions, or negotiation, naturally incorporate insights about cognitive biases, emotional factors, or human behavior patterns.
+
+**Concept Integration**: If relevant concepts are provided, weave them naturally into your response without forcing them. Make them feel like organic parts of your guidance.
+
+Remember: Write as a thoughtful coach having a conversation, not as a formal academic. Be practical, empathetic, and actionable."""
+
 SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
 
 Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
@@ -1668,7 +1865,7 @@ Story Draft:
         
         # Call GPT-3.5 for merging
         response, error = robust_api_call(
-            client=client,
+            client=None,  # Will be handled internally
             system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
             user_message=prompt,
             max_tokens=300
@@ -2306,6 +2503,7 @@ def process_query(query: str, course_config: dict = None) -> str:
     Returns:
         Formatted ThinkPal response with all sections
     """
+    print(f"DEBUG: process_query called with query: {query}")
     try:
         # Load data lazily with V1.6.6.6 temporary caching
         # TEMPORARY: Using cached data loading to avoid repeated ~24s loads
@@ -2321,8 +2519,17 @@ def process_query(query: str, course_config: dict = None) -> str:
                 "Try asking about decision-making tools, strategies, or intuitive judgment."
             )
         
-        # Extract concepts using semantic similarity
-        concepts = get_top_ranked_concepts(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
+        # Extract concepts using domain-based semantic similarity
+        concepts = get_top_ranked_concepts_DEPRECATED(query, top_k=3, custom_glossary=course_config.get('glossary') if course_config else None)
+        
+        # Get domain information for better concept selection
+        query_domains = hybrid_domain_detection(query)
+        primary_domain = max(query_domains, key=query_domains.get) if query_domains else 'general'
+        secondary_domains = [domain for domain, score in query_domains.items() if domain != primary_domain and score >= 0.45]
+        print(f"DEBUG: query_domains = {query_domains}")
+        print(f"DEBUG: primary_domain = {primary_domain}")
+        print(f"DEBUG: secondary_domains = {secondary_domains}")
+        print(f"DEBUG: concepts = {len(concepts)}")
         
         # Detect application field using semantic detection for better accuracy
         try:
@@ -2348,131 +2555,71 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Add application field context
         user_message += f"Application field: {application_field}\n\n"
         
-        # Note: Removed analytical tools injection to prevent inappropriate inclusion
-        # of analytical methods in Strategic Thinking Lens
+        # Determine if behavioral coverage is required
+        require_behavioral = any(keyword in query.lower() for keyword in [
+            'stressful', 'stress', 'anxious', 'confident', 'overcommitting', 'negotiation', 
+            'personal', 'career', 'judgment', 'bias', 'intuition'
+        ])
         
-        print("✅ Initial GPT call starting")
+        # Generate answer using the existing system
+        start_time = time.time()
         
-        # Make API call
-        response, error = robust_api_call(
-            client=client,
-            system_prompt=SYSTEM_PROMPT_ANALYTICS,
-            user_message=user_message,
-            max_tokens=calculate_optimal_tokens(len(query), len(user_message))
+        # Generate answer using the new one-call system
+        result = generate_answer_with_retry(
+            user_prompt=user_message,
+            base_prompt=SYSTEM_PROMPT_ONE_CALL,
+            require_behavioral=require_behavioral,
+            concepts=concepts,
+            application_field=application_field,
+            start_time=start_time
         )
         
-        print("✅ Initial GPT call complete")
+        # Format concepts for output
+        norm_concepts = []
+        for concept_name, definition in concepts:
+            norm_concepts.append({
+                "term": concept_name,
+                "definition": definition
+            })
         
-        if error:
-            print(f"❌ API call failed: {error}")
-            # Return fallback content
-            return format_fallback_response(fallback_content)
-        
-        # Extract response content
-        answer_raw = response.choices[0].message.content.strip()
-        
-        # Ensure proper structure
-        answer = enforce_thinkpal_structure(answer_raw, query)
-        
-        # Extract sections for V1.6.6.6 Step 1 processing
-        sections = extract_sections_from_response(answer)
-        
-        # V1.6.6.6 Step 1: Generate Lens and Story drafts separately, then merge
-        if 'lens' in sections:
-            # Detect domain count for adaptive word count
-            domains = detect_course_concept_domains(query)
-            domain_count = len([d for d in domains.values() if d > 0.1]) or 1  # At least 1 domain
-            
-            # Get lens draft (reasoning)
-            lens_draft = sections['lens']
-            
-            # Get story draft (example seed) - use existing story or generate fallback
-            if 'story' in sections:
-                story_draft = sections['story']
-            else:
-                # Generate fallback story using context_aware_fallbacks
-                fallback_content = context_aware_fallbacks(query)
-                story_draft = fallback_content.get('Story in Action', 
-                    "A professional systematically evaluates their options using structured decision-making tools. They consider both immediate impacts and long-term consequences, ultimately making a choice that balances competing priorities and aligns with their strategic objectives.")
-            
-            # Merge Lens and Story using GPT-3.5
-            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
-            
-            # ✅ Clean up redundant headers in merged_content from GPT output
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-            
-            # Clean up old Strategic Thinking Lens section from the original answer
-            answer = re.sub(
-                r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*Follow-up Prompts\*\*|\*\*Concepts/Tools\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-
-            # Sanitize the merged content in case it still starts with a header (just to be safe)
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-
-            # Inject clean Strategic Thinking Lens section
-            answer = f"**Strategic Thinking Lens**\n\n{merged_content.strip()}\n\n" + answer
-            
-            # POST-PROCESSING: Remove Part 1/Part 2 subheaders and format connectors as italic
-            answer = re.sub(r'\*\*Part \d+:[^*]*\*\*', '', answer)
-            
-            # Strip stray bold/italic around connectors first
-            answer = re.sub(r'[*_]+(For (?:example|instance)[^,:]*,?)[*_]+', r'\1', answer)
-            answer = re.sub(r'[*_]+(Consider this scenario:?)[*_]+', r'\1', answer)
-            
-            # Reapply italics consistently
-            answer = re.sub(r'(For (?:example|instance)[^,:]*,?)', r'*\1*', answer)
-            answer = re.sub(r'(Consider this scenario:?)', r'*\1*', answer)
-            
-            # Remove the original Story section to prevent duplication
-            answer = re.sub(
-                r'\*\*Story in Action\*\*.*?(?=\*\*|\Z)',
-                '',
-                answer,
-                flags=re.DOTALL | re.IGNORECASE
-            )
-            
-            # Ensure proper section spacing
-            answer = re.sub(r'\*\*Follow-up Prompts\*\*', '\n\n**Follow-up Prompts**', answer)
-            answer = re.sub(r'\*\*Concepts/Tools\*\*', '\n\n**Concepts/Tools**', answer)
-        
-        # Extract and validate concepts/tools
-        concepts_tools = extract_tools_from_section(answer)
-        
-        # If no valid concepts extracted, use fallback
-        if not concepts_tools:
-            fallback_concepts = generate_fallback_concepts(query)
-            if fallback_concepts:
-                # Replace concepts section with fallback
-                answer = re.sub(
-                    r'\*\*Concepts/Tools\*\*.*?(?=\n\n|$)',
-                    f'**Concepts/Tools**\n\n' + '\n'.join(fallback_concepts),
-                    answer,
-                    flags=re.DOTALL
-                )
-        
-        # Query processing complete
-        
-        return answer
+        # Return the structured response
+        print(f"DEBUG: Final return - query_domains: {query_domains}")
+        print(f"DEBUG: Final return - primary_domain: {primary_domain}")
+        print(f"DEBUG: Final return - secondary_domains: {secondary_domains}")
+        return {
+            "strategicThinkingLens": result.get("strategicThinkingLens", ""),
+            "followUpPrompts": result.get("followUpPrompts", []),
+            "conceptsToolsPractice": norm_concepts,
+            "applicationField": application_field,
+            "model": "gpt-3.5-turbo",
+            "processing_time": round(time.time() - start_time, 2),
+            "selected_domains": list(query_domains.keys()) if query_domains else [],
+            "primary_domain": primary_domain,
+            "secondary_domains": secondary_domains
+        }
         
     except Exception as e:
         print(f"❌ Error in process_query: {e}")
+        import traceback
         traceback.print_exc()
-        # Return fallback content
-        fallback_content = context_aware_fallbacks(query)
-        return format_fallback_response(fallback_content)
+        
+        # Return fallback response
+        return {
+            "strategicThinkingLens": "We encountered a temporary issue, so here is a concise strategic answer: clarify objectives, map options and consequences, and choose the highest-value path under constraints. Use a concrete example and define two immediate next steps.",
+            "followUpPrompts": [
+                "What is the primary objective you are optimizing for?",
+                "What are the top two options and their trade-offs?",
+                "What evidence would most reduce uncertainty?",
+                "What is your next reversible step?"
+            ],
+            "conceptsToolsPractice": [],
+            "applicationField": "general",
+            "model": "gpt-3.5-turbo",
+            "processing_time": 0.0,
+            "selected_domains": [],
+            "primary_domain": "general",
+            "secondary_domains": []
+        }
 
 def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
     """Ensure the answer follows ThinkPal structure with all required sections."""
@@ -2484,7 +2631,7 @@ def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
        re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
         return answer
     
-    # If not, generate fallback content
+    # If structure is missing, add fallback content
     fallback_content = context_aware_fallbacks(query)
     return format_fallback_response(fallback_content)
 
@@ -2499,17 +2646,53 @@ def format_fallback_response(fallback_content: dict) -> str:
         sections.append(f"**Story in Action**\n\n{fallback_content['Story in Action']}")
     
     if 'Follow-up Prompts' in fallback_content:
-        prompts = fallback_content['Follow-up Prompts']
-        if isinstance(prompts, list):
-            prompts_text = '\n'.join(prompts)
-        else:
-            prompts_text = prompts
-        sections.append(f"**Follow-up Prompts**\n\n{prompts_text}")
+        sections.append(f"**Follow-up Prompts**\n\n{fallback_content['Follow-up Prompts']}")
     
     if 'Concepts/Tools' in fallback_content:
         sections.append(f"**Concepts/Tools**\n\n{fallback_content['Concepts/Tools']}")
     
-    return '\n\n'.join(sections)
+    return "\n\n".join(sections)
+
+def detect_domain_semantic(query: str) -> dict:
+    """Backward compatibility wrapper for improved semantic domain detection."""
+    return detect_domain_semantic_improved(query)
+
+def detect_course_concept_domains(query: str) -> dict:
+    """Backward compatibility wrapper for improved keyword-based domain detection."""
+    return detect_course_concept_domains_improved(query)
+
+def detect_domain_clusters_fixed(domain_scores):
+    """Backward compatibility wrapper for improved cluster detection."""
+    return detect_domain_clusters_improved(domain_scores, "general")
+
+def select_domains_by_clusters_fixed(domain_scores):
+    """Backward compatibility wrapper for improved domain selection."""
+    return select_domains_by_clusters_improved(domain_scores, "general")
+
+# Main execution for testing
+if __name__ == "__main__":
+    try:
+        # Interactive mode
+        while True:
+            try:
+                query = input("\nAsk a question (or type 'exit'): ")
+            except (EOFError, KeyboardInterrupt):
+                print("\n👋 Exiting. Goodbye!")
+                break
+            
+            if query.strip().lower() == "exit":
+                print("👋 Exiting. Goodbye!")
+                break
+            
+            if not query.strip():
+                print("⚠️ Please enter a non-empty question.")
+                continue
+            
+            answer = process_query(query)
+            print(f"{answer}")
+            
+    except KeyboardInterrupt:
+        print("\n👋 Exiting. Goodbye!")
 
 # --- BACKWARD COMPATIBILITY WRAPPERS ---
 

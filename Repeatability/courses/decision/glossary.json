@@ -393,7 +393,7 @@
     ]
   },
   "winner's curse": {
-    "definition": "Overpaying or overcommitting in competitive bidding",
+    "definition": "Originating in auction theory, it’s a bias where the ‘winner’ ends up worse off by overpaying, overcommitting, or misjudging the true value.",
     "core": true,
     "aliases": [
       "overpaying",
@@ -404,6 +404,8 @@
       "competitive situation",
       "overbid",
       "competitive overpayment",
+      "auction theory",
+      "auction theory bias",
       "winner's curse"
     ]
   },

@@ -318,7 +318,7 @@ CONCEPT_GLOSSARY = {
     "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ['sunk cost fallacy', 'legacy project', 'continuing investment', 'failing project', 'persistent investment', 'keep investing', 'already spent', 'time investment', 'continue despite failure', 'invest more in failing', 'keep going despite problems', 'legacy']},
     "mental accounting": {"definition": "Treating money and financial resources differently based on their source or context", "core": True, "aliases": ['psychological budgeting', 'money source bias', 'financial categorization']},
     "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ['strategic games', 'payoff analysis', 'competitive interactions', 'strategic analysis', 'competitive strategy', 'strategic thinking', 'competitive analysis', 'strategic interactions', 'game theory']},
-    "winner's curse": {"definition": "Overpaying or overcommitting in competitive bidding", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', "winner's curse"]},
+    "winner's curse": {"definition": "Originating in auction theory, it’s a bias where the ‘winner’ ends up worse off by overpaying, overcommitting, or misjudging the true value.", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', 'auction theory', 'auction theory bias', "winner's curse"]},
     "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ['collaborative negotiation', 'win-win bargaining', 'value creation', 'mutual benefits', 'win-win solutions', 'create value', 'collaborative approach', 'mutual gains', 'win-win']},
     "distributive negotiation": {"definition": "Zero-sum bargaining where one's gain is another's loss", "core": False, "aliases": []},
     "porter's five forces": {"definition": "Framework for analyzing industry competitiveness", "core": True, "aliases": ['five forces analysis', 'competitive', 'industry', 'competitiveness', 'industry analysis', 'competitive forces', 'industry structure', 'competitive analysis', 'five forces']},
@@ -859,14 +859,14 @@ def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossa
             if any(keyword in query_lower for keyword in communication_keywords):
                 # Penalize bidding-specific concepts for communication queries
                 if concept_name == "winner's curse":
-                    context_penalty = 0.50  # Strong penalty - winner's curse is specifically about bidding/auctions, not communication
+                    context_penalty = 0.35  # Keep meaningful but not over-penalizing outside bidding contexts
                 elif concept_name in ['batna', 'integrative negotiation', 'distributive negotiation']:
                     context_penalty = 0.30  # Moderate penalty - negotiation concepts not relevant for simple communication
             
             # Check for bidding/auction-specific queries that should include winner's curse
             bidding_keywords = ['bid', 'bidding', 'auction', 'tender', 'proposal', 'offer', 'compete', 'competitive bidding', 'overpay', 'overbid', 'winning bid', 'losing bid']
             if any(keyword in query_lower for keyword in bidding_keywords):
-                # Boost winner's curse for bidding-related queries
+                # Boost winner's curse for bidding/auction-related queries
                 if concept_name == "winner's curse":
                     context_penalty = -0.20  # Negative penalty = boost for bidding queries
             
@@ -2339,6 +2339,334 @@ def calculate_context_penalty(query_context, concept_context):
     
     return min(penalty, 0.20)  # Cap penalty at 0.20
 
+def parse_gpt_output(raw_text, application_field, model, elapsed):
+    """Parse natural language GPT output into structured JSON format.
+    Robustly extracts follow-up prompts across bullets, numbering, and question-mark sentences.
+    """
+    try:
+        text = (raw_text or "").strip()
+        if not text:
+            return {"error": "Server issue, please try again later."}
+
+        lines = [ln.strip() for ln in text.splitlines()]
+
+        # 1) Collect candidate prompts by common patterns
+        prompts = []
+        prompt_indices = []  # starting indices in the raw text to help find lens boundary
+
+        bullet_pattern = re.compile(r'^[\-•\*]\s*(.+)')
+        numbered_pattern = re.compile(r'^(?:\d+\.|\d+\))\s*(.+)')
+        question_line_pattern = re.compile(r'^(.+\?)$')
+
+        offset = 0
+        for ln in lines:
+            m = bullet_pattern.match(ln) or numbered_pattern.match(ln) or question_line_pattern.match(ln)
+            if m:
+                candidate = m.group(1).strip()
+                # Ensure it looks like a question; append '?' if missing
+                if not candidate.endswith('?'):
+                    candidate = candidate + '?'
+                if len(candidate) >= 5:
+                    prompts.append(candidate)
+                    # Record index position in the original text for lens boundary
+                    idx = text.find(ln, offset)
+                    if idx != -1:
+                        prompt_indices.append(idx)
+            offset += len(ln) + 1  # +1 for newline
+
+        # 2) If still empty, extract question-like sentences from full text
+        if not prompts:
+            # Capture sentences ending with '?'
+            q_sentences = re.findall(r'([^\n\r\?]{5,}?\?)', text)
+            prompts = [qs.strip() for qs in q_sentences if len(qs.strip()) >= 5]
+
+        # 3) Normalize count to 2–4 when possible
+        if len(prompts) >= 5:
+            prompts = prompts[:4]
+        elif len(prompts) == 1:
+            # Try to split by '?' inside the last paragraph to find more
+            tail = text[text.rfind('\n\n') + 2 if '\n\n' in text else 0:]
+            extras = [s.strip() + '?' for s in tail.split('?') if s.strip()]
+            for ex in extras:
+                if ex not in prompts and ex.endswith('?') and len(ex) >= 5:
+                    prompts.append(ex)
+                if len(prompts) >= 2:
+                    break
+        # Keep 2–4 prompts if available; if only one or zero, keep whatever we have
+        if len(prompts) > 4:
+            prompts = prompts[:4]
+
+        # 4) Determine strategic lens boundary (before first prompt occurrence)
+        if prompt_indices:
+            lens_end = min(prompt_indices)
+        else:
+            # If we have prompts but no indices (from regex over sentences), cut before last paragraph of questions
+            if prompts:
+                # Try to locate the first prompt substring
+                first_prompt = prompts[0]
+                pos = text.find(first_prompt)
+                lens_end = pos if pos != -1 else len(text)
+            else:
+                lens_end = len(text)
+
+        strategic_lens = text[:lens_end].strip()
+
+        # Safety fallback: if lens accidentally empty but we have content, take first two paragraphs
+        if not strategic_lens:
+            parts = [p.strip() for p in text.split('\n\n') if p.strip()]
+            strategic_lens = '\n\n'.join(parts[:2]).strip() if parts else text
+
+        return {
+            "strategicThinkingLens": strategic_lens,
+            "followUpPrompts": prompts,
+            "applicationField": application_field,
+            "model": model,
+            "processing_time": round(elapsed, 2)
+        }
+    except Exception:
+        return {"error": "Server issue, please try again later."}
+
+def validate_answer(parsed_output, require_behavioral: bool = False):
+    """Validation aligned to Phase II policy.
+    Accept answers ≥180 words as valid if key requirements are present.
+    Retry only if <150 words or missing key requirements (example, behavioral cue when required).
+    """
+    lens = parsed_output.get("strategicThinkingLens", "")
+    text_lower = lens.lower()
+    word_count = len(lens.split())
+
+    # Key requirements
+    has_example = any(kw in text_lower for kw in [
+        "for example", "for instance", "consider", "imagine", "case study"
+    ])
+    has_behavioral = (not require_behavioral) or any(
+        kw in text_lower for kw in ["bias", "intuition", "overconfidence", "risk tolerance", "judgment"]
+    )
+
+    # Validity: ≥180 words and required cues present
+    is_valid = (word_count >= 180) and has_example and has_behavioral
+
+    # Retry condition: very short OR missing key cues
+    should_retry = (word_count < 150) or (not has_example) or (require_behavioral and not has_behavioral)
+
+    reason = (
+        "Quality check passed" if is_valid else
+        f"Validation: words={word_count}, has_example={has_example}, has_behavioral={has_behavioral}, should_retry={should_retry}"
+    )
+    return is_valid, should_retry, reason
+
+def generate_answer_with_retry(user_prompt, base_prompt, require_behavioral=False, concepts=None, application_field="general", start_time=None):
+    """Clean retry logic with quality validation"""
+    system_prompt = base_prompt
+    
+    for attempt in range(2):  # First attempt + one retry
+        try:
+            # Use legacy OpenAI v0.28 API for Lambda compatibility
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt}
+                ],
+                temperature=0.6 if attempt == 0 else 0.8,
+                max_tokens=1600
+            )
+            raw_output = response["choices"][0]["message"]["content"]
+            
+            # Parse natural language output instead of JSON
+            parsed_output = parse_gpt_output(
+                raw_output,
+                application_field,
+                "gpt-3.5-turbo",
+                time.time() - (start_time or time.time())
+            )
+            
+            # Validate quality with Phase II policy
+            is_valid, should_retry, reason = validate_answer(parsed_output, require_behavioral)
+            print(f"Validation attempt {attempt}: {reason}")
+            if is_valid:
+                return parsed_output
+            elif attempt == 0 and should_retry:
+                # Add reinforcement for retry
+                system_prompt += """
+IMPORTANT: Expand further. Minimum 250 words required.
+Include a 6–8 sentence example (~100 words) woven naturally into the narrative.
+Avoid formulaic phrasing — vary your style and tone.
+"""
+                continue  # Try retry
+            else:
+                # Either not eligible for retry or retry already used; return best-effort
+                print(f"Returning best-effort answer. Reason: {reason}")
+                return parsed_output
+                
+        except Exception as e:
+            print(f"Exception in generate_answer_with_retry (attempt {attempt}): {e}")
+            import traceback
+            traceback.print_exc()
+            if attempt == 0:
+                continue  # Try retry
+            # Final fallback: return a minimal best-effort structured answer instead of error
+            fallback_lens = (
+                "Here is a concise, practical answer focused on decisions, trade-offs, and next steps. "
+                "Prioritize clarity of objectives, map options with consequences, and choose the highest-value path under constraints. "
+                "Use a short example to ground the guidance, then identify two concrete actions to move forward."
+            )
+            fallback_followups = [
+                "Which objectives matter most in this situation?",
+                "What are the top two options and their biggest trade-offs?",
+                "What evidence would most reduce uncertainty before committing?"
+            ]
+            return {
+                "strategicThinkingLens": fallback_lens,
+                "followUpPrompts": fallback_followups,
+                "conceptsToolsPractice": concepts or [],
+                "applicationField": application_field,
+                "model": "gpt-3.5-turbo",
+                "processing_time": round(time.time() - (start_time or time.time()), 2)
+            }
+    
+    # Final safety net: return minimal structured answer instead of error
+    fallback_followups = [
+        "Which objective is most important right now?",
+        "What are the top two options and key trade-offs?",
+        "What evidence would most reduce uncertainty?"
+    ]
+    return {
+        "strategicThinkingLens": (
+            "Here is a concise best-effort answer focusing on objectives, options, and next steps. "
+            "Clarify what success looks like, compare consequences across choices, and take a reversible next step."
+        ),
+        "followUpPrompts": fallback_followups,
+        "conceptsToolsPractice": concepts or [],
+        "applicationField": application_field,
+        "model": "gpt-3.5-turbo",
+        "processing_time": round(time.time() - (start_time or time.time()), 2)
+    }
+
+def generate_answer_one_call(user_query: str,
+                             application_field: str,
+                             primary_domains: List[str],
+                             secondary_domains: List[str],
+                             concepts: List[Tuple[str, str]] | List[Dict[str, str]] = None
+                             ) -> Dict[str, Any]:
+    """
+    Generate strategic lens and follow-up prompts in ONE OpenAI call.
+    Returns backend contract fields; caller appends conceptsToolsPractice.
+    """
+    start_time = time.time()
+    
+    # Build system prompt per specification
+    system_prompt = """You are Engent Labs Decision-Making Tutor.
+
+Tone: genuine, practical, engaging, clear, and positive.  
+Write as if you are coaching a student in conversation, not giving a lecture.  
+Avoid repetitive phrasing — do not begin every answer with 'When facing...' or 'It is crucial to...'.  
+Vary your sentence structure, mix short and long sentences, and ask reflective questions.  
+
+Structure:
+- Write 2–3 paragraphs (minimum 220 words).
+- Include one detailed, realistic example inside the narrative (6–8 sentences, ~100 words). Do not bolt it on separately — make it flow naturally.
+- End with 3–4 reflective follow-up questions, each on its own line starting with "-".
+
+ Output requirements:
+ - Generate ONLY the strategic explanation and follow-up questions. Do not output any concept list.
+ - Use the provided course concepts as soft anchors ONLY if they genuinely fit the query context. Do not force them.
+ - Do not output JSON. Write naturally as text."""
+
+    # Use provided concepts (extracted by the main process_query function)
+    if concepts is None:
+        concepts = []
+
+    # Behavioral enforcement detection
+    behavioral_indicators = [
+        "judgment", "stress", "escalation", "negotiation", "personal", "career", 
+        "anxious", "feel", "emotion", "psychological", "bias", "intuition"
+    ]
+    require_behavioral = any(indicator in user_query.lower() for indicator in behavioral_indicators)
+
+    # Normalize concepts to list of {term, definition}
+    norm_concepts: List[Dict[str, str]] = []
+    
+    for c in concepts:
+        if isinstance(c, dict):
+            term = c.get("term") or c.get("name") or ""
+            definition = c.get("definition", "")
+        else:
+            term, definition = c[0], c[1] if len(c) > 1 else (c[0], "")
+        if term:
+            norm_concepts.append({"term": term, "definition": definition})
+
+    user_prompt = f"""
+Here is the query context:
+
+Query: {user_query}
+Application field: {application_field}
+Primary domain(s): {primary_domains}
+Secondary domain(s): {secondary_domains}
+Here are relevant course concepts (glossary-extracted): {norm_concepts}
+
+Generate a natural language response with:
+- 2-3 paragraphs, 12-15 sentences total
+- Include one detailed, realistic example (6-8 sentences, ~100 words)
+- End with 3-4 reflective follow-up questions, each on its own line starting with "-"
+- Include behavioral insights if relevant
+
+Notes:
+- Use the listed concepts ONLY if they genuinely strengthen clarity; do not force them.
+- Do NOT output any concept list; only the explanation and follow-up questions.
+"""
+
+    try:
+        if openai is None:
+            raise RuntimeError("OpenAI SDK not available")
+        
+        parsed_output = generate_answer_with_retry(user_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+        
+        if "error" in parsed_output:
+            # Return best-effort parsed output if present
+            if isinstance(parsed_output, dict) and parsed_output.get("strategicThinkingLens"):
+                return parsed_output
+            return parsed_output
+
+        processing_time = round(time.time() - start_time, 2)
+        return {
+            "strategicThinkingLens": parsed_output.get("strategicThinkingLens", ""),
+            "followUpPrompts": parsed_output.get("followUpPrompts", []),
+            "conceptsToolsPractice": norm_concepts,  # glossary-only
+            "applicationField": application_field,
+            "model": "gpt-3.5-turbo",
+            "processing_time": processing_time
+        }
+    except Exception as e:
+        print(f"Exception in generate_answer_one_call: {e}")
+        import traceback
+        traceback.print_exc()
+        # Graceful outer fallback with minimal structured content
+        fallback_followups = [
+            "What is the primary objective you are optimizing for?",
+            "What are the top two options and their trade-offs?",
+            "What evidence would most reduce uncertainty?"
+        ]
+        return {
+            "strategicThinkingLens": (
+                "A concise strategy answer could not be fully generated due to a temporary issue. "
+                "Focus on clarifying objectives, mapping options and consequences, and choosing the best path under constraints."
+            ),
+            "followUpPrompts": fallback_followups,
+            "conceptsToolsPractice": norm_concepts,
+            "applicationField": application_field,
+            "model": "gpt-3.5-turbo",
+            "processing_time": round(time.time() - (start_time or time.time()), 2)
+        }
+
+def run_query_once(query: str) -> str:
+    """Main entry point for one-call API"""
+    try:
+        result = process_query(query)
+        return json.dumps(result, ensure_ascii=False)
+    except Exception as e:
+        return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
+
 def process_query(query: str, course_config: dict = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
@@ -2605,211 +2933,42 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Check if we need fallback concepts (should be disabled)
         if len(concepts) < 2:
             pass  # Fallback is disabled
-        
-        # Generate context-aware fallback content
-        try:
-            fallback_content = context_aware_fallbacks(query)
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            fallback_content = ""
-        
-        # Build user message with context - CONCEPTS FIRST
-        user_message = ""
-        
-        # Add relevant concepts as context - MAKE THIS IMPOSSIBLE TO MISS
-        if concepts:
-            concept_context = "🚨 CRITICAL INSTRUCTIONS 🚨\n"
-            concept_context += "You MUST use these exact concepts in your Concepts/Tools section:\n"
-            for concept_name, definition in concepts:
-                # Use proper case formatting for concept names
-                formatted_name = concept_name.replace('_', ' ').title()
-                concept_context += f"- {formatted_name}: {definition}\n"
-            concept_context += "\n"
-            concept_context += "🚨 CRITICAL: Use ONLY the concepts listed above in your Concepts/Tools section.\n"
-            concept_context += "🚨 DO NOT use 'Decision Matrix', 'Pros and Cons List', or any other concepts not listed above.\n"
-            concept_context += "🚨 DO NOT invent new concepts. Use ONLY the provided concepts.\n\n"
-            user_message += concept_context
-        
-        # Now add the query
-        user_message += f"Query: {query}\n\n"
-        
-        # Concepts being sent to GPT
-        if concepts:
-            for concept_name, definition in concepts:
-                pass  # Concepts are being sent to GPT
-        else:
-            pass  # No concepts being sent to GPT
-        
-        # Add application field and domain context
-        user_message += f"Application field: {application_field}\n"
-        user_message += f"Primary domain: {primary_domain}\n"
-        if len(selected_domains) > 1:
-            additional_domains = [domain for domain in selected_domains.keys() if domain != primary_domain]
-            user_message += f"Additional domains: {', '.join(additional_domains)}\n"
-        user_message += "\n"
-        
-        # Note: Removed analytical tools injection to prevent inappropriate inclusion
-        # of analytical methods in Strategic Thinking Lens
-        
-        # Initial GPT call starting
-        
-        # Make API call
-        response, error = robust_api_call(
-            system_prompt=SYSTEM_PROMPT_ANALYTICS,
-            user_message=user_message,
-            max_tokens=calculate_optimal_tokens(len(query), len(user_message))
+
+        # Prepare domains for one-call generation
+        domain_items = sorted(selected_domains.items(), key=lambda x: x[1], reverse=True)
+        primary_domains_list = [domain_items[0][0]] if domain_items else ["general"]
+        secondary_domains_list = [d for d, _ in domain_items[1:]] if len(domain_items) > 1 else []
+
+        # One-call answer generation using tuned prompt
+        one_call = generate_answer_one_call(
+            user_query=query,
+            application_field=application_field,
+            primary_domains=primary_domains_list,
+            secondary_domains=secondary_domains_list,
+            concepts=concepts
         )
-        
-        # Initial GPT call complete
-        
-        if error:
-            # API call failed - use section-by-section fallback logic instead of complete fallback
-            pass
-        
-        # Extract response content
-        if error:
-            # API call failed - use fallback content for all sections
-            answer_raw = ""
+
+        # If one-call returned an error-like structure, map accordingly
+        if isinstance(one_call, dict) and one_call.get("strategicThinkingLens") is not None:
+            strategic_lens = one_call.get("strategicThinkingLens", "")
+            followups = one_call.get("followUpPrompts", [])
         else:
-            answer_raw = response.choices[0].message.content.strip()
-        
-        # GPT response received
-        
-        # Extract sections from GPT's response
-        sections = extract_sections_from_response(answer_raw)
-        
-        # SECTION-BY-SECTION FALLBACK: Only fill missing sections, preserve successful ones
-        final_sections = {}
-        
-        # 1. Strategic Thinking Lens - always preserve if GPT generated it
-        if 'lens' in sections:
-            final_sections['Strategic Thinking Lens'] = sections['lens']
-            # Using GPT-generated Strategic Thinking Lens
-        else:
-            # Only use fallback if GPT completely failed to generate lens
-            # No GPT lens found, using fallback
-            fallback_content = context_aware_fallbacks(query)
-            final_sections['Strategic Thinking Lens'] = fallback_content['Strategic Thinking Lens']
-        
-        # 2. Story in Action - always preserve if GPT generated it
-        if 'story' in sections:
-            final_sections['Story in Action'] = sections['story']
-            # Using GPT-generated Story in Action
-        else:
-            # Only use fallback if GPT completely failed to generate story
-            # No GPT story found, using fallback
-            fallback_content = context_aware_fallbacks(query)
-            final_sections['Story in Action'] = fallback_content['Story in Action']
-        
-        # 3. Follow-up Prompts - always preserve if GPT generated it
-        if 'prompts' in sections:
-            final_sections['Follow-up Prompts'] = sections['prompts']
-            # Using GPT-generated Follow-up Prompts
-        else:
-            # Only use fallback if GPT completely failed to generate prompts
-            # No GPT prompts found, using fallback
-            fallback_content = context_aware_fallbacks(query)
-            final_sections['Follow-up Prompts'] = fallback_content['Follow-up Prompts']
-        
-        # 4. Concepts/Tools - ALWAYS use extracted concepts, never fallback
-        if concepts:
-            # Use extracted concepts as the source of truth
-            concept_text = ""
-            for concept_name, definition in concepts:
-                formatted_name = concept_name.replace('_', ' ').title()
-                concept_text += f"- {formatted_name}: {definition}\n"
-            final_sections['Concepts/Tools'] = concept_text.strip()
-            # Using extracted concepts (source of truth)
-        else:
-            # If no concepts were extracted, that's a problem - but don't use fallback
-            final_sections['Concepts/Tools'] = "No relevant concepts found for this query."
-            # No concepts extracted - this should not happen
-        
-        # V1.6.6.6 Step 1: Generate Lens and Story drafts separately, then merge
-        if 'lens' in sections and 'story' in sections:
-            # Both lens and story exist - merge them
-            # Both lens and story exist - merging with GPT
-            lens_draft = sections['lens']
-            story_draft = sections['story']
-            
-            # Detect domain count for adaptive word count
-            # Use the already extracted selected_domains instead of calling old function
-            domain_count = len(selected_domains) or 1  # At least 1 domain
-            
-            # Merge Lens and Story using GPT-3.5
-            merged_content = merge_and_extend_with_story(lens_draft, story_draft, domain_count)
-            
-            # ✅ Clean up redundant headers in merged_content from GPT output
-            merged_content = re.sub(
-                r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-                '',
-                merged_content.strip(),
-                flags=re.IGNORECASE
-            )
-            
-            # Update the Strategic Thinking Lens with merged content
-            final_sections['Strategic Thinking Lens'] = merged_content.strip()
-            
-            # Remove Story in Action since it's now integrated into the lens
-            final_sections.pop('Story in Action', None)
-            # Story integrated into Strategic Thinking Lens
-        
-        elif 'lens' in sections and 'story' not in sections:
-            # Only lens exists, no story to merge
-            pass
-        elif 'lens' not in sections and 'story' in sections:
-            # Only story exists, no lens to merge
-            pass
-        else:
-            # Neither lens nor story exists - both are fallbacks
-            pass
-        
-        # Build final answer from sections
-        answer = ""
-        
-        # Strategic Thinking Lens (always first)
-        if 'Strategic Thinking Lens' in final_sections:
-            answer += f"**Strategic Thinking Lens**\n\n{final_sections['Strategic Thinking Lens']}\n\n"
-        
-        # Story in Action (only if not merged into lens)
-        if 'Story in Action' in final_sections:
-            answer += f"**Story in Action**\n\n{final_sections['Story in Action']}\n\n"
-        
-        # Follow-up Prompts
-        if 'Follow-up Prompts' in final_sections:
-            answer += f"**Follow-up Prompts**\n\n{final_sections['Follow-up Prompts']}\n\n"
-        
-        # Concepts/Tools (always last)
-        if 'Concepts/Tools' in final_sections:
-            answer += f"**Concepts/Tools**\n\n{final_sections['Concepts/Tools']}\n\n"
-        
-        # Clean up extra newlines
-        answer = re.sub(r'\n{3,}', '\n\n', answer).strip()
-        
-        
-        # Return both answer and authoritative concepts
-        return {
-            "answer": answer,
-            "concepts": concepts,  # The authoritative concepts from select_concepts
-            "selected_domains": selected_domains,
-            "primary_domain": primary_domain,
-            "application_field": application_field
+            return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
+
+        # Map to frontend contract and return JSON string
+        concepts_tools = [{"term": n, "definition": d} for (n, d) in concepts]
+        final_answer = {
+            "strategicLens": strategic_lens,
+            "followupPrompts": followups,
+            "conceptsToolsPractice": concepts_tools
         }
+        return json.dumps(final_answer, ensure_ascii=False)
         
     except Exception as e:
         # Error in process_query - returning fallback response
         import traceback
         traceback.print_exc()
-        # Return fallback content
-        fallback_content = context_aware_fallbacks(query)
-        return {
-            "answer": format_fallback_response(fallback_content),
-            "concepts": [],  # No concepts available on error
-            "selected_domains": {},
-            "primary_domain": "general",
-            "application_field": "general"
-        }
+        return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
 
 def process_query_structured(query: str, course_config: dict = None) -> dict:
     """
@@ -3568,9 +3727,68 @@ def select_domains_cluster_based_hybrid(scores: dict) -> dict:
     """
     return select_domains_by_clusters_improved(scores, "hybrid", max_domains=3)
 
+def detect_domains_from_phrase_matching(query: str) -> dict:
+    """
+    Detect domains based on exact phrase matches with concept glossary.
+    This provides strong signals when exact concept phrases are found in the query.
+    
+    Args:
+        query: User's query text
+        
+    Returns:
+        Dictionary of domains with scores based on phrase matches
+    """
+    try:
+        # Load course glossary
+        with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
+            glossary_to_use = json.load(f)
+        
+        # Normalize query for matching
+        def _normalize_text(s: str) -> str:
+            return re.sub(r"\s+", " ", s.lower().replace('-', ' ').replace('_', ' ')).strip()
+        
+        query_norm = _normalize_text(query)
+        domain_scores = {}
+        
+        # Check each concept in the glossary for exact phrase matches
+        for concept_name, concept_data in glossary_to_use.items():
+            # Get the concept's domain
+            concept_domain = CONCEPT_DOMAINS.get(concept_name.lower(), 'general')
+            if concept_domain == 'general':
+                continue  # Skip general domain concepts
+            
+            # Check if the concept name appears in the query
+            concept_norm = _normalize_text(concept_name)
+            if concept_norm in query_norm:
+                # Exact match found - give strong signal
+                if concept_domain not in domain_scores:
+                    domain_scores[concept_domain] = 0
+                domain_scores[concept_domain] += 1.0  # Strong signal for exact matches
+            
+            # Check aliases for exact matches
+            if isinstance(concept_data, dict) and 'aliases' in concept_data:
+                for alias in concept_data['aliases']:
+                    alias_norm = _normalize_text(alias)
+                    if alias_norm in query_norm:
+                        if concept_domain not in domain_scores:
+                            domain_scores[concept_domain] = 0
+                        domain_scores[concept_domain] += 0.8  # Slightly lower signal for alias matches
+        
+        # Normalize scores to 0-1 range
+        if domain_scores:
+            max_score = max(domain_scores.values())
+            if max_score > 0:
+                domain_scores = {domain: score / max_score for domain, score in domain_scores.items()}
+        
+        return domain_scores
+        
+    except Exception as e:
+        print(f"Error in detect_domains_from_phrase_matching: {e}")
+        return {}
+
 def hybrid_domain_detection(query: str) -> dict:
     """
-    Improved hybrid domain detection combining semantic and keyword methods with cluster-based selection.
+    Improved hybrid domain detection combining semantic, keyword, and phrase matching methods with cluster-based selection.
     
     Args:
         query: User's query text
@@ -3579,16 +3797,21 @@ def hybrid_domain_detection(query: str) -> dict:
         Dictionary of selected domains with combined scores
     """
     try:
-        # Step 1: Get domain scores from both methods
+        # Step 1: Get domain scores from all methods
         semantic_scores = detect_domain_semantic(query)
         keyword_scores = detect_course_concept_domains(query)
+        
+        # Step 1.5: Get phrase matching signals from concept glossary
+        phrase_scores = detect_domains_from_phrase_matching(query)
         
         # Step 2: Normalize scores within each method to prevent keyword dominance
         # Keyword scores can be much higher due to weighted scoring (3×strong + 2×modest + 1×weak)
         # Semantic scores are typically 0-1 cosine similarities
+        # Phrase scores are typically 0-1 based on exact matches
         
         normalized_semantic = {}
         normalized_keyword = {}
+        normalized_phrase = {}
         
         # Normalize semantic scores (already 0-1, just ensure max = 1.0)
         if semantic_scores:
@@ -3606,26 +3829,47 @@ def hybrid_domain_detection(query: str) -> dict:
             else:
                 normalized_keyword = keyword_scores
         
+        # Normalize phrase scores (already 0-1, just ensure max = 1.0)
+        if phrase_scores:
+            phrase_max = max(phrase_scores.values())
+            if phrase_max > 0:
+                normalized_phrase = {domain: score / phrase_max for domain, score in phrase_scores.items()}
+            else:
+                normalized_phrase = phrase_scores
+        
         # Step 3: Apply cluster-based selection to each normalized method independently
         semantic_selected = select_domains_by_clusters_improved(normalized_semantic, "semantic", max_domains=3)
         keyword_selected = select_domains_by_clusters_improved(normalized_keyword, "keyword", max_domains=3)
+        phrase_selected = select_domains_by_clusters_improved(normalized_phrase, "phrase", max_domains=3)
         
         # Step 4: Combine normalized scores with improved logic to prevent false positives
         combined_scores = {}
         
-        # Get all unique domains from both methods
-        all_domains = set(semantic_selected.keys()) | set(keyword_selected.keys())
+        # Get all unique domains from all three methods
+        all_domains = set(semantic_selected.keys()) | set(keyword_selected.keys()) | set(phrase_selected.keys())
         
         for domain in all_domains:
             semantic_score = semantic_selected.get(domain, 0)
             keyword_score = keyword_selected.get(domain, 0)
+            phrase_score = phrase_selected.get(domain, 0)
             
-            # V1.6.6 fix: Use average of both methods for fair comparison
+            # V1.6.6 fix: Use average of all methods for fair comparison
             raw_semantic_score = semantic_scores.get(domain, 0)
             min_semantic_threshold = 0.30  # Minimum raw semantic score to consider
             
-            # If both methods identify the domain, use average (most reliable)
-            if keyword_score > 0 and semantic_score > 0:
+            # Count how many methods identified this domain
+            method_count = sum(1 for score in [semantic_score, keyword_score, phrase_score] if score > 0)
+            
+            # If phrase matching found the domain, give it strong weight (exact concept matches are very reliable)
+            if phrase_score > 0:
+                if method_count >= 2:
+                    # Multiple methods agree - use weighted average with phrase matching getting extra weight
+                    combined_scores[domain] = (phrase_score * 1.5 + semantic_score + keyword_score) / (method_count + 0.5)
+                else:
+                    # Only phrase matching found it - still include it (exact matches are reliable)
+                    combined_scores[domain] = phrase_score
+            # If both semantic and keyword methods identify the domain, use average (most reliable)
+            elif keyword_score > 0 and semantic_score > 0:
                 combined_scores[domain] = (keyword_score + semantic_score) / 2
             # If only keyword detection found the domain, use keyword score
             elif keyword_score > 0:
