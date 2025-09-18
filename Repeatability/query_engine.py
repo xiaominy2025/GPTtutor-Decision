@@ -1493,58 +1493,25 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
     
     return found_concepts 
 
-# 1. V1.6.3 System Prompt - ThinkPal Decision Coach
-SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
-
-Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
-
----
-
-**Strategic Thinking Lens**
-
-This is the analytical core. Write **2 well-developed paragraphs** (around **120–160 words**). This section should cover **1–3 relevant domains**, include **tradeoffs**, and be approximately **50% of the answer**. Avoid overloading with bullets or headers. Do **not** use literal framework terms like "strategic mindset" or "human behavior awareness." Instead, express those ideas naturally (e.g. "thinking long-term," "anticipating stakeholder reactions," etc.). Focus on strategic thinking, analytical tools, and human behavior awareness relevant to the query.
-
----
-
-**Story in Action**
-
-Provide a short 3–4 sentence example. Must mirror the ideas in the Strategic Thinking Lens without being longer or more detailed.
-
----
-
-**Follow-up Prompts**
-
-Offer 2–4 reflective questions. These should invite deeper thinking and not repeat the above content.
-
----
-
-**Concepts/Tools**
-
-You MUST include this section with the exact concepts provided in the context in this format:
-
-Concept Name: Short definition
-Concept Name: Short definition
-
-Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
-
-CRITICAL: You MUST use ONLY the concepts provided in the context. Do NOT select, choose, or invent any concepts. Do NOT use any fallback concepts.
-
-If specific concepts are provided in the context (after "🚨 CRITICAL INSTRUCTIONS 🚨"), you MUST use those exact concepts and definitions.
-
-If NO concepts are provided in the context, use these core decision-making concepts with their exact definitions:
-- Decision Tree: A visual tool that maps out different options and their potential outcomes
-- Contingency Planning: Developing backup strategies to prepare for uncertainty
-- Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes
-
-NEVER use concepts like "Stakeholder Alignment" or "Strategic Framing" unless they are explicitly provided in the context.
-
----
-
-Formatting Rules:
-- Use markdown-style headers (e.g., **Strategic Thinking Lens**) to label each section.
-- Break long answers into clear paragraphs.
-- Do not mention that you are an AI.
-- Output must sound natural, helpful, and avoid sounding like a framework summary. Your goal is to guide the student into thinking strategically — not just to label what they're doing."""
+# ============================================================================
+# LEGACY CODE CLEANUP - V1666.6 One-Call System
+# ============================================================================
+# The following legacy functions were removed during cleanup (2025-09-18):
+# - SYSTEM_PROMPT_ANALYTICS: Replaced by one-call system prompt in generate_answer_one_call
+# - calculate_optimal_tokens: Not used in one-call system
+# - robust_api_call: Replaced by generate_answer_with_retry in one-call system  
+# - merge_and_extend_with_story: Not used in one-call system
+# - context_aware_fallbacks: Not used in one-call system
+# - extract_sections_from_response: Not used in one-call system
+# - format_fallback_response: Not used in one-call system
+# - enforce_thinkpal_structure: Not used in one-call system
+# 
+# The current system uses:
+# - generate_answer_one_call: Main one-call GPT integration
+# - parse_gpt_output: Natural language to JSON parsing
+# - validate_answer: Quality validation with retry logic
+# - generate_answer_with_retry: Robust API calling with validation
+# ============================================================================
 
 def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     """Smart context truncation with sentence boundaries"""
@@ -1564,117 +1531,11 @@ def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     
     return truncated.strip()
 
-def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
-    """Calculate optimal token limit based on input size"""
-    total_input = query_length + context_length
-    if total_input > 6000:
-        return 800
-    elif total_input > 3000:
-        return 1000
-    else:
-        return 1200
+# Legacy calculate_optimal_tokens removed - not used in one-call system
 
-def robust_api_call(system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
-    """Handle API calls with retries using system/user message structure"""
-    tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ]
-    for attempt in range(max_retries):
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                temperature=1.2,  # Increased for more variety
-                max_tokens=tokens_to_use
-            )
-            return response, None
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(1 * (2 ** attempt))
-            else:
-                return None, str(e)
-    return None, "Max retries exceeded"
+# Legacy robust_api_call removed - replaced by generate_answer_with_retry in one-call system
 
-def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int) -> str:
-    """
-    Merge Strategic Thinking Lens and Story using GPT-3.5 to create a refined Lens.
-    
-    Args:
-        lens_text: Original Strategic Thinking Lens content (reasoning)
-        story_text: Original Story in Action content (example seed)
-        domain_count: Number of domains detected (for adaptive word count)
-        
-    Returns:
-        Merged Strategic Thinking Lens with integrated story
-    """
-    # Calculate target length based on domain count
-    target_length = min(150, 100 + (domain_count - 1) * 25)
-    
-    # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
-    prompt = f"""
-You're an expert instructor helping professionals practice strategic decision-making.
-
-Below are two drafts:
-1. A strategic thinking explanation for the query
-2. An illustrative story or scenario aligned with that explanation
-
-Your task is to revise and merge these into a single, cohesive answer. The result will be displayed under the section: **Strategic Thinking Lens**.
-
-✅ Do NOT add section headers or markdown titles like "Strategic Reasoning" or "Concrete Example."
-✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
-✅ Write ONLY the narrative content without any formatting headers
-✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
-✅ Use a clear, professional tone appropriate for professional learners.
-✅ Keep the response concise (ideally two well-developed paragraphs).
-✅ Avoid repetition or superficial elaboration.
-
-Lens Draft:
-{lens_text}
-
-Story Draft:
-{story_text}
-"""
-
-    try:
-        # GPT call starting
-        
-        # Call GPT-3.5 for merging
-        response, error = robust_api_call(
-            system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
-            user_message=prompt,
-            max_tokens=300
-        )
-        
-        # GPT call complete
-        
-        if error:
-            # GPT-3.5 merge failed - using fallback concatenation
-            merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-            return merged_lens
-        
-        # Extract merged content
-        merged_content = response.choices[0].message.content.strip()
-        
-        # ✅ Clean up redundant headers in merged_content from GPT output
-        merged_content = re.sub(
-            r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-            '',
-            merged_content.strip(),
-            flags=re.IGNORECASE
-        )
-        
-        # Log success
-        tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        # GPT-3.5 merge successful
-        
-        return merged_content
-        
-    except Exception as e:
-        # Exception in merge_and_extend_with_story - using fallback concatenation
-        merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-        return merged_lens
+# Legacy merge_and_extend_with_story removed - not used in one-call system
 
 def clean_concepts_tools_practice(raw_items):
     """Ensure conceptsToolsPractice is always a list of {term, definition} objects with non-empty, non-placeholder definitions."""
@@ -1943,181 +1804,7 @@ def extract_application_field(query: str) -> str:
     # 13. General Decision-Making (default)
     return "general"
 
-def context_aware_fallbacks(query: str):
-    """Generate context-aware fallback content for each ThinkPal V1.6.3 section based on the query application field."""
-    # Use course concept domain-aware logic for Strategic Thinking Lens
-    course_concept_domains = detect_course_concept_domains(query)
-    
-    # Use semantic application field detection for better accuracy
-    try:
-        # Load data lazily to get the model
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        application_field = extract_application_field_semantic(query, model)
-    except Exception as e:
-        # Fallback to keyword-based detection if semantic fails
-        # Semantic application field detection failed, using keyword-based
-        application_field = extract_application_field(query)
-    
-    # Determine primary course concept domain for Strategic Thinking Lens
-    if course_concept_domains:
-        primary_course_domain = max(course_concept_domains, key=course_concept_domains.get)
-    else:
-        primary_course_domain = 'general'
-    
-    # Generate Strategic Thinking Lens based on course concept domain and application field
-    strategic_lens = generate_course_domain_strategic_lens(query, primary_course_domain, application_field)
-    
-    # Use application field for Story in Action and other sections
-    if application_field == "general":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Sarah, a high school senior, compares three college offers using a weighted scoring model. She lists her priorities—academic reputation, cost, campus culture, and location. After visiting each campus and speaking with current students, she weighs the value of strong alumni networks against the appeal of lower tuition. Sarah ultimately chooses the school that best balances her career goals and financial constraints.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Decision Tree: Mapping out options and outcomes\n- Weighted Scoring Model: Comparing choices using weighted criteria"
-        }
-    if application_field == "people_talent_career":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Weighted Scoring Model: Structured option comparison\n- Pros and Cons List: Simple evaluation of positives and negatives"
-        }
-    if application_field == "startup":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maria, an entrepreneur, evaluates two product ideas using Lean Canvas methodology. She conducts thorough market research to understand customer demand, assesses resource requirements, and analyzes potential risks for each option. One path offers quick entry into a crowded market with established demand, while the other focuses on innovative features with slower market adoption. After consulting with industry experts and considering her risk tolerance, Maria selects the option that best balances immediate feasibility with long-term growth potential.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Lean Canvas: One-page business planning tool\n- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats"
-        }
-
-    if application_field == "operations_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Lisa, an operations manager, models multiple supply chain scenarios using Monte Carlo simulation to account for demand uncertainty. She compares cost efficiency with operational flexibility, analyzing how different scenarios affect both short-term performance and long-term resilience. Her comprehensive analysis reveals that the most resilient plan balances steady operational costs with the adaptability needed to respond to demand fluctuations and supply disruptions.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Scenario Analysis: Exploring possible futures\n- Monte Carlo Simulation: Modeling uncertainty through random sampling"
-        }
-    if application_field == "financial_decision_making":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "James, a mid-career professional, weighs investing in index funds versus keeping money in a money market account. He analyzes historical returns, considers his risk tolerance, and balances immediate liquidity needs with long-term growth potential. After consulting with a financial advisor and reviewing his emergency fund, James decides on an allocation that reflects both financial stability and the opportunity cost of being too conservative.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Assessment: Evaluating potential threats\n- Expected Value: Estimating average outcomes under uncertainty"
-        }
-    if application_field == "healthcare_medical":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maya, a young professional, compares three health insurance plans using a decision matrix. She carefully weighs monthly premiums, provider network coverage, emergency care benefits, and prescription drug coverage. After researching each plan's reputation and reading customer reviews, Maya balances affordability with comprehensive coverage, ensuring both immediate health security and long-term financial stability for unexpected medical expenses.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Tolerance Profile: Measuring comfort with uncertainty"
-        }
-    if application_field == "education_learning":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Daniel debates pursuing a master's degree versus earning industry certifications. He compares tuition costs, time commitments, and potential career impact for each option. After researching salary data and consulting with professionals in his field, Daniel weighs the long-term credibility of a degree against the faster skill acquisition of certifications, ultimately choosing the option best aligned with his career goals and financial constraints.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Opportunity Cost: Value of the next-best alternative\n- Strategic Framing: Structuring the decision problem clearly"
-        }
-    if application_field == "relocation":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Emily and her partner consider relocating to a new city for career opportunities. They conduct thorough research on job markets, cost of living differences, and quality of life factors in both locations. Their scenario analysis reveals better career growth potential in the new city but significantly less family support and higher living costs. They must carefully balance immediate quality of life considerations with long-term career and financial prospects.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Scenario Planning: Preparing for multiple futures\n- Stakeholder Alignment: Balancing the interests of key people"
-        }
-    if application_field == "leadership":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Mark, a team leader, notices rising conflict between two departments over resource allocation and project priorities. He facilitates structured dialogue sessions, balances empathy with clear authority, and establishes transparent communication channels. His systematic approach not only resolves the immediate conflict but also restores trust and collaboration while strengthening the long-term team culture and preventing similar issues.",
-            'Follow-up Prompts': ["- What factors might drive this conflict?", "- How can you balance empathy with authority?"],
-            'Concepts/Tools': "- Stakeholder Alignment: Ensuring balanced interests\n- Leadership Assessment: Evaluating leadership effectiveness"
-        }
-    if application_field == "ethics":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Jordan, a nonprofit director, faces mounting pressure to take a public stance on a controversial social issue that directly impacts her organization's mission. She carefully weighs mission alignment, stakeholder trust, donor relationships, and long-term organizational reputation. After consulting with board members and legal counsel, Jordan crafts a values-driven but diplomatically balanced statement that protects the organization's integrity while maintaining credibility with all stakeholders.",
-            'Follow-up Prompts': ["- How does this align with your values?", "- What are the risks of taking a public stance?"],
-            'Concepts/Tools': "- Strategic Framing: Clarifying objectives and risks\n- Value Creation: Generating benefits that exceed costs"
-        }
-    if application_field == "business_markets":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Michael, a business analyst, evaluates strategic options using a comprehensive decision framework. He analyzes market conditions, competitive dynamics, and resource constraints to identify the optimal path forward. By weighing short-term operational efficiency against long-term strategic positioning, Michael develops a balanced approach that maximizes value creation while managing risk exposure.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats\n- Decision Matrix: Structured evaluation of multiple criteria"
-        }
-    if application_field == "technology_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Carlos, a small business owner, considers adopting AI-powered customer support tools to improve efficiency and reduce response times. He carefully weighs the potential efficiency gains against employee training requirements, customer experience impacts, and implementation costs. After consulting with his team and researching similar implementations, Carlos's decision hinges on balancing the speed of technology adoption with his organization's readiness for change and ability to maintain service quality.",
-            'Follow-up Prompts': ["- What long-term benefits could technology bring?", "- What barriers might slow adoption?"],
-            'Concepts/Tools': "- Human-Computer Integration: Enhancing decisions with technology"
-        }
-    if application_field == "risk_crisis_resilience":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Lisa, a risk manager, evaluates potential threats to her organization's supply chain. She conducts a comprehensive risk assessment, identifying vulnerabilities in supplier relationships, geopolitical factors, and natural disaster scenarios. By developing contingency plans and monitoring early warning indicators, Lisa creates a resilient framework that balances risk mitigation costs with potential impact severity.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Assessment Matrix: Evaluating probability and impact\n- Scenario Planning: Preparing for multiple futures"
-        }
-    if application_field == "project_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "David, a project manager, faces competing stakeholder demands while managing a critical software development project. He uses work breakdown structures to identify dependencies, critical path analysis to optimize timelines, and stakeholder management techniques to align expectations. By balancing scope, time, and cost constraints, David delivers the project successfully while maintaining team morale and stakeholder satisfaction.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Critical Path Analysis: Identifying project bottlenecks\n- Stakeholder Management: Balancing competing interests"
-        }
-    if application_field == "sustainability_environment":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Emma, a sustainability director, navigates the complex trade-offs between environmental responsibility and business profitability. She evaluates carbon footprint reduction initiatives, assesses stakeholder expectations, and balances short-term costs with long-term brand value. By integrating ESG considerations into strategic decision-making, Emma creates value for both shareholders and society.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Triple Bottom Line: People, Planet, Profit\n- ESG Framework: Environmental, Social, Governance criteria"
-        }
-    if application_field == "innovation":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, an R&D manager, evaluates competing innovation projects with limited resources. He assesses market potential, technical feasibility, and strategic alignment for each option. By balancing breakthrough potential with implementation risk, Alex prioritizes projects that offer the best combination of innovation impact and organizational capability.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Innovation Portfolio: Balancing risk and reward\n- Stage-Gate Process: Systematic innovation evaluation"
-        }
-    if application_field == "human_capital":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Sarah, an HR director, develops a comprehensive talent strategy to address skill gaps and improve retention. She analyzes workforce demographics, identifies critical roles, and designs development programs that balance individual growth with organizational needs. By aligning human capital investments with business strategy, Sarah creates a sustainable competitive advantage.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Talent Pipeline: Building future capabilities\n- Succession Planning: Ensuring leadership continuity"
-        }
-    if application_field == "marketing":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Mike, a marketing director, evaluates customer acquisition strategies across multiple channels. He analyzes customer lifetime value, conversion rates, and brand positioning to optimize marketing spend. By balancing short-term sales targets with long-term brand building, Mike creates a sustainable competitive advantage in crowded markets.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Customer Lifetime Value: Long-term customer worth\n- Brand Positioning: Distinctive market position"
-        }
-    if application_field == "globalization":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maria, a global operations director, evaluates market entry strategies for emerging economies. She analyzes political risks, currency fluctuations, and cultural differences while assessing market potential and competitive dynamics. By balancing local adaptation with global scale, Maria creates sustainable competitive advantages in diverse markets.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- PESTEL Analysis: Political, Economic, Social, Technological, Environmental, Legal factors\n- Cultural Intelligence: Adapting to local contexts"
-        }
-    # General fallback - but try to infer context from the query
-    # For follow-up questions about trade-offs, objectives, etc., use strategic context
-    if any(word in query.lower() for word in ["trade-off", "trade-offs", "trade off", "trade offs", "objectives", "goals", "priorities", "options", "alternatives", "choices"]):
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "A strategic decision-maker systematically evaluates their options by creating a comprehensive framework. They identify key criteria, research alternatives thoroughly, and use analytical tools to compare trade-offs. After weighing both immediate impacts and long-term consequences, they make an informed choice that balances competing priorities and aligns with their strategic objectives.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, "strategic"),
-            'Concepts/Tools': "- Strategic Framing: Structuring the decision problem clearly\n- Trade-off Analysis: Comparing competing priorities systematically"
-        }
-    else:
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Someone facing a complex decision creates a systematic framework to evaluate their options. They list their priorities, research available alternatives, and use structured tools to compare trade-offs. After considering both immediate consequences and long-term implications, they make a well-informed choice that balances multiple competing factors and aligns with their core values.",
-            'Follow-up Prompts': ["- What are your main objectives?", "- What trade-offs exist between your options?"],
-            'Concepts/Tools': "- Decision Matrix: Comparing alternatives systematically\n- Pros and Cons List: Evaluating positives and negatives"
-        }
+# Legacy context_aware_fallbacks removed - not used in one-call system
 
 def generate_course_domain_strategic_lens(query: str, course_domain: str, application_field: str = None) -> str:
     """Generate strategic lens based on course domain and application field."""
@@ -2204,39 +1891,7 @@ def generate_domain_aware_fallback_questions(query: str, domain: str) -> list:
     
     return questions
 
-def extract_sections_from_response(answer: str) -> dict:
-    """
-    Extract individual sections from a ThinkPal response.
-    
-    Args:
-        answer: Complete ThinkPal response
-        
-    Returns:
-        Dictionary with section names as keys and content as values
-    """
-    sections = {}
-    
-    # Extract Strategic Thinking Lens
-    lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if lens_match:
-        sections['lens'] = lens_match.group(1).strip()
-    
-    # Extract Story in Action
-    story_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if story_match:
-        sections['story'] = story_match.group(1).strip()
-    
-    # Extract Follow-up Prompts
-    prompts_match = re.search(r'\*\*Follow-up Prompts\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if prompts_match:
-        sections['prompts'] = prompts_match.group(1).strip()
-    
-    # Extract Concepts/Tools
-    concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if concepts_match:
-        sections['concepts'] = concepts_match.group(1).strip()
-    
-    return sections
+# Legacy extract_sections_from_response removed - not used in one-call system
 
 def analyze_query_context(query_lower):
     """Analyze the semantic context of a query to identify decision-making scenarios."""
@@ -3050,84 +2705,9 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
             "model": "error"
         }
 
-def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
-    """Ensure the answer follows ThinkPal structure with all required sections."""
-    
-    # Check if answer has at least 1 of the 4 required sections (very lenient)
-    sections_found = 0
-    if re.search(r'\*\*Strategic Thinking Lens\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    
-    # If GPT generated at least 1 section, keep the answer and just add missing sections
-    if sections_found >= 1:
-        # Extract existing sections from GPT's response
-        existing_sections = {}
-        
-        # Extract Strategic Thinking Lens
-        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if lens_match:
-            existing_sections['Strategic Thinking Lens'] = lens_match.group(0).replace('**Strategic Thinking Lens**', '').strip()
-        
-        # Extract Story in Action
-        story_match = re.search(r'\*\*Story in Action\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if story_match:
-            existing_sections['Story in Action'] = story_match.group(0).replace('**Story in Action**', '').strip()
-        
-        # Extract Follow-up Prompts
-        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if prompts_match:
-            existing_sections['Follow-up Prompts'] = prompts_match.group(0).replace('**Follow-up Prompts**', '').strip()
-        
-        # Extract Concepts/Tools
-        concepts_match = re.search(r'\*\*Concepts/Tools\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if concepts_match:
-            existing_sections['Concepts/Tools'] = concepts_match.group(0).replace('**Concepts/Tools**', '').strip()
-        
-        # Generate fallback content only for missing sections
-        fallback_content = context_aware_fallbacks(query)
-        
-        # Use GPT's sections when available, fallback only for missing ones
-        final_content = {}
-        final_content['Strategic Thinking Lens'] = existing_sections.get('Strategic Thinking Lens', fallback_content['Strategic Thinking Lens'])
-        final_content['Story in Action'] = existing_sections.get('Story in Action', fallback_content['Story in Action'])
-        final_content['Follow-up Prompts'] = existing_sections.get('Follow-up Prompts', fallback_content['Follow-up Prompts'])
-        final_content['Concepts/Tools'] = existing_sections.get('Concepts/Tools', fallback_content['Concepts/Tools'])
-        
-        return format_fallback_response(final_content)
-    
-    # Only use complete fallback if GPT generated 0 sections (complete failure)
-    # GPT generated 0 sections, using complete fallback
-    fallback_content = context_aware_fallbacks(query)
-    return format_fallback_response(fallback_content)
+# Legacy enforce_thinkpal_structure removed - not used in one-call system
 
-def format_fallback_response(fallback_content: dict) -> str:
-    """Format fallback content into proper ThinkPal structure."""
-    sections = []
-    
-    if 'Strategic Thinking Lens' in fallback_content:
-        sections.append(f"**Strategic Thinking Lens**\n\n{fallback_content['Strategic Thinking Lens']}")
-    
-    if 'Story in Action' in fallback_content:
-        sections.append(f"**Story in Action**\n\n{fallback_content['Story in Action']}")
-    
-    if 'Follow-up Prompts' in fallback_content:
-        prompts = fallback_content['Follow-up Prompts']
-        if isinstance(prompts, list):
-            prompts_text = '\n'.join(prompts)
-        else:
-            prompts_text = prompts
-        sections.append(f"**Follow-up Prompts**\n\n{prompts_text}")
-    
-    if 'Concepts/Tools' in fallback_content:
-        sections.append(f"**Concepts/Tools**\n\n{fallback_content['Concepts/Tools']}")
-    
-    return '\n\n'.join(sections)
+# Legacy format_fallback_response removed - not used in one-call system
 
 def detect_domain_semantic(query: str) -> dict:
     """
