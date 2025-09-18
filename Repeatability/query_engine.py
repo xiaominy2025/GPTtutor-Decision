@@ -1363,11 +1363,11 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
         # Multi-domain lens: 2 from primary + 1 from each additional domain
         domain_list = list(filtered_concepts_by_domain.keys())
         if primary_domain in domain_list:
-            # Primary domain: up to 2 concepts
+        # Primary domain: up to 2 concepts
             primary_concepts = filtered_concepts_by_domain[primary_domain]
-            selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
-            
-            # Additional domains: 1 concept each
+        selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
+        
+        # Additional domains: 1 concept each
             for domain in domain_list:
                 if domain != primary_domain:
                     domain_concepts = filtered_concepts_by_domain[domain]
@@ -1377,8 +1377,8 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
             # Fallback if primary domain not in filtered results
             for domain in domain_list:
                 domain_concepts = filtered_concepts_by_domain[domain]
-                if domain_concepts:
-                    selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+            if domain_concepts:
+                selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
     
     # V1666.6 HARD CAP: 4 total concepts maximum
     selected_concepts = selected_concepts[:4]
@@ -2374,7 +2374,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Load course glossary directly
         with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
             glossary_to_use = json.load(f)
-
+        
         # Build normalized phrase index: concept names + aliases → canonical concept
         def _normalize_text(s: str) -> str:
             return re.sub(r"\s+", " ", s.lower().replace('-', ' ').replace('_', ' ')).strip()
@@ -2561,7 +2561,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                         filtered_concept_scores.append((concept_name, definition, score))
                 else:
                     if score >= 0.45:
-                        filtered_concept_scores.append((concept_name, definition, score))
+                filtered_concept_scores.append((concept_name, definition, score))
 
         # Additional conservative rule: avoid mapping single-word query "framing" to "framing bias"
         q_tokens = query_norm.split()
@@ -2588,7 +2588,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Check if we need fallback concepts (should be disabled)
         if len(concepts) < 2:
             pass  # Fallback is disabled
-
+        
         # Prepare domains for one-call generation
         domain_items = sorted(selected_domains.items(), key=lambda x: x[1], reverse=True)
         primary_domains_list = [domain_items[0][0]] if domain_items else ["general"]

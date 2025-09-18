@@ -111,7 +111,7 @@ def health_check():
     """Health check endpoint"""
     return jsonify({
         "status": "healthy",
-        "version": "1.6.6.6",
+        "version": "V1.6.6.6",
         "engine_ready": True
     })
 
@@ -184,6 +184,8 @@ def process_query():
             "status": "success",
             "data": {
                 "answer": answer,
+                "strategicThinkingLens": strategic_thinking_lens,
+                "followUpPrompts": follow_up_prompts,
                 "query": query,
                 "course_id": DEFAULT_COURSE,  # Always return "decision" for compatibility
                 "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
