@@ -45,12 +45,14 @@ def pick_origin(event):
     return origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
 
 def create_response(data, status="success", status_code=200, event=None):
-    """Standardized response wrapper for all endpoints"""
+    """Standardized response wrapper for all endpoints (Function URL adds CORS)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+
     return {
         "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json"
-        },
+        "headers": headers,
         "body": json.dumps({
             "data": data,
             "status": status,
@@ -59,8 +61,40 @@ def create_response(data, status="success", status_code=200, event=None):
         })
     }
 
-def handle_options(event):
-    """Handle OPTIONS preflight requests with robust CORS headers"""
+def create_rejection_response(message: str, event=None):
+    """Memo-compliant rejection response (no data envelope, no CORS headers)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+    return {
+        "statusCode": 200,
+        "headers": headers,
+        "body": json.dumps({
+            "status": "rejected",
+            "message": message,
+            "version": "V1.6.6.6",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        })
+    }
+
+def create_error_response(message: str, status_code: int = 500, event=None):
+    """Memo-compliant error response (no data envelope, no CORS headers)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+    return {
+        "statusCode": status_code,
+        "headers": headers,
+        "body": json.dumps({
+            "status": "error",
+            "error": message,
+            "version": "V1.6.6.6",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        })
+    }
+
+def get_cors_headers(event):
+    """Get CORS headers for the given event"""
     headers = event.get("headers") or {}
     origin = headers.get("origin") or headers.get("Origin")
     
@@ -68,13 +102,19 @@ def handle_options(event):
     cors_origin = origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
     
     return {
+        "Access-Control-Allow-Origin": cors_origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400",
+        "Vary": "Origin"
+    }
+
+def handle_options(event):
+    """Handle OPTIONS (Function URL normally handles CORS automatically)."""
+    return {
         "statusCode": 200,
         "headers": {
-            "Access-Control-Allow-Origin": cors_origin,
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "86400",
-            "Vary": "Origin"
+            "Content-Type": "application/json"
         },
         "body": ""
     }
@@ -88,18 +128,19 @@ DEFAULT_COURSE = "decision"
 
 # Note: Removed duplicate functions - now using authoritative query_engine methods
 
+
+
+
+
 def process_query_v166_fixed(query: str) -> dict:
     """
     V1.6.6: Fixed Query Processing - Uses authoritative query_engine.process_query_structured()
     Eliminates double work by using structured data instead of re-parsing GPT response.
     """
     try:
-        # Check if query_engine is available
         if not hasattr(query_engine, 'process_query_structured'):
             raise Exception("query_engine.process_query_structured method not available")
         
-        # V1.6.6: Use the authoritative query_engine.process_query_structured() method
-        # This eliminates the need to re-parse GPT response and ensures 100% consistency
         start_time = time.time()
         try:
             structured_response = query_engine.process_query_structured(query)
@@ -108,38 +149,47 @@ def process_query_v166_fixed(query: str) -> dict:
             raise qe
             
         processing_time = time.time() - start_time
-        
-        # Add processing time to the structured response
         structured_response["processing_time"] = processing_time
-        
-        # Check if query was rejected by relevance filter
+
+        # ✅ Normalize followUpPrompts to always be a list of strings
+        def normalize_prompts(prompts):
+            if prompts is None:
+                return []
+            if isinstance(prompts, list):
+                return [str(p).strip() for p in prompts if str(p).strip()]
+            if isinstance(prompts, str):
+                return [prompts.strip()] if prompts.strip() else []
+            return []
+
+        # Accept both camelCase and lowercase-u for safety
+        prompts = (
+            structured_response.get("followUpPrompts") or
+            structured_response.get("followupPrompts") or
+            []
+        )
+        structured_response["followUpPrompts"] = normalize_prompts(prompts)
+
         if isinstance(structured_response.get("answer", ""), str) and structured_response["answer"].startswith("⚠️ This question doesn't appear to be related to the course"):
             return {
                 "answer": structured_response["answer"],
                 "strategicThinkingLens": structured_response["answer"],
-                "followUpPrompts": "",
+                "followUpPrompts": [],
                 "conceptsToolsPractice": [],
                 "model": "relevance_filter",
-                "processing_time": processing_time
+                "processing_time": processing_time,
+                "status": "rejected"
             }
         
-        # V1.6.6: Return the authoritative structured response directly
-        # No more re-parsing of GPT response - query-engine is the source of truth
         return structured_response
         
     except Exception as e:
         traceback.print_exc()
-        
-        # Fallback response
-        fallback_answer = f"I understand you're asking about: {query}\n\nThis appears to be a decision-making question that would benefit from systematic analysis. Consider using frameworks like decision trees, SWOT analysis, or scenario planning to evaluate your options thoroughly."
         return {
-            "answer": fallback_answer,
-            "strategicThinkingLens": fallback_answer,
-            "followUpPrompts": "",
-            "conceptsToolsPractice": [],
-            "model": "fallback",
-            "processing_time": 0.0
+            "status": "error",
+            "error_details": str(e),
+            "message": "Something went wrong. Please try again."
         }
+
 
 def lambda_handler(event, context):
     """
@@ -173,7 +223,15 @@ def lambda_handler(event, context):
                 return handle_options(event)
             
             if http_method == 'GET' and path == '/health':
-                return create_response({"status": "healthy"}, event=event)
+                # Wrap in standard envelope per frontend memo
+                return create_response(
+                    {
+                        "status": "healthy",
+                        "version": "V1.6.6.6",
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                    },
+                    event=event
+                )
                 
             elif http_method == 'GET' and path == '/debug/files':
                     # Debug endpoint to check file access
@@ -207,7 +265,10 @@ def lambda_handler(event, context):
                     return create_response(debug_info, event=event)
                 
             elif http_method == 'GET' and path == '/courses':
-                return create_response({"courses": ["decision","marketing","strategy"]}, event=event)
+                return create_response({
+                    "courses": ["decision","marketing","strategy"],
+                    "default_course": DEFAULT_COURSE
+                }, event=event)
                 
             elif http_method == 'GET' and path.startswith('/api/course/'):
                 # Extract course ID from path
@@ -242,14 +303,27 @@ def lambda_handler(event, context):
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
-                    return create_response(
-                        {"error": f"Query processing failed: {str(e)}"}, 
-                        status="error", 
+                    return create_error_response(
+                        f"Query processing failed: {str(e)}",
                         status_code=500,
                         event=event
                     )
                 
-                return create_response(response_data, event=event)
+                # Propagate top-level status per memo (success/rejected/error)
+                outer_status = "success"
+                if isinstance(response_data, dict):
+                    resp_status = response_data.get("status")
+                    if resp_status in ("rejected", "error"):
+                        outer_status = resp_status
+                if outer_status == "rejected":
+                    # Use memo-compliant rejection (no data envelope)
+                    rejection_message = response_data.get("answer") or response_data.get("message") or "This question appears to be outside the scope."
+                    return create_rejection_response(rejection_message, event=event)
+                if outer_status == "error":
+                    # Use memo-compliant error (no data envelope)
+                    error_message = response_data.get("error_details") or response_data.get("message") or "Internal server error."
+                    return create_error_response(error_message, status_code=500, event=event)
+                return create_response(response_data, status=outer_status, event=event)
                 
             else:
                 # Unknown endpoint

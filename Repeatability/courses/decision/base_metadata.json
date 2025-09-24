@@ -1154,15 +1154,6 @@
         "gain loss"
       ]
     },
-    "solver-based simulation": {
-      "definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty",
-      "core": true,
-      "aliases": [
-        "solver simulation",
-        "algorithmic optimization",
-        "computational optimization"
-      ]
-    },
     "confirmation bias": {
       "definition": "Favoring evidence that supports existing beliefs",
       "core": true,
@@ -1643,9 +1634,6 @@
     "prospect": "prospect theory",
     "loss aversion": "prospect theory",
     "gain loss": "prospect theory",
-    "solver simulation": "solver-based simulation",
-    "algorithmic optimization": "solver-based simulation",
-    "computational optimization": "solver-based simulation",
     "selective evidence bias": "confirmation bias",
     "favor confirming information": "confirmation bias",
     "seek confirming evidence": "confirmation bias",

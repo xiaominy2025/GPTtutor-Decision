@@ -9,9 +9,22 @@ import time
 import os
 import json
 from pathlib import Path
+from datetime import datetime
 
 # Import the correct query engine with V1.6 implementation
 import query_engine
+
+def create_response(data, status="success", status_code=200):
+    """Create standardized response format matching frontend memo specifications"""
+    return (
+        jsonify({
+            "data": data,
+            "status": status,
+            "version": "V1.6.6.6",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }),
+        status_code
+    )
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for frontend integration
@@ -109,26 +122,17 @@ def load_course_config(course_id: str) -> dict:
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
-    return jsonify({
-        "status": "healthy",
-        "version": "V1.6.6.6",
-        "engine_ready": True
-    })
+    return create_response({"status": "healthy"})
 
 
 @app.route('/query', methods=['POST'])
 def process_query():
     """Process a query and return structured response"""
-    # Process query request
-    
     try:
         data = request.get_json()
 
         if not data or 'query' not in data:
-            return jsonify({
-                "success": False,
-                "error": "Query is required"
-            }), 400
+            return create_response({"error": "Query is required"}, status="error", status_code=400)
 
         query = data['query']
         user_id = data.get('user_id')
@@ -149,18 +153,20 @@ def process_query():
         
         # Check if query was rejected by relevance filter
         if isinstance(answer, str) and answer.startswith("⚠️ This question doesn't appear to be related to the course"):
-            return jsonify({
-                "status": "rejected",
-                "message": answer,
-                "data": {
-                    "query": query,
-                    "course_id": DEFAULT_COURSE,
-                    "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "model": "gpt-3.5-turbo",
-                    "processing_time": 0.1,  # Quick rejection
-                    "conceptsToolsPractice": []
-                }
-            })
+            return create_response({
+                "query": query,
+                "course_id": DEFAULT_COURSE,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "model": "gpt-3.5-turbo",
+                "processing_time": 0.1,  # Quick rejection
+                "conceptsToolsPractice": []
+            }, status="rejected")
+
+        # Ensure followUpPrompts is always a list of strings
+        if isinstance(follow_up_prompts, str):
+            follow_up_prompts = [follow_up_prompts] if follow_up_prompts.strip() else []
+        elif not isinstance(follow_up_prompts, list):
+            follow_up_prompts = []
 
         # --- VALIDATION BLOCK: Ensure conceptsToolsPractice is always a list of {term, definition} objects ---
         def is_valid_concept(obj):
@@ -179,31 +185,25 @@ def process_query():
             concepts_tools_practice = fixed
         # --- END VALIDATION BLOCK ---
 
-        # Format V1.6 API response
-        response = {
-            "status": "success",
-            "data": {
-                "answer": answer,
-                "strategicThinkingLens": strategic_thinking_lens,
-                "followUpPrompts": follow_up_prompts,
-                "query": query,
-                "course_id": DEFAULT_COURSE,  # Always return "decision" for compatibility
-                "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "model": "gpt-3.5-turbo",
-                "processing_time": 2.3,  # Placeholder timing
-                "conceptsToolsPractice": concepts_tools_practice,
-                "applicationField": application_field
-            }
+        # Build response_data with required fields only
+        response_data = {
+            "answer": answer,
+            "strategicThinkingLens": strategic_thinking_lens,
+            "followUpPrompts": follow_up_prompts,
+            "conceptsToolsPractice": concepts_tools_practice,
+            "query": query,
+            "course_id": DEFAULT_COURSE,  # Always return "decision" for compatibility
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "model": "gpt-3.5-turbo",
+            "processing_time": 2.3,  # Placeholder timing
+            "applicationField": application_field
         }
 
-        return jsonify(response)
+        return create_response(response_data)
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({
-            "success": False,
-            "error": f"Internal server error: {str(e)}"
-        }), 500
+        return create_response({"error": f"Internal server error: {str(e)}"}, status="error", status_code=500)
 
 
 @app.route('/courses', methods=['GET'])
@@ -223,18 +223,12 @@ def list_courses():
                         "has_sections_config": os.path.exists(os.path.join(course_path, "sections_config.json"))
                     })
         
-        return jsonify({
-            "success": True,
-            "data": {
-                "courses": courses,
-                "default_course": DEFAULT_COURSE
-            }
+        return create_response({
+            "courses": courses,
+            "default_course": DEFAULT_COURSE
         })
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Failed to list courses: {str(e)}"
-        }), 500
+        return create_response({"error": f"Failed to list courses: {str(e)}"}, status="error", status_code=500)
 
 
 @app.route('/courses/<course_id>/config', methods=['GET'])
@@ -242,15 +236,9 @@ def get_course_config(course_id):
     """Get course configuration"""
     try:
         config = load_course_config(course_id)
-        return jsonify({
-            "success": True,
-            "data": config
-        })
+        return create_response(config)
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Failed to load course config: {str(e)}"
-        }), 500
+        return create_response({"error": f"Failed to load course config: {str(e)}"}, status="error", status_code=500)
 
 
 @app.route('/api/course/<course_id>', methods=['GET'])
@@ -274,13 +262,13 @@ def get_course_metadata(course_id):
         with open(os.path.join(base_path, 'glossary.json'), 'r', encoding='utf-8') as f:
             glossary = json.load(f)
 
-        return jsonify({
+        return create_response({
             "course_id": course_id,
             "metadata": metadata,
             "glossary": glossary
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return create_response({"error": str(e)}, status="error", status_code=500)
 
 
 
@@ -296,15 +284,9 @@ def get_stats():
             "quality_scores": [],
             "cost_estimate": 0.0
         }
-        return jsonify({
-            "success": True,
-            "data": stats
-        })
+        return create_response(stats)
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Failed to get stats: {str(e)}"
-        }), 500
+        return create_response({"error": f"Failed to get stats: {str(e)}"}, status="error", status_code=500)
 
 
 @app.route('/profile', methods=['GET', 'PUT'])
@@ -321,30 +303,18 @@ def user_profile():
                     "focus_area": "general"
                 }
             }
-            return jsonify({
-                "success": True,
-                "data": profile
-            })
+            return create_response(profile)
         else:
             # PUT request to update profile
             data = request.get_json()
             if not data:
-                return jsonify({
-                    "success": False,
-                    "error": "Profile data is required"
-                }), 400
+                return create_response({"error": "Profile data is required"}, status="error", status_code=400)
 
             # For now, just acknowledge the update
-            return jsonify({
-                "success": True,
-                "message": "Profile updated successfully"
-            })
+            return create_response({"message": "Profile updated successfully"})
 
     except Exception as e:
-        return jsonify({
-            "success": False,
-            "error": f"Profile operation failed: {str(e)}"
-        }), 500
+        return create_response({"error": f"Profile operation failed: {str(e)}"}, status="error", status_code=500)
 
 
 if __name__ == '__main__':

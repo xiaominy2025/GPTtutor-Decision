@@ -248,7 +248,6 @@ ANALYTICAL_TOOLS = [
     ("Monte Carlo Simulation", "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty."),
     ("Scenario Analysis", "A method that explores different hypothetical futures (e.g., best-case, worst-case) to support strategic decision planning."),
     ("Sensitivity Analysis", "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions."),
-    ("Solver-based Simulation", "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty."),
     ("Linear Optimization", "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints."),
     ("Decision Tree", "A visual tool that maps out options, chance events, and outcomes to support structured decision-making under uncertainty."),
     ("Utility Functions", "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis."),
@@ -308,7 +307,6 @@ CONCEPT_GLOSSARY = {
     "semi-quantitative forecast": {"definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions", "core": False, "aliases": ['semi quantitative', 'mixed forecasting', 'qualitative quantitative']},
     "profitability analysis": {"definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses", "core": True, "aliases": ['profitability', 'earnings analysis', 'financial performance']},
     "prospect theory": {"definition": "Shows how people often value avoiding losses more than achieving gains", "core": True, "aliases": ['prospect', 'loss aversion', 'gain loss']},
-    "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ['solver simulation', 'algorithmic optimization', 'computational optimization']},
     "confirmation bias": {"definition": "Favoring evidence that supports existing beliefs", "core": True, "aliases": ['selective evidence bias', 'favor confirming information', 'seek confirming evidence', 'ignore contradicting', 'favor existing beliefs', 'confirm beliefs', 'favor confirming']},
     "anchoring bias": {"definition": "Relying too heavily on initial information", "core": True, "aliases": ['initial value bias', 'rely on first information', 'first piece of information', 'anchor on initial', 'stick to first impression', 'initial reference point', 'first information']},
     "framing bias": {"definition": "Decisions influenced by whether information is presented positively or negatively", "core": True, "aliases": ['context framing', 'positive negative framing', 'presentation bias']},
@@ -360,7 +358,6 @@ CONCEPT_DOMAINS = {
     "expected value": "technical",
     "scenario analysis": "technical",
     "scenario planning": "technical",
-    "solver-based simulation": "technical",
     "regression": "technical",
     "moving average": "technical",
     "seasonal analysis": "technical",
@@ -430,9 +427,80 @@ def clear_concept_cache():
 # Clear cache on import to ensure fresh concept selection
 clear_concept_cache() 
 
+def fuzzy_domain_match(query_lower: str, keyword: str, threshold: float = 0.85) -> bool:
+    """
+    Sophisticated fuzzy matching for domain keywords that avoids opposite meanings.
+    
+    Args:
+        query_lower: Query in lowercase
+        keyword: Keyword to match
+        threshold: Similarity threshold (default 0.85)
+    
+    Returns:
+        True if keyword matches query with safeguards against opposite meanings
+    """
+    from difflib import SequenceMatcher
+    import re
+    
+    # First check for exact word boundary match (highest priority)
+    if re.search(rf'\b{re.escape(keyword)}\b', query_lower):
+        return True
+    
+    # Define opposite meaning pairs to avoid false matches
+    opposite_pairs = {
+        'certain': ['uncertain', 'uncertainty'],
+        'uncertain': ['certain', 'certainty'],
+        'certainty': ['uncertain', 'uncertainty'],
+        'uncertainty': ['certain', 'certainty'],
+        'optimize': ['compromise', 'degrade'],
+        'compromise': ['optimize', 'maximize'],
+        'maximize': ['minimize', 'reduce'],
+        'minimize': ['maximize', 'increase'],
+        'increase': ['decrease', 'reduce'],
+        'decrease': ['increase', 'maximize'],
+        'reduce': ['increase', 'maximize'],
+        'positive': ['negative', 'adverse'],
+        'negative': ['positive', 'favorable'],
+        'favorable': ['unfavorable', 'negative'],
+        'unfavorable': ['favorable', 'positive'],
+        'stable': ['volatile', 'unstable'],
+        'volatile': ['stable', 'steady'],
+        'unstable': ['stable', 'steady'],
+        'steady': ['volatile', 'unstable'],
+        'predictable': ['unpredictable', 'volatile'],
+        'unpredictable': ['predictable', 'stable'],
+        'reliable': ['unreliable', 'unstable'],
+        'unreliable': ['reliable', 'stable']
+    }
+    
+    # Check if keyword has opposite meanings
+    if keyword in opposite_pairs:
+        opposites = opposite_pairs[keyword]
+        for word in query_lower.split():
+            if word in opposites:
+                return False  # Avoid matching if opposite word is present
+    
+    # Fuzzy match with word boundary checking
+    words = query_lower.split()
+    for word in words:
+        # Skip very short words (likely to be false matches)
+        if len(word) < 3:
+            continue
+            
+        similarity = SequenceMatcher(None, keyword, word).ratio()
+        if similarity >= threshold:
+            # Additional check: ensure the matched word is not an opposite
+            if keyword in opposite_pairs:
+                opposites = opposite_pairs[keyword]
+                if word in opposites:
+                    continue  # Skip this match, try next word
+            return True
+    
+    return False
+
 def detect_course_concept_domains(query: str) -> dict:
     """
-    Detect multiple course concept domains of a query based on keyword analysis.
+    Detect multiple course concept domains of a query based on sophisticated keyword analysis.
     Returns: Dictionary with course concept domain names as keys and confidence scores as values.
     """
     query_lower = query.lower()
@@ -458,7 +526,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'negotiation-style', 'reputation', 'credibility', 'empathy', 'feedback', 'cohesion', 'identity', 
         'rivalry', 'hostility', 'compliance', 'disagreement', 'consensus', 'coordination', 
         'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan', 'decision-making-process', 'decision making process', 'systematic-process', 'systematic process',
-        'systematic decision', 'decision making', 'decision-making', 'process', 'systematic'
+        'systematic decision', 'decision making', 'decision-making', 'process'
     ]
     
     behavioral_keywords_weak = [
@@ -466,23 +534,23 @@ def detect_course_concept_domains(query: str) -> dict:
         'mood', 'impulsive', 'misperception', 'misunderstanding', 'overconfidence'
     ]
     
-    # Apply weighted scoring for behavioral keywords
+    # Apply weighted scoring for behavioral keywords with sophisticated fuzzy matching
     for keyword in behavioral_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['behavioral'] += 3
     
     for keyword in behavioral_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['behavioral'] += 2
     
     for keyword in behavioral_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['behavioral'] += 1
     
     # Technical/analytical indicators - Three-tier weighted system
     technical_keywords_strong = [
         'simulation', 'forecast', 'optimization', 'algorithm', 'mathematical', 'calculate', 'data', 
-        'statistical', 'uncertainty', 'probability', 'model', 'regression', 'correlation', 'variance', 
+        'statistical', 'uncertainty', 'uncertain', 'probability', 'model', 'regression', 'correlation', 'variance', 
         'distribution', 'equation', 'analytics', 'dataset', 'outlier', 'predictive', 'clustering', 
         'classification', 'Monte Carlo', 'machine-learning', 'artificial-intelligence', 'computation', 
         'quantitative', 'sampling', 'hypothesis', 'variable', 'predictor', 'coefficient', 'diagnostic', 
@@ -492,7 +560,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'decision-model', 'utility-function', 'solver', 'constraint', 'probability-distribution', 
         'algorithmic-decision', 'decision-support-system', 'optimization-engine', 'predictive-analytics', 
         'recommender-system', 'automation', 'machine-support', 'computer-assisted', 'model-driven-decision', 
-        'analytics-engine', 'systematic-decision-making'
+        'analytics-engine', 'systematic-decision-making', 'systematic'
     ]
     
     technical_keywords_modest = [
@@ -508,11 +576,11 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for technical keywords
     for keyword in technical_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['technical'] += 3
     
     for keyword in technical_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['technical'] += 2
     
     technical_keywords_weak = [
@@ -523,7 +591,7 @@ def detect_course_concept_domains(query: str) -> dict:
     ]
     
     for keyword in technical_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['technical'] += 1
     
     # Strategic indicators - Three-tier weighted system
@@ -537,7 +605,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'scaling', 'shareholder', 'stakeholder', 'profitability', 'pricing-strategy', 'supply-chain', 
         'distribution', 'partnership', 'long-term', 'investment-strategy', 'comparative-advantage', 'barrier', 
         'opportunity', 'threat', 'SWOT', 'PESTEL', 'game-theory', 'prisoner\'s-dilemma', 'Nash-equilibrium', 
-        'payoff-structure', 'cooperative-strategy', 'competitive-strategy', 'decision-making', 'decision making'
+        'payoff-structure', 'cooperative-strategy', 'competitive-strategy', 'decision-making', 'decision making', 'systematic'
     ]
     
     strategic_keywords_modest = [
@@ -557,15 +625,15 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for strategic keywords
     for keyword in strategic_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['strategic'] += 3
     
     for keyword in strategic_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['strategic'] += 2
     
     for keyword in strategic_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['strategic'] += 1
     
     # Negotiation indicators - Three-tier weighted system
@@ -592,15 +660,15 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for negotiation keywords
     for keyword in negotiation_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['negotiation'] += 3
     
     for keyword in negotiation_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['negotiation'] += 2
     
     for keyword in negotiation_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['negotiation'] += 1
     
 
@@ -759,6 +827,13 @@ def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossa
                 # Tier 5: Negotiation concepts for decision making
                 elif concept_name in ['batna', 'game theory', 'integrative negotiation']:
                     keyword_boost = 0.2
+            
+            # For uncertainty/risk queries, boost Monte Carlo simulation and related tools
+            if any(word in query_lower for word in ['uncertainty', 'risk', 'tariff', 'volatile', 'unpredictable', 'probability']):
+                if concept_name == 'monte carlo simulation':
+                    keyword_boost = 0.5  # Strong boost for uncertainty queries
+                elif concept_name in ['sensitivity analysis', 'scenario analysis', 'expected value', 'decision tree']:
+                    keyword_boost = 0.3  # Moderate boost for related uncertainty tools
             
             score += keyword_boost
             
@@ -1363,11 +1438,11 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
         # Multi-domain lens: 2 from primary + 1 from each additional domain
         domain_list = list(filtered_concepts_by_domain.keys())
         if primary_domain in domain_list:
-        # Primary domain: up to 2 concepts
+            # Primary domain: up to 2 concepts
             primary_concepts = filtered_concepts_by_domain[primary_domain]
-        selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
-        
-        # Additional domains: 1 concept each
+            selected_concepts = [(name, definition) for name, definition, score in primary_concepts[:2]]
+            
+            # Additional domains: 1 concept each
             for domain in domain_list:
                 if domain != primary_domain:
                     domain_concepts = filtered_concepts_by_domain[domain]
@@ -1377,8 +1452,9 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
             # Fallback if primary domain not in filtered results
             for domain in domain_list:
                 domain_concepts = filtered_concepts_by_domain[domain]
-            if domain_concepts:
-                selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+                if domain_concepts:
+                    selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+                    break  # Take first available domain
     
     # V1666.6 HARD CAP: 4 total concepts maximum
     selected_concepts = selected_concepts[:4]
@@ -2144,9 +2220,17 @@ def generate_answer_with_retry(user_prompt, base_prompt, require_behavioral=Fals
             elif attempt == 0 and should_retry:
                 # Add reinforcement for retry
                 system_prompt += """
+
 IMPORTANT: Expand further. Minimum 250 words required.
 Include a 6–8 sentence example (~100 words) woven naturally into the narrative.
-Avoid formulaic phrasing — vary your style and tone.
+
+CRITICAL: Maintain natural, conversational language. Avoid these mechanical patterns:
+- "When facing X, it's essential to Y"
+- "It is crucial to..."
+- "One effective strategy is..."
+- "Another valuable strategy is..."
+
+Write like you're talking to a friend, not a textbook. Use contractions and natural flow.
 """
                 continue  # Try retry
             else:
@@ -2215,8 +2299,29 @@ def generate_answer_one_call(user_query: str,
 
 Tone: genuine, practical, engaging, clear, and positive.  
 Write as if you are coaching a student in conversation, not giving a lecture.  
-Avoid repetitive phrasing — do not begin every answer with 'When facing...' or 'It is crucial to...'.  
-Vary your sentence structure, mix short and long sentences, and ask reflective questions.  
+
+CRITICAL: Write in natural, flowing language. Avoid these mechanical patterns:
+- "When facing X, it's essential to Y"
+- "It is crucial to..."
+- "One effective strategy is..."
+- "Another valuable strategy is..."
+- "In such instances, it's crucial to..."
+- "When planning X, it's essential to..."
+
+Instead, write conversationally like this:
+- "You're dealing with tariff uncertainty, which means..."
+- "Here's what I'd suggest based on what I've seen work..."
+- "Let me share a practical approach that might help..."
+- "The key is to stay flexible while..."
+- "I'd recommend starting with..."
+
+Write like you're talking to a friend, not writing a textbook. Use contractions, varied sentence structures, and natural flow.
+
+EXAMPLE OF WHAT TO AVOID:
+"When navigating production planning under tariff uncertainty, it's crucial to adopt a flexible approach. One effective strategy is scenario planning..."
+
+EXAMPLE OF NATURAL LANGUAGE:
+"You're dealing with tariff uncertainty, which can really throw a wrench in your production plans. Here's what I'd suggest - start by thinking through different scenarios that might play out. What if tariffs go up 25%? What if they stay the same? Having a plan for each situation will help you stay flexible..."
 
 Structure:
 - Write 2–3 paragraphs (minimum 220 words).
@@ -2507,6 +2612,17 @@ def process_query(query: str, course_config: dict = None) -> str:
             context_boost = 0.0
             query_lower = query.lower()
             
+            # For uncertainty queries, boost uncertainty-related tools with consistent scoring
+            # Use fuzzy matching for uncertainty-related keywords
+            uncertainty_keywords = ['uncertainty', 'uncertain', 'volatile', 'unpredictable', 'probability', 'probabilistic', 'unpredict', 'unpredicting']
+            has_uncertainty = any(word in query_lower for word in uncertainty_keywords)
+            
+            if has_uncertainty:
+                if concept_name in ['monte carlo simulation', 'decision tree', 'scenario analysis']:
+                    context_boost = 0.25  # Equal boost for primary uncertainty tools
+                elif concept_name in ['sensitivity analysis', 'expected value', 'utility functions']:
+                    context_boost = 0.2  # Moderate boost for secondary uncertainty tools
+            
             # Boost concepts related to evaluation/decision-making when query mentions evaluation
             if 'evaluation' in query_lower or 'evaluate' in query_lower:
                 if concept_name in ['value creation', 'cost-benefit analysis', 'expected value']:
@@ -2561,7 +2677,7 @@ def process_query(query: str, course_config: dict = None) -> str:
                         filtered_concept_scores.append((concept_name, definition, score))
                 else:
                     if score >= 0.45:
-                filtered_concept_scores.append((concept_name, definition, score))
+                        filtered_concept_scores.append((concept_name, definition, score))
 
         # Additional conservative rule: avoid mapping single-word query "framing" to "framing bias"
         q_tokens = query_norm.split()
@@ -2648,36 +2764,33 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
             application_field = "general"  # Safe default
         
         # Get the full answer and authoritative concepts from process_query
-        process_result = process_query(query, course_config)
+        process_result_str = process_query(query, course_config)
         
-        # Extract the answer and concepts from the result
-        answer = process_result["answer"]
-        concepts = process_result["concepts"]
-        selected_domains = process_result["selected_domains"]
-        primary_domain = process_result["primary_domain"]
+        # Parse the JSON string returned by process_query
+        try:
+            process_result = json.loads(process_result_str)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse process_query result: {e}")
+        
+        # Extract the structured data from process_query result
+        # process_query returns: {"strategicLens": "...", "followupPrompts": [...], "conceptsToolsPractice": [...]}
+        strategic_lens = process_result.get("strategicLens", "")
+        followup_prompts = process_result.get("followupPrompts", [])
+        concepts_tools_practice = process_result.get("conceptsToolsPractice", [])
+        
+        # For backward compatibility, create answer from strategicLens
+        answer = strategic_lens
         
         
         # Extract structured data that Lambda function needs
-        # 1. Strategic Thinking Lens
-        strategic_thinking_lens = ""
-        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-        if lens_match:
-            strategic_thinking_lens = lens_match.group(1).strip()
+        # 1. Strategic Thinking Lens (already extracted above)
+        strategic_thinking_lens = strategic_lens
         
-        # 2. Follow-up Prompts
-        follow_up_prompts = ""
-        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-        if prompts_match:
-            follow_up_prompts = prompts_match.group(1).strip()
+        # 2. Follow-up Prompts (already extracted above)
+        # follow_up_prompts is already set from process_result.get("followupPrompts", [])
         
-        # 3. Concepts/Tools - ALWAYS use authoritative concepts from query-engine (IGNORE GPT output)
-        concepts_tools_practice = []
-        # Use the authoritative concepts from process_query, not from GPT parsing
-        for concept_name, definition in concepts:
-            concepts_tools_practice.append({
-                "term": concept_name,
-                "definition": definition
-            })
+        # 3. Concepts/Tools (already extracted above)
+        # concepts_tools_practice is already set from process_result.get("conceptsToolsPractice", [])
         
         # Application field already extracted from process_query
         
@@ -2688,21 +2801,30 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
         return {
             "answer": answer,
             "strategicThinkingLens": strategic_thinking_lens,
-            "followUpPrompts": follow_up_prompts,
+            "followUpPrompts": followup_prompts,
             "conceptsToolsPractice": concepts_tools_practice,
             "applicationField": application_field,
             "model": "gpt-3.5-turbo"
         }
         
     except Exception as e:
-        # Error in process_query_structured - returning fallback response
+        # Error in process_query_structured - returning fallback response with error details
+        import traceback
+        error_details = str(e)
+        traceback_str = traceback.format_exc()
+        
+        # Log the error for debugging
+        print(f"ERROR in process_query_structured: {error_details}")
+        print(f"Traceback: {traceback_str}")
+        
         return {
-            "answer": "I apologize, but I encountered an error processing your query. Please try again.",
+            "answer": f"I apologize, but I encountered an error processing your query: {error_details}. Please try again.",
             "strategicThinkingLens": "",
-            "followUpPrompts": "",
+            "followUpPrompts": [],
             "conceptsToolsPractice": [],
             "applicationField": "general",
-            "model": "error"
+            "model": "error",
+            "error_details": error_details
         }
 
 # Legacy enforce_thinkpal_structure removed - not used in one-call system

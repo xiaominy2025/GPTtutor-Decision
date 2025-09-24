@@ -1,0 +1,634 @@
+{
+  "strategic framing": {
+    "definition": "Structuring the decision problem to clarify objectives and alternatives",
+    "core": true,
+    "aliases": [
+      "strategic analysis",
+      "problem framing",
+      "decision framing"
+    ]
+  },
+  "stakeholder alignment": {
+    "definition": "Ensuring all parties' interests are considered and balanced",
+    "core": true,
+    "aliases": [
+      "stakeholder management",
+      "stakeholder engagement",
+      "alignment"
+    ]
+  },
+  "risk assessment": {
+    "definition": "Systematic evaluation of potential threats and their impact on decision outcomes",
+    "core": true,
+    "aliases": [
+      "risk evaluation",
+      "risk analysis",
+      "threat assessment"
+    ]
+  },
+  "scenario planning": {
+    "definition": "Exploring different future possibilities to prepare for uncertainty",
+    "core": true,
+    "aliases": [
+      "scenario analysis",
+      "future planning",
+      "uncertainty planning"
+    ]
+  },
+  "scenario analysis": {
+    "definition": "A modeling approach that explores different future possibilities and outcomes to prepare for uncertainty in decision-making",
+    "core": true,
+    "aliases": [
+      "scenario planning",
+      "model uncertainty",
+      "uncertainty modeling"
+    ]
+  },
+  "contingency planning": {
+    "definition": "Developing backup strategies to prepare for uncertainty",
+    "core": false,
+    "aliases": [
+      "backup planning",
+      "emergency planning",
+      "fallback strategies"
+    ]
+  },
+  "cost-benefit analysis": {
+    "definition": "Comparing the advantages and disadvantages of different options",
+    "core": true,
+    "aliases": [
+      "cost benefit",
+      "compare alternatives",
+      "trade-off analysis",
+      "benefit cost analysis"
+    ]
+  },
+  "decision tree": {
+    "definition": "A visual tool that maps out different options and their potential outcomes",
+    "core": true,
+    "aliases": [
+      "decision mapping",
+      "option tree",
+      "outcome mapping"
+    ]
+  },
+  "swot analysis": {
+    "definition": "A framework that helps identify strengths, weaknesses, opportunities, and threats",
+    "core": true,
+    "aliases": [
+      "swot",
+      "strengths weaknesses",
+      "opportunities threats"
+    ]
+  },
+  "monte carlo simulation": {
+    "definition": "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty",
+    "core": true,
+    "aliases": [
+      "monte carlo",
+      "simulation modeling",
+      "probabilistic modeling"
+    ]
+  },
+  "sensitivity analysis": {
+    "definition": "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions",
+    "core": true,
+    "aliases": [
+      "what-if analysis",
+      "parameter analysis",
+      "impact analysis"
+    ]
+  },
+  "expected value": {
+    "definition": "A calculation that combines possible outcomes and their probabilities to determine the average result of uncertain scenarios",
+    "core": true,
+    "aliases": [
+      "ev",
+      "expected outcome",
+      "probability-weighted outcome"
+    ]
+  },
+  "bounded rationality": {
+    "definition": "The recognition that good decisions don't require perfect information",
+    "core": true,
+    "aliases": [
+      "limited rationality",
+      "satisficing",
+      "cognitive limits"
+    ]
+  },
+  "cognitive behaviors": {
+    "definition": "Patterns of thinking and perception that influence decision-making, often studied to improve judgment and reduce bias",
+    "core": true,
+    "aliases": [
+      "cognitive patterns",
+      "thinking patterns",
+      "mental models"
+    ]
+  },
+  "judgment intuitive bias": {
+    "definition": "Systematic errors in thinking that affect decisions and judgments, often unconsciously",
+    "core": true,
+    "aliases": [
+      "cognitive bias",
+      "judgment bias",
+      "intuitive errors"
+    ]
+  },
+  "negotiation strategy": {
+    "definition": "A systematic approach to achieving favorable outcomes in discussions and agreements",
+    "core": true,
+    "aliases": [
+      "negotiation planning",
+      "deal strategy",
+      "bargaining approach"
+    ]
+  },
+  "batna": {
+    "definition": "Best Alternative To a Negotiated Agreement - your fallback option if negotiations fail",
+    "core": true,
+    "aliases": [
+      "best alternative",
+      "fallback option",
+      "walk-away point"
+    ]
+  },
+  "reservation point": {
+    "definition": "The minimum acceptable outcome in a negotiation",
+    "core": true,
+    "aliases": [
+      "minimum acceptable",
+      "bottom line"
+    ]
+  },
+  "zopa": {
+    "definition": "Zone of Possible Agreement - the range where both parties can reach a mutually acceptable deal",
+    "core": true,
+    "aliases": [
+      "zone of agreement",
+      "mutual agreement range",
+      "overlapping interests"
+    ]
+  },
+  "competitive advantage analysis": {
+    "definition": "A strategic evaluation of factors that allow an organization to outperform its competitors",
+    "core": true,
+    "aliases": [
+      "competitive advantage",
+      "advantage analysis"
+    ]
+  },
+  "value chain analysis": {
+    "definition": "A process of analyzing the activities that add value to a product or service from conception to delivery",
+    "core": true,
+    "aliases": [
+      "value chain",
+      "chain analysis",
+      "value analysis",
+      "activity-based analysis",
+      "value creation activities",
+      "value activities",
+      "chain of activities"
+    ]
+  },
+  "investigative negotiation": {
+    "definition": "A negotiation approach that focuses on uncovering underlying interests and information to create mutually beneficial outcomes",
+    "core": true,
+    "aliases": [
+      "investigative",
+      "interest-based negotiation",
+      "information gathering",
+      "uncover interests",
+      "underlying interests",
+      "investigative negotiation"
+    ]
+  },
+  "seasonal analysis": {
+    "definition": "A forecasting method that identifies and models repeating patterns or cycles in time series data",
+    "core": false,
+    "aliases": [
+      "seasonal patterns",
+      "seasonality",
+      "cyclical analysis",
+      "repeating patterns",
+      "cycles",
+      "seasonal forecasting",
+      "cyclical patterns",
+      "seasonal"
+    ]
+  },
+  "regression": {
+    "definition": "A statistical technique for estimating relationships among variables and predicting future values based on historical data",
+    "core": true,
+    "aliases": [
+      "regression analysis",
+      "statistical regression",
+      "prediction model",
+      "forecast",
+      "historical",
+      "trends",
+      "future values",
+      "predict based on history",
+      "statistical prediction",
+      "forecasting"
+    ]
+  },
+  "moving average": {
+    "definition": "A method that smooths time series data by averaging values over a specified number of periods to identify trends",
+    "core": false,
+    "aliases": [
+      "moving averages",
+      "trend smoothing",
+      "time series smoothing"
+    ]
+  },
+  "semi-quantitative forecast": {
+    "definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions",
+    "core": false,
+    "aliases": [
+      "semi quantitative",
+      "mixed forecasting",
+      "qualitative quantitative"
+    ]
+  },
+  "profitability analysis": {
+    "definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses",
+    "core": true,
+    "aliases": [
+      "profitability",
+      "earnings analysis",
+      "financial performance"
+    ]
+  },
+  "prospect theory": {
+    "definition": "Shows how people often value avoiding losses more than achieving gains",
+    "core": true,
+    "aliases": [
+      "prospect",
+      "loss aversion",
+      "gain loss"
+    ]
+  },
+  "solver-based simulation": {
+    "definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty",
+    "core": true,
+    "aliases": [
+      "solver simulation",
+      "algorithmic optimization",
+      "computational optimization"
+    ]
+  },
+  "confirmation bias": {
+    "definition": "Favoring evidence that supports existing beliefs",
+    "core": true,
+    "aliases": [
+      "selective evidence bias",
+      "favor confirming information",
+      "seek confirming evidence",
+      "ignore contradicting",
+      "favor existing beliefs",
+      "confirm beliefs",
+      "favor confirming"
+    ]
+  },
+  "anchoring bias": {
+    "definition": "Relying too heavily on initial information",
+    "core": true,
+    "aliases": [
+      "initial value bias",
+      "rely on first information",
+      "first piece of information",
+      "anchor on initial",
+      "stick to first impression",
+      "initial reference point",
+      "first information"
+    ]
+  },
+  "framing bias": {
+    "definition": "Decisions shaped by how options are presented",
+    "core": true,
+    "aliases": [
+      "context framing"
+    ]
+  },
+  "representative heuristic": {
+    "definition": "Judging probability based on similarity",
+    "core": true,
+    "aliases": [
+      "representativeness bias",
+      "judge by similarity",
+      "similar to past",
+      "based on similarity",
+      "judge probability by similarity"
+    ]
+  },
+  "endowment effect": {
+    "definition": "Valuing owned items higher than market value",
+    "core": true,
+    "aliases": [
+      "ownership bias",
+      "value own work higher",
+      "overvalue own",
+      "my work is worth more",
+      "value my creation higher",
+      "own work more valuable",
+      "personal attachment",
+      "value own"
+    ]
+  },
+  "status quo bias": {
+    "definition": "Preference for maintaining the current state",
+    "core": true,
+    "aliases": [
+      "resistance to change",
+      "status quo",
+      "maintaining current",
+      "not want to give up",
+      "reluctant to change",
+      "prefer current",
+      "refuse to change",
+      "stick with current",
+      "keep current",
+      "don't want to change",
+      "prefer existing",
+      "stick to current"
+    ]
+  },
+  "escalation of commitment": {
+    "definition": "Continuing investment in failing endeavors",
+    "core": true,
+    "aliases": [
+      "sunk cost fallacy",
+      "legacy project",
+      "continuing investment",
+      "failing project",
+      "persistent investment",
+      "keep investing",
+      "already spent",
+      "time investment",
+      "continue despite failure",
+      "invest more in failing",
+      "keep going despite problems",
+      "legacy"
+    ]
+  },
+  "mental accounting": {
+    "definition": "Treating money differently depending on its source",
+    "core": true,
+    "aliases": [
+      "psychological budgeting"
+    ]
+  },
+  "game theory": {
+    "definition": "Strategic analysis of competitive interactions",
+    "core": true,
+    "aliases": [
+      "strategic games",
+      "payoff analysis",
+      "competitive interactions",
+      "competitive strategy",
+      "strategic thinking",
+      "strategic interactions",
+      "game theory"
+    ]
+  },
+  "winner's curse": {
+    "definition": "Overpaying or overcommitting in competitive bidding",
+    "core": true,
+    "aliases": [
+      "overpaying",
+      "competitive bidding",
+      "overcommitting",
+      "bidding war",
+      "auction",
+      "competitive situation",
+      "overbid",
+      "competitive overpayment",
+      "winner's curse"
+    ]
+  },
+  "integrative negotiation": {
+    "definition": "Win-win bargaining through value creation",
+    "core": true,
+    "aliases": [
+      "collaborative negotiation",
+      "win-win bargaining",
+      "value creation",
+      "mutual benefits",
+      "win-win solutions",
+      "create value",
+      "collaborative approach",
+      "mutual gains",
+      "win-win"
+    ]
+  },
+  "distributive negotiation": {
+    "definition": "Zero-sum bargaining where one's gain is another's loss",
+    "core": false,
+    "aliases": []
+  },
+  "porter's five forces": {
+    "definition": "Framework for analyzing industry competitiveness",
+    "core": true,
+    "aliases": [
+      "five forces analysis",
+      "competitive",
+      "industry",
+      "competitiveness",
+      "industry analysis",
+      "competitive forces",
+      "industry structure",
+      "competitive analysis",
+      "five forces"
+    ]
+  },
+  "cost leadership": {
+    "definition": "Achieving competitive edge by offering the lowest cost",
+    "core": true,
+    "aliases": [
+      "low-cost strategy",
+      "competitive edge",
+      "lowest cost",
+      "cost advantage",
+      "price leadership",
+      "low cost advantage",
+      "cost competitive",
+      "lowest price strategy",
+      "low cost"
+    ]
+  },
+  "differentiation strategy": {
+    "definition": "Gaining advantage by offering unique features valued by customers",
+    "core": true,
+    "aliases": [
+      "uniqueness strategy",
+      "unique features",
+      "differentiate",
+      "product differentiation",
+      "unique value",
+      "stand out",
+      "distinctive features",
+      "differentiation"
+    ]
+  },
+  "portfolio management": {
+    "definition": "Balancing business units and investments",
+    "core": true,
+    "aliases": [
+      "strategic portfolio management",
+      "business units",
+      "balance portfolio",
+      "investment portfolio",
+      "manage portfolio",
+      "portfolio balance",
+      "business unit management",
+      "portfolio"
+    ]
+  },
+  "qualitative forecasting": {
+    "definition": "Judgment-based prediction methods",
+    "core": true,
+    "aliases": []
+  },
+  "regression forecasting": {
+    "definition": "Using statistical models for long-term predictions",
+    "core": true,
+    "aliases": []
+  },
+  "seasonal forecasting": {
+    "definition": "Accounting for repeating seasonal patterns",
+    "core": true,
+    "aliases": [
+      "seasonality modeling"
+    ]
+  },
+  "integer optimization": {
+    "definition": "Solving LP problems with discrete choices",
+    "core": true,
+    "aliases": [
+      "discrete optimization",
+      "integer programming",
+      "discrete choices",
+      "whole number optimization",
+      "discrete variables",
+      "integer variables",
+      "discrete decision making",
+      "discrete"
+    ]
+  },
+  "aggregate planning": {
+    "definition": "Balancing supply and demand through optimization",
+    "core": true,
+    "aliases": [
+      "demand-driven optimization",
+      "balance supply demand",
+      "supply demand",
+      "aggregate planning",
+      "demand planning",
+      "supply planning"
+    ]
+  },
+  "analytical solver": {
+    "definition": "Tool for implementing optimization models",
+    "core": true,
+    "aliases": [
+      "solver add-on",
+      "optimization tool",
+      "solver tool",
+      "analytical solver"
+    ]
+  },
+  "integrated optimization & simulation": {
+    "definition": "Combining LP and simulation for robust planning",
+    "core": false,
+    "aliases": []
+  },
+  "automated simulation models": {
+    "definition": "Tools that streamline repetitive decision simulations",
+    "core": false,
+    "aliases": []
+  },
+  "supply chain": {
+    "definition": "The network of organizations, people, activities, information, and resources involved in moving a product or service from supplier to customer",
+    "core": true,
+    "aliases": [
+      "supply network",
+      "logistics network",
+      "procurement network",
+      "distribution network"
+    ]
+  },
+  "risk management": {
+    "definition": "The process of identifying, assessing, and controlling threats to an organization's capital and earnings",
+    "core": true,
+    "aliases": [
+      "risk assessment",
+      "risk control",
+      "threat management",
+      "risk mitigation"
+    ]
+  },
+  "utility functions": {
+    "definition": "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis",
+    "core": true,
+    "aliases": [
+      "utility",
+      "preference functions",
+      "value functions"
+    ]
+  },
+  "linear optimization": {
+    "definition": "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints",
+    "core": true,
+    "aliases": [
+      "linear programming",
+      "optimization",
+      "mathematical programming"
+    ]
+  },
+  "value creation": {
+    "definition": "The process of generating benefits that exceed the costs for stakeholders in a decision or transaction",
+    "core": true,
+    "aliases": [
+      "value generation",
+      "benefit creation",
+      "stakeholder value"
+    ]
+  },
+  "risk tolerance assessment": {
+    "definition": "An evaluation of an individual's or organization's willingness to accept risk in pursuit of objectives",
+    "core": true,
+    "aliases": [
+      "risk appetite",
+      "risk preference",
+      "risk capacity"
+    ]
+  },
+  "leadership assessment": {
+    "definition": "A systematic evaluation of leadership skills, styles, and effectiveness in decision-making contexts",
+    "core": true,
+    "aliases": [
+      "leadership evaluation",
+      "management assessment",
+      "leadership style"
+    ]
+  },
+  "human-computer integration": {
+    "definition": "The collaboration between humans and computer systems to enhance decision-making and problem-solving capabilities",
+    "core": true,
+    "aliases": [
+      "human-ai collaboration",
+      "augmented decision-making",
+      "human-machine partnership"
+    ]
+  },
+  "negotiation term sheet": {
+    "definition": "A document outlining the key terms and conditions of a negotiation or agreement before final contracts are drafted",
+    "core": true,
+    "aliases": [
+      "term sheet",
+      "agreement outline",
+      "deal terms"
+    ]
+  }
+}
