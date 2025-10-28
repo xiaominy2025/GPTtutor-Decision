@@ -17,6 +17,36 @@ os.environ['FLASK_DEBUG'] = 'False'
 os.environ['OPENAI_TEMPERATURE'] = '0.3'
 os.environ['OPENAI_MODEL'] = 'gpt-3.5-turbo'
 
+# CORS Configuration for Lambda Function URLs
+PROD_ALLOWED_ORIGINS = {
+    "https://engentlabs.com",
+    "https://www.engentlabs.com", 
+    "https://d1y6s1joavl0j7.cloudfront.net"
+}
+DEFAULT_ORIGIN = "https://engentlabs.com"
+
+def pick_origin(event):
+    """Pick the appropriate origin based on the request"""
+    try:
+        headers = event.get("headers", {})
+        origin = headers.get("origin") or headers.get("Origin")
+        if origin in PROD_ALLOWED_ORIGINS:
+            return origin
+    except Exception:
+        pass
+    return DEFAULT_ORIGIN
+
+def cors_headers(event):
+    """Generate CORS headers based on the request"""
+    origin = pick_origin(event)
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS,PUT",
+        "Access-Control-Allow-Headers": "Content-Type,Authorization,Origin",
+        "Access-Control-Max-Age": "86400",
+        "Content-Type": "application/json"
+    }
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
@@ -116,10 +146,27 @@ def get_glossary():
 
 def lambda_handler(event, context):
     try:
-        http_method = event.get('httpMethod', 'GET')
-        path = event.get('path', '/')
-        body = event.get('body', '')
-        query_params = event.get('queryStringParameters', {}) or {}
+        # Handle Lambda Function URL events (different structure)
+        if 'requestContext' in event and 'http' in event.get('requestContext', {}):
+            # Function URL event format
+            http_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+            path = event.get('rawPath', '/')
+            body = event.get('body', '')
+            query_params = event.get('queryStringParameters', {}) or {}
+        else:
+            # Direct Lambda invocation format
+            http_method = event.get('httpMethod', 'GET')
+            path = event.get('path', '/')
+            body = event.get('body', '')
+            query_params = event.get('queryStringParameters', {}) or {}
+        
+        # Handle OPTIONS preflight requests
+        if http_method == 'OPTIONS':
+            return {
+                "statusCode": 200,
+                "headers": cors_headers(event),
+                "body": ""
+            }
         
         if isinstance(body, str) and body:
             try:
@@ -128,9 +175,7 @@ def lambda_handler(event, context):
                 body = {}
         
         with app.test_client() as client:
-            if http_method == 'OPTIONS':
-                response = client.options(path)
-            elif http_method == 'GET':
+            if http_method == 'GET':
                 response = client.get(path, query_string=query_params)
             elif http_method == 'POST':
                 response = client.post(path, json=body, query_string=query_params)
@@ -139,23 +184,13 @@ def lambda_handler(event, context):
             else:
                 return {
                     'statusCode': 405,
-                    'headers': {
-                        'Content-Type': 'application/json',
-                        'Access-Control-Allow-Origin': '*',
-                        'Access-Control-Allow-Headers': 'Content-Type,Authorization,Origin',
-                        'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT'
-                    },
+                    'headers': cors_headers(event),
                     'body': json.dumps({"error": "Method not allowed"})
                 }
             
             return {
                 'statusCode': response.status_code,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'Access-Control-Allow-Origin': '*',
-                    'Access-Control-Allow-Headers': 'Content-Type,Authorization,Origin',
-                    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS,PUT'
-                },
+                'headers': cors_headers(event),
                 'body': response.get_data(as_text=True)
             }
             
@@ -163,10 +198,7 @@ def lambda_handler(event, context):
         print(f"Lambda handler error: {e}")
         return {
             'statusCode': 500,
-            'headers': {
-                'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*'
-            },
+            'headers': cors_headers(event),
             'body': json.dumps({"error": "Internal server error", "message": str(e)})
         }
 
