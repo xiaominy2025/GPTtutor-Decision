@@ -19,6 +19,41 @@ import faiss
 # OpenAI embeddings instead of sentence-transformers for Lambda compatibility
 from pathlib import Path
 
+# --- Lightweight diversity memory (per warm container) ---
+RECENT_EXAMPLES_LRU: list[tuple[str, str]] = []  # (entity, year)
+
+
+# Tunable configuration for concept–lens alignment (one-call engine)
+CONFIG_V167B = {
+    'SHORTLIST_K': 6,
+    'ENABLE_LENS_DERIVED_FOLLOWUPS': True,
+    'RECENT_EXAMPLES_MAX': 20,
+    'RECENT_EXAMPLES_AVOID_WINDOW': 5,
+    'ALWAYS_ENHANCE_LENS': True,
+    'PRIMARY_ATTEMPTS': 3,
+    'CONTENT_DENSITY_MIN': 0.45,
+}
+
+PLACEHOLDER_PHRASES = {
+    "company x",
+    "company y",
+    "company z",
+    "company a",
+    "company b",
+    "organization x",
+    "organization y",
+    "organization z",
+    "a buyer",
+    "the buyer",
+    "a marketing professional",
+    "a marketing executive",
+    "a mid-level manager",
+    "a retail company",
+    "a car manufacturer",
+    "a car dealership",
+    "an employee",
+}
+
 def cosine_similarity(vec1, vec2):
     """
     Calculate cosine similarity between two vectors
@@ -316,7 +351,7 @@ CONCEPT_GLOSSARY = {
     "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ['sunk cost fallacy', 'legacy project', 'continuing investment', 'failing project', 'persistent investment', 'keep investing', 'already spent', 'time investment', 'continue despite failure', 'invest more in failing', 'keep going despite problems', 'legacy']},
     "mental accounting": {"definition": "Treating money and financial resources differently based on their source or context", "core": True, "aliases": ['psychological budgeting', 'money source bias', 'financial categorization']},
     "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ['strategic games', 'payoff analysis', 'competitive interactions', 'strategic analysis', 'competitive strategy', 'strategic thinking', 'competitive analysis', 'strategic interactions', 'game theory']},
-    "winner's curse": {"definition": "Originating in auction theory, it’s a bias where the ‘winner’ ends up worse off by overpaying, overcommitting, or misjudging the true value.", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', 'auction theory', 'auction theory bias', "winner's curse"]},
+    "winner's curse": {"definition": "Originating in auction theory, it's a bias where the 'winner' ends up worse off by overpaying, overcommitting, or misjudging the true value.", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', 'auction theory', 'auction theory bias', "winner's curse"]},
     "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ['collaborative negotiation', 'win-win bargaining', 'value creation', 'mutual benefits', 'win-win solutions', 'create value', 'collaborative approach', 'mutual gains', 'win-win']},
     "distributive negotiation": {"definition": "Zero-sum bargaining where one's gain is another's loss", "core": False, "aliases": []},
     "porter's five forces": {"definition": "Framework for analyzing industry competitiveness", "core": True, "aliases": ['five forces analysis', 'competitive', 'industry', 'competitiveness', 'industry analysis', 'competitive forces', 'industry structure', 'competitive analysis', 'five forces']},
@@ -2079,37 +2114,93 @@ def parse_gpt_output(raw_text, application_field, model, elapsed):
         if not text:
             return {"error": "Server issue, please try again later."}
 
-        lines = [ln.strip() for ln in text.splitlines()]
-
-        # 1) Collect candidate prompts by common patterns
-        prompts = []
-        prompt_indices = []  # starting indices in the raw text to help find lens boundary
+        prompts: list[str] = []
+        prompt_indices: list[int] = []
 
         bullet_pattern = re.compile(r'^[\-•\*]\s*(.+)')
         numbered_pattern = re.compile(r'^(?:\d+\.|\d+\))\s*(.+)')
         question_line_pattern = re.compile(r'^(.+\?)$')
+        interrogatives = {"how", "what", "why", "which", "where", "who", "when"}
 
-        offset = 0
-        for ln in lines:
-            m = bullet_pattern.match(ln) or numbered_pattern.match(ln) or question_line_pattern.match(ln)
-            if m:
-                candidate = m.group(1).strip()
-                # Ensure it looks like a question; append '?' if missing
-                if not candidate.endswith('?'):
-                    candidate = candidate + '?'
-                if len(candidate) >= 5:
-                    prompts.append(candidate)
-                    # Record index position in the original text for lens boundary
-                    idx = text.find(ln, offset)
-                    if idx != -1:
-                        prompt_indices.append(idx)
-            offset += len(ln) + 1  # +1 for newline
+        label_match = re.search(r"\bfollow[-\s]?up\b[^\n]*prompts?\b[:]?", text, re.IGNORECASE)
+        if label_match:
+            lens_text_raw = text[:label_match.start()].rstrip()
+            candidate_prompt_text = text[label_match.end():].strip()
+        else:
+            last_blank = text.rfind("\n\n")
+            if last_blank != -1:
+                lens_text_raw = text[:last_blank].rstrip()
+                candidate_prompt_text = text[last_blank + 2:].strip()
+            else:
+                lens_text_raw = text
+                candidate_prompt_text = ""
 
-        # 2) If still empty, extract question-like sentences from full text
+        candidate_lines = [ln.rstrip() for ln in candidate_prompt_text.splitlines()] if candidate_prompt_text else []
+        offset_base = text.find(candidate_prompt_text) if candidate_prompt_text else len(text)
+
+        for ln in candidate_lines:
+            stripped = ln.strip()
+            if not stripped:
+                offset_base += len(ln) + 1
+                continue
+            m = bullet_pattern.match(stripped) or numbered_pattern.match(stripped) or question_line_pattern.match(stripped)
+            if not m:
+                offset_base += len(ln) + 1
+                continue
+            candidate = m.group(1).strip() if m else stripped
+            if not candidate.endswith('?') or len(candidate) < 5:
+                offset_base += len(ln) + 1
+                continue
+            first_word = candidate.split()[0].lower()
+            if first_word not in interrogatives:
+                offset_base += len(ln) + 1
+                continue
+            prompts.append(candidate)
+            idx = text.find(stripped, offset_base)
+            if idx != -1:
+                prompt_indices.append(idx)
+            offset_base += len(ln) + 1
+
+        if not prompts and candidate_prompt_text:
+            filtered = []
+            for ln in candidate_lines:
+                s = ln.strip()
+                if not (s.endswith('?') and len(s) >= 5):
+                    continue
+                first_word = s.split()[0].lower() if s.split() else ""
+                if first_word in interrogatives:
+                    filtered.append(s)
+            if len(filtered) >= 2:
+                prompts.extend(filtered)
+
+        question_pattern = re.compile(r'(?:^|[\s"“"\'\-])((?:How|What|Why|Which|Who|Where|When)[^?]*\?)', re.IGNORECASE)
+
         if not prompts:
-            # Capture sentences ending with '?'
-            q_sentences = re.findall(r'([^\n\r\?]{5,}?\?)', text)
-            prompts = [qs.strip() for qs in q_sentences if len(qs.strip()) >= 5]
+            tail_text = candidate_prompt_text or text
+            matches = question_pattern.findall(tail_text)
+            prompts = [m.strip() for m in matches if m and len(m.strip()) >= 5]
+
+        # Normalize candidates: split concatenated questions and remove prefacing narration
+        normalized = []
+        seen = set()
+        for candidate in prompts:
+            matches = question_pattern.findall(candidate)
+            if matches:
+                for q in matches:
+                    cleaned = q.strip()
+                    if cleaned and cleaned.lower() not in seen:
+                        if not cleaned.endswith('?'):
+                            cleaned += '?'
+                        normalized.append(cleaned)
+                        seen.add(cleaned.lower())
+            else:
+                cleaned = candidate.strip()
+                if cleaned and cleaned.lower() not in seen:
+                    if not cleaned.endswith('?'):
+                        cleaned += '?'
+                    normalized.append(cleaned)
+                    seen.add(cleaned.lower())
+        prompts = normalized
 
         # 3) Normalize count to 2–4 when possible
         if len(prompts) >= 5:
@@ -2130,17 +2221,9 @@ def parse_gpt_output(raw_text, application_field, model, elapsed):
         # 4) Determine strategic lens boundary (before first prompt occurrence)
         if prompt_indices:
             lens_end = min(prompt_indices)
+            strategic_lens = text[:lens_end].strip()
         else:
-            # If we have prompts but no indices (from regex over sentences), cut before last paragraph of questions
-            if prompts:
-                # Try to locate the first prompt substring
-                first_prompt = prompts[0]
-                pos = text.find(first_prompt)
-                lens_end = pos if pos != -1 else len(text)
-            else:
-                lens_end = len(text)
-
-        strategic_lens = text[:lens_end].strip()
+            strategic_lens = lens_text_raw.strip()
 
         # Safety fallback: if lens accidentally empty but we have content, take first two paragraphs
         if not strategic_lens:
@@ -2297,41 +2380,16 @@ def generate_answer_one_call(user_query: str,
     # Build system prompt per specification
     system_prompt = """You are Engent Labs Decision-Making Tutor.
 
-Tone: genuine, practical, engaging, clear, and positive.  
-Write as if you are coaching a student in conversation, not giving a lecture.  
+Tone: genuine, practical, engaging, clear, and positive. Write as if you are coaching a colleague—no lecture voice.
 
-CRITICAL: Write in natural, flowing language. Avoid these mechanical patterns:
-- "When facing X, it's essential to Y"
-- "It is crucial to..."
-- "One effective strategy is..."
-- "Another valuable strategy is..."
-- "In such instances, it's crucial to..."
-- "When planning X, it's essential to..."
+CRITICAL: Use natural openings (not "When facing…", "It's crucial…", "One effective strategy…"). Vary sentence rhythm and keep phrasing grounded.
 
-Instead, write conversationally like this:
-- "You're dealing with tariff uncertainty, which means..."
-- "Here's what I'd suggest based on what I've seen work..."
-- "Let me share a practical approach that might help..."
-- "The key is to stay flexible while..."
-- "I'd recommend starting with..."
-
-Write like you're talking to a friend, not writing a textbook. Use contractions, varied sentence structures, and natural flow.
-
-EXAMPLE OF WHAT TO AVOID:
-"When navigating production planning under tariff uncertainty, it's crucial to adopt a flexible approach. One effective strategy is scenario planning..."
-
-EXAMPLE OF NATURAL LANGUAGE:
-"You're dealing with tariff uncertainty, which can really throw a wrench in your production plans. Here's what I'd suggest - start by thinking through different scenarios that might play out. What if tariffs go up 25%? What if they stay the same? Having a plan for each situation will help you stay flexible..."
-
-Structure:
-- Write 2–3 paragraphs (minimum 220 words).
-- Include one detailed, realistic example inside the narrative (6–8 sentences, ~100 words). Do not bolt it on separately — make it flow naturally.
-- End with 3–4 reflective follow-up questions, each on its own line starting with "-".
-
- Output requirements:
- - Generate ONLY the strategic explanation and follow-up questions. Do not output any concept list.
- - Use the provided course concepts as soft anchors ONLY if they genuinely fit the query context. Do not force them.
- - Do not output JSON. Write naturally as text."""
+Expectations:
+– Craft a cohesive mini-essay (about three paragraphs) blending reasoning, a real-world example, and a forward-looking insight.
+– The example must cite a publicly reported organization/person with a specific year and a concrete metric/action/outcome. No placeholders or hypothetical roles.
+– Do not include headings before the essay.
+– After the essay, insert a blank line, then the heading "Follow-up Prompts:". Provide 3–4 bullet questions on separate lines, each starting with "- " and beginning with How/What/Why/Which/Where/Who/When.
+– Keep each question ≤120 characters. Do not output JSON or additional sections."""
 
     # Use provided concepts (extracted by the main process_query function)
     if concepts is None:
@@ -2356,6 +2414,18 @@ Structure:
         if term:
             norm_concepts.append({"term": term, "definition": definition})
 
+    # Shortlist for prompt injection (keep prompt focused)
+    shortlist_k = CONFIG_V167B.get('SHORTLIST_K', 6)
+    shortlist = norm_concepts[:shortlist_k]
+
+    # Build a soft diversity hint from recent examples (avoid immediate repeats)
+    avoid_list = []
+    try:
+        window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 5)
+        avoid_list = RECENT_EXAMPLES_LRU[-window:]
+    except Exception:
+        avoid_list = []
+
     user_prompt = f"""
 Here is the query context:
 
@@ -2363,24 +2433,68 @@ Query: {user_query}
 Application field: {application_field}
 Primary domain(s): {primary_domains}
 Secondary domain(s): {secondary_domains}
-Here are relevant course concepts (glossary-extracted): {norm_concepts}
+Approved Glossary Shortlist (use ONLY if clearly relevant; exact spelling/definitions): {shortlist}
 
 Generate a natural language response with:
-- 2-3 paragraphs, 12-15 sentences total
-- Include one detailed, realistic example (6-8 sentences, ~100 words)
-- End with 3-4 reflective follow-up questions, each on its own line starting with "-"
+- Exactly 3 paragraphs in this order: (1) reasoning/trade-off, (2) one specific real-world example with concrete details (company/year/outcome), (3) strategic insight.
+- Keep the example organically integrated into the analysis (not a separate case block).
+- End with 3–4 short, question-form follow-ups, each on its own line starting with "-". Include two generalization questions that broaden from the example back to the core concept (transferability, conditions, thresholds) and one or two questions tied to the named example (actions, trade-offs, outcomes). All follow-up prompts must come directly from this answer; no downstream logic will supplement them.
 - Include behavioral insights if relevant
 
+Opening and flow refinements (keep natural tone, do not change length):
+- Begin by tying your reasoning explicitly to the user's query context (avoid boilerplate openers).
+- In the real-world passage, include 1–2 analytical details (a specific action, a trade-off, or a measurable outcome). Do not invent facts.
+- Use at least one connective phrase to bridge ideas (e.g., "Concretely…", "This illustrates…", "As a result…").
+- Conclude with a clear takeaway or limitation (the "so what", when it might not hold, or what to watch).
+
 Notes:
-- Use the listed concepts ONLY if they genuinely strengthen clarity; do not force them.
-- Do NOT output any concept list; only the explanation and follow-up questions.
+ - Choose at most 2–3 items from the Approved Glossary Shortlist ONLY if they are clearly evidenced in your answer (omit if weak).
+ - Do NOT output any concept list; only the explanation and follow-up questions.
+ - Use a specific, verifiable company/entity and year in the example; do not use placeholders (e.g., "XYZ", "Company A").
+ - Use a well-known, publicly reported example (company/organization/person + year). Avoid hypothetical or composite cases.
+ - Include one anchoring fact (e.g., named product/site/market) so the example feels concrete and verifiable.
+ - Do not include explicit source names or citations.
+ - If multiple suitable examples exist, avoid recently used pairs: {avoid_list}
+ - If a tool naturally arises in your reasoning, name it once (only if it truly adds clarity).
 """
 
     try:
         if openai is None:
             raise RuntimeError("OpenAI SDK not available")
         
-        parsed_output = generate_answer_with_retry(user_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+        parsed_output = None
+        placeholder_flags = {
+            "company x", "company y", "company a", "company b", "acme",
+            "sample company", "example company", "a buyer", "a manager",
+            "a marketing executive", "industry leader", "organization x",
+            "hypothetical", "fictional"
+        }
+
+        strict_hint = (
+            "\n\nSTRICT MODE: Use a well-documented example (e.g., Tesla's 2018 tariff response, Netflix's 2015 original "
+            "content expansion, Apple's 2019 services pivot, Toyota's 2011 supply-chain recovery, IBM's 2014 cloud "
+            "shift, Starbucks' 2016 Teavana decision) that fits the "
+            "query. Name the organization/person and the year explicitly, and include a concrete metric/outcome. "
+            "Do NOT use placeholders or generic labels."
+        )
+
+        for attempt in range(3):
+            this_prompt = user_prompt
+            if attempt > 0:
+                this_prompt += strict_hint
+
+            parsed_output = generate_answer_with_retry(this_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+            lens_txt = parsed_output.get("strategicThinkingLens", "") if isinstance(parsed_output, dict) else ""
+
+            ent, yr = _extract_entity_year(lens_txt)
+            has_placeholder = any(flag in lens_txt.lower() for flag in placeholder_flags)
+            recent_window = set(RECENT_EXAMPLES_LRU[-CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 5):])
+            is_recent = (ent, yr) in recent_window if ent and yr else False
+
+            if _validate_lens_quality(lens_txt) and not has_placeholder and not is_recent:
+                break
+            if attempt == 2:
+                print({"lens_placeholder_warning": lens_txt[:200]})
         
         if "error" in parsed_output:
             # Return best-effort parsed output if present
@@ -2389,9 +2503,40 @@ Notes:
             return parsed_output
 
         processing_time = round(time.time() - start_time, 2)
+        strategic_lens_out = parsed_output.get("strategicThinkingLens", "")
+        strategic_lens_out = _de_mechanize_lens(strategic_lens_out)
+        # V1.6.8: Conditional Lens enhancement (editor pass)
+        try:
+            if CONFIG_V167B.get('ALWAYS_ENHANCE_LENS', False):
+                enhanced, triggered, reverted, reasons = enhance_lens_if_needed(strategic_lens_out, user_query, force=True)
+            else:
+                enhanced, triggered, reverted, reasons = enhance_lens_if_needed(strategic_lens_out, user_query)
+            if triggered:
+                print(f"Lens enhancement triggered; reasons={reasons}; reverted={reverted}")
+            strategic_lens_out = enhanced
+        except Exception:
+            pass
+        # Update recent examples LRU
+        try:
+            ent, yr = _extract_entity_year(strategic_lens_out)
+            if ent and yr:
+                RECENT_EXAMPLES_LRU.append((ent, yr))
+                maxlen = CONFIG_V167B.get('RECENT_EXAMPLES_MAX', 20)
+                if len(RECENT_EXAMPLES_LRU) > maxlen:
+                    del RECENT_EXAMPLES_LRU[: len(RECENT_EXAMPLES_LRU) - maxlen]
+        except Exception:
+            pass
+        # Sanitize follow-up prompts: concise, question-form, up to 4
+        raw_fu = parsed_output.get("followUpPrompts", [])
+        followups_out = _sanitize_followups(raw_fu, example_hint="")
+        if len(followups_out) < 3:
+            print(f"[followups] supplementing prompts for query='{user_query[:80]}'")
+            followups_out = _supplement_followups(followups_out)
+        else:
+            followups_out = followups_out[:4]
         return {
-            "strategicThinkingLens": parsed_output.get("strategicThinkingLens", ""),
-            "followUpPrompts": parsed_output.get("followUpPrompts", []),
+            "strategicThinkingLens": strategic_lens_out,
+            "followUpPrompts": followups_out,
             "conceptsToolsPractice": norm_concepts,  # glossary-only
             "applicationField": application_field,
             "model": "gpt-3.5-turbo",
@@ -2426,6 +2571,289 @@ def run_query_once(query: str) -> str:
         return json.dumps(result, ensure_ascii=False)
     except Exception as e:
         return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
+
+def _de_mechanize_lens(text: str) -> str:
+    """Remove mechanical subtitles and labels, soften stock phrases.
+    - Remove 'Strategic Insight:'/'Insight:' and 'Reflective follow-up questions:' lines
+    - Replace common stock phrases with more natural alternatives
+    """
+    try:
+        # Remove common subtitle labels at paragraph starts
+        text = re.sub(r"(^|\n\n)\s*(Strategic\s+Insight|Insight|Key\s+Insight)\s*:\s*", r"\1", text, flags=re.IGNORECASE)
+        # Remove any explicit label preceding follow-ups if leaked into lens
+        text = re.sub(r"\n\s*Reflective follow-up questions:\s*\n?", "\n\n", text, flags=re.IGNORECASE)
+        # Soften stock phrases (non-destructive replacements)
+        replacements = {
+            "it's crucial to": "you can",
+            "it is crucial to": "you can",
+            "one effective strategy is": "one approach is",
+            "another valuable strategy is": "another approach is",
+            "in such instances": "in these situations",
+        }
+        for k, v in replacements.items():
+            text = re.sub(rf"\b{re.escape(k)}\b", v, text, flags=re.IGNORECASE)
+        return text
+    except Exception:
+        return text
+
+def _sanitize_followups(followups: list, example_hint: str = "") -> list:
+    """Normalize follow-ups to short, question-form items.
+    - Target max ~140 chars; avoid mid-word truncation by cutting at the last space/punctuation before the limit
+    - Prefer the first question-sentence if present; otherwise trim a single concise question ending with '?'
+    - Drop blanks/duplicates and cap at 4 items
+    """
+    cleaned = []
+    seen = set()
+    for item in followups or []:
+        if not isinstance(item, str):
+            continue
+        s = item.strip()
+        if not s:
+            continue
+        # Take up to the first question mark if present
+        qm_idx = s.find('?')
+        if qm_idx != -1:
+            s = s[:qm_idx+1]
+        # Trim excessive length gently to ~140 chars without cutting mid-word
+        MAX_LEN = 140
+        if len(s) > MAX_LEN:
+            candidate = s[:MAX_LEN]
+            # Prefer to cut at punctuation or space
+            cut_points = [candidate.rfind(ch) for ch in ['?', '.', '!', ';', ':', '—', '-', ',',' ']]
+            cut_at = max(cp for cp in cut_points)
+            if cut_at > 0:
+                s = candidate[:cut_at].rstrip()
+            else:
+                s = candidate.rstrip()
+        # Ensure ends with a question mark
+        if not s.endswith('?'):
+            s = s.rstrip('.').rstrip() + '?'
+        key = s.lower()
+        if key in seen:
+            continue
+        if s:
+            s = s[0].upper() + s[1:]
+        seen.add(key)
+        cleaned.append(s)
+        if len(cleaned) >= 4:
+            break
+    return cleaned
+
+def _supplement_followups(followups: list[str]) -> list[str]:
+    templates = [
+        "How would you apply this reasoning in your own context?",
+        "What conditions might change whether this approach works?",
+        "Which metrics or signals would you monitor to gauge success?",
+        "Where else could this insight deliver value if adapted?"
+    ]
+    idx = 0
+    while len(followups) < 3 and idx < len(templates):
+        followups.append(templates[idx])
+        idx += 1
+    return followups[:4]
+
+def _validate_lens_quality(text: str) -> bool:
+    """Lightweight validator for Lens quality: typically 2–3 paragraphs, includes a named entity, a year, and a numeric element."""
+    try:
+        paras = [p.strip() for p in (text or '').split('\n\n') if p.strip()]
+        # Prefer readability: about 3 paragraphs (allow 1–4)
+        if not (1 <= len(paras) <= 4):
+            return False
+        lens_lower = text.lower()
+        # Year pattern
+        has_year = re.search(r"\b(19|20)\d{2}\b", text) is not None
+        # Numeric element (generic number anywhere)
+        has_number = re.search(r"\d", text) is not None
+        # Company/entity heuristic (proper noun + Inc/Corp/Ltd or known brands)
+        has_company = bool(re.search(r"\b([A-Z][a-z]+\s(?:Inc|Corp|LLC|Ltd))\b", text)) or any(b in text for b in ["Tesla", "Apple", "Toyota", "Samsung", "GE", "Siemens", "Ford", "GM"])
+        return has_year and has_number and has_company
+    except Exception:
+        return False
+
+
+def _contains_placeholder_example(text: str) -> bool:
+    try:
+        lowered = (text or "").lower()
+        return any(phrase in lowered for phrase in PLACEHOLDER_PHRASES)
+    except Exception:
+        return False
+
+def _extract_entity_year(text: str) -> tuple[str, str]:
+    """Best-effort extraction of (entity, year) from lens text."""
+    entity = ""
+    year = ""
+    try:
+        m_year = re.search(r"\b(19|20)\d{2}\b", text)
+        if m_year:
+            year = m_year.group(0)
+        # Try proper noun + Inc/Corp/LLC/Ltd
+        m_ent = re.search(r"\b([A-Z][A-Za-z0-9&.'-]+\s(?:Inc|Corp|LLC|Ltd))\b", text)
+        if m_ent:
+            entity = m_ent.group(1)
+        else:
+            # fallback to known brands
+            brands = ["Tesla", "Apple", "Toyota", "Samsung", "GE", "Siemens", "Ford", "GM", "Coca-Cola", "McDonald's", "Unilever", "Nestlé", "Maersk", "UPS", "DHL"]
+            for b in brands:
+                if b in text:
+                    entity = b
+                    break
+    except Exception:
+        pass
+    return entity, year
+
+# ---------------- V1.6.8 Lens Enhancement (Second Call) ----------------
+
+LENS_TRANSITION_TOKENS = [
+    "concretely", "this illustrates", "stepping back", "as a result",
+    "in practice", "in turn", "against that backdrop", "building on this",
+    "looking ahead", "over time", "ultimately", "going forward", "in doing so"
+]
+
+LENS_INSIGHT_TOKENS = [
+    "so ", "therefore", "shows how", "reveals why", "lesson",
+    "what to watch", "implication", "in practice", "looking ahead",
+    "going forward", "one caution"
+]
+
+def _has_transition(text: str) -> bool:
+    tl = text.lower()
+    return any(tok in tl for tok in LENS_TRANSITION_TOKENS)
+
+def _has_closing_insight(text: str) -> bool:
+    tail = (text or "")[-600:].lower()
+    return any(tok in tail for tok in LENS_INSIGHT_TOKENS)
+
+def _is_generic_opening(text: str, query: str) -> bool:
+    try:
+        first = (text or "").strip().split("\n\n", 1)[0]
+        opener = first[:220].lower()
+        generic_patterns = ["when facing", "when it comes", "it's important to", "it's crucial to", "one effective", "in such instances"]
+        if any(p in opener for p in generic_patterns):
+            # Allow pass if query terms appear in opener
+            qt = query.lower().split()
+            if not any(qw in opener for qw in qt[:5]):
+                return True
+        return False
+    except Exception:
+        return False
+
+def _is_shallow_example(text: str) -> bool:
+    # Missing any hint of action/trade-off/outcome terms
+    tl = text.lower()
+    analytic = ["localiz", "dual", "postpon", "trade-off", "constraint", "cost", "lead time", "outcome", "shift", "diversif"]
+    return not any(tok in tl for tok in analytic)
+
+def _needs_enhancement(lens_text: str, query: str) -> list:
+    reasons = []
+    if _is_generic_opening(lens_text, query):
+        reasons.append("generic_opening")
+    if _is_shallow_example(lens_text):
+        reasons.append("shallow_example")
+    if not _has_transition(lens_text):
+        reasons.append("choppy_transition")
+    if not _has_closing_insight(lens_text):
+        reasons.append("missing_insight")
+    words = len((lens_text or "").split())
+    if words < 170:
+        reasons.append("too_short")
+    return reasons
+
+def _validate_enhanced_lens(text: str) -> bool:
+    if not text or len(text.strip()) < 60:
+        return False
+    # Entity/year and numeric element should remain
+    ent, yr = _extract_entity_year(text)
+    if not (ent and yr):
+        return False
+    if re.search(r"\d", text) is None:
+        return False
+    # Transitions and closure
+    if not _has_transition(text):
+        return False
+    if not _has_closing_insight(text):
+        return False
+    # Paragraphs: allow 2–4; reject bullets/labels
+    paras = [p for p in text.split("\n\n") if p.strip()]
+    if not (1 <= len(paras) <= 5):
+        return False
+    if re.search(r"^\s*[-*] ", text, flags=re.MULTILINE):
+        return False
+    if re.search(r"^\s*#+\s", text, flags=re.MULTILINE):
+        return False
+    if "Reflective" in text:
+        return False
+    return True
+
+def enhance_lens_if_needed(lens_text: str, query: str, force: bool = False) -> tuple[str, bool, bool, list]:
+    """Return (final_lens, triggered, reverted, reasons). Never raises."""
+    try:
+        reasons = _needs_enhancement(lens_text, query) if not force else ["forced"]
+        if not reasons and not force:
+            return lens_text, False, False, []
+        # Build editor prompts
+        system_prompt = (
+            "You are an editor improving clarity, pacing, and depth while preserving every idea, fact, entity, year, and metric. "
+            "Rewrite the lens as a short Harvard Business Review–style commentary: open with a confident situational hook, weave the example into the analysis, vary sentence rhythm, and finish with a forward-looking note. "
+            "Do not add citations or remove facts. Return only the rewritten Lens as plain text."
+        )
+        base_user_prompt = (
+            "Polish this Strategic Thinking Lens into a fluent mini-essay that sounds like advice shared among colleagues. "
+            "Preserve every fact and example, but feel free to reorder or rephrase sentences for flow. "
+            "Aim for a grounded, conversational voice with smooth transitions, and finish with a forward-looking takeaway that ties the example back to practical implications. "
+            "Return only the Lens as continuous prose (no labels, bullets, or citations).\n\n"
+            f"Query: {query}\n\nLens:\n{lens_text}"
+        )
+
+        banned_tokens = ["for example", "concretely", "it's", "it is"]
+
+        def _content_loss(candidate_text: str, original_text: str) -> bool:
+            ent_orig, yr_orig = _extract_entity_year(original_text)
+            ent_new, yr_new = _extract_entity_year(candidate_text)
+            if ent_orig and ent_new and ent_orig != ent_new:
+                return True
+            if yr_orig and yr_new and yr_orig != yr_new:
+                return True
+            if yr_orig and not yr_new:
+                return True
+            if ent_orig and not ent_new:
+                return True
+            return False
+
+        retry_reasons: list[str] = []
+        best_candidate = lens_text
+
+        for style_pass in range(2):
+            user_prompt = base_user_prompt
+            if style_pass == 1:
+                user_prompt += "\n\nAdjustment: Aim for an even more fluid tone and keep every factual detail intact."
+
+            enhanced = generate_answer_with_retry(user_prompt, system_prompt, False, [], "decision", time.time())
+            candidate = enhanced.get("strategicThinkingLens", "") if isinstance(enhanced, dict) else (enhanced if isinstance(enhanced, str) else "")
+
+            if candidate:
+                best_candidate = candidate
+
+            if _content_loss(candidate, lens_text):
+                retry_reasons.append("content_loss")
+                continue
+
+            if len(candidate.split()) < max(1, int(0.8 * len(lens_text.split()))):
+                retry_reasons.append("short_output")
+
+            if not _validate_enhanced_lens(candidate):
+                retry_reasons.append("style_check")
+
+            lowered = candidate.lower()
+            repeats = {tok: lowered.count(tok) for tok in banned_tokens if lowered.count(tok) > 1}
+            if repeats:
+                print({"style_warning": repeats})
+
+            return candidate, True, False, reasons or ["forced"]
+
+        print({"editor_retry_reasons": retry_reasons})
+        return best_candidate, True, False, reasons or ["forced"]
+    except Exception:
+        return lens_text, False, False, []
 
 def process_query(query: str, course_config: dict = None) -> str:
     """
@@ -3626,3 +4054,63 @@ if __name__ == "__main__":
             
     except KeyboardInterrupt:
         pass 
+
+def _title_case_term(term: str) -> str:
+    try:
+        return term.title()
+    except Exception:
+        return term
+
+def _reorder_and_titlecase_concepts(lens_text: str, concepts: list) -> list:
+    """Move lens-mentioned terms to front (substring match), preserve others, title-case terms for display."""
+    try:
+        lens_paras = [p.strip() for p in (lens_text or '').split('\n\n') if p.strip()]
+        lens_core = '\n'.join(lens_paras[:2]).lower()
+        mentioned, unmentioned = [], []
+        for item in concepts or []:
+            if not isinstance(item, dict):
+                continue
+            term = (item.get('term') or '')
+            definition = item.get('definition')
+            display_term = _title_case_term(term)
+            new_item = {"term": display_term, "definition": definition}
+            if term and term.lower() in lens_core:
+                mentioned.append(new_item)
+            else:
+                unmentioned.append(new_item)
+        return mentioned + unmentioned
+    except Exception:
+        out = []
+        for item in concepts or []:
+            if isinstance(item, dict):
+                out.append({"term": _title_case_term(item.get('term') or ''), "definition": item.get('definition')})
+        return out
+
+_DENSITY_STOPWORDS = {
+    "the", "a", "an", "and", "or", "but", "if", "then", "than", "so", "because",
+    "with", "without", "to", "for", "of", "in", "on", "at", "by", "from", "as",
+    "is", "are", "was", "were", "be", "been", "being", "that", "this", "these",
+    "those", "it", "its", "it's", "into", "about", "over", "under", "while", "when",
+    "where", "who", "whom", "which", "what", "why", "how", "also", "can", "may",
+    "might", "should", "would", "could", "will", "shall", "do", "does", "did", "have",
+    "has", "had", "your", "their", "our", "we", "you", "let", "let's"
+}
+
+
+def _content_density_ratio(text: str) -> float:
+    """Approximate information density via content-word ratio."""
+    tokens = re.findall(r"[A-Za-z0-9']+", text)
+    if not tokens:
+        return 0.0
+    content_tokens = 0
+    for tok in tokens:
+        lower = tok.lower()
+        if lower.isdigit():
+            content_tokens += 1
+            continue
+        if len(lower) <= 2:
+            continue
+        if lower in _DENSITY_STOPWORDS:
+            continue
+        content_tokens += 1
+    return content_tokens / len(tokens)
