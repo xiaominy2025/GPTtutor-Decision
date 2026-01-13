@@ -20,19 +20,116 @@ import faiss
 from pathlib import Path
 
 # --- Lightweight diversity memory (per warm container) ---
-RECENT_EXAMPLES_LRU: list[tuple[str, str]] = []  # (entity, year)
+RECENT_ENTITIES_LRU: list[str] = []  # Entity names only (normalized for avoidance)
+RECENT_EXAMPLES_LRU: list[tuple[str, str]] = []  # (entity, year) for reference/debug
+RECENT_CATEGORIES_LRU: list[str] = []  # Category names for diversity tracking
+ENTITY_DISPLAY_MAP: dict[str, str] = {}  # normalized entity -> display name (preserves casing)
 
 
 # Tunable configuration for concept–lens alignment (one-call engine)
 CONFIG_V167B = {
     'SHORTLIST_K': 6,
     'ENABLE_LENS_DERIVED_FOLLOWUPS': True,
-    'RECENT_EXAMPLES_MAX': 20,
-    'RECENT_EXAMPLES_AVOID_WINDOW': 5,
+    'RECENT_EXAMPLES_MAX': 25,  # Increased to support larger avoid window
+    'RECENT_EXAMPLES_AVOID_WINDOW': 8,  # Increased from 5 to 8 entities
     'ALWAYS_ENHANCE_LENS': True,
     'PRIMARY_ATTEMPTS': 3,
     'CONTENT_DENSITY_MIN': 0.45,
 }
+
+# Entities from strict_hint - single source of truth for extraction fallback
+STRICT_HINT_ENTITIES = [
+    # Technology
+    "Microsoft", "Google", "Meta", "Adobe", "Oracle", "Salesforce", "Intel", "NVIDIA",
+    # Manufacturing/Industrial
+    "Boeing", "Caterpillar", "3M", "Deere & Company", "Honeywell", "Ford", "GE",
+    # Healthcare/Pharma
+    "Johnson & Johnson", "Pfizer", "Merck", "Mayo Clinic", "Kaiser Permanente",
+    # Retail/Logistics
+    "Walmart", "Target", "Costco", "FedEx", "Zara",
+    # Energy/Utilities
+    "ExxonMobil", "Chevron", "NextEra Energy", "Enel",
+    # Public Sector
+    "NASA", "CDC", "USPS", "Federal Reserve",
+    # Education/Research/Nonprofit
+    "Harvard", "MIT", "Red Cross", "World Bank",
+    # Financial Services
+    "JPMorgan Chase", "Bank of America", "Visa", "Mastercard",
+    # Consumer Goods
+    "Procter & Gamble", "PepsiCo", "Nike", "L'Oréal"
+]
+
+# Normalized set for matching (created from STRICT_HINT_ENTITIES)
+STRICT_HINT_ENTITIES_NORM = set()
+
+# Alias map for multi-word entity canonicalization
+ALIASES_NORM = {
+    # Johnson & Johnson
+    "johnson": "Johnson & Johnson",
+    "j&j": "Johnson & Johnson",
+    "j and j": "Johnson & Johnson",
+    # Procter & Gamble
+    "procter": "Procter & Gamble",
+    "gamble": "Procter & Gamble",
+    "p&g": "Procter & Gamble",
+    "p and g": "Procter & Gamble",
+    # JPMorgan Chase
+    "jpmorgan": "JPMorgan Chase",
+    # L'Oréal
+    "loreal": "L'Oréal",
+    # Bank of America
+    "bofa": "Bank of America",
+    "boa": "Bank of America",
+}
+
+# Entity to category mapping
+ENTITY_TO_CATEGORY = {
+    # Technology
+    "microsoft": "Technology", "google": "Technology", "meta": "Technology", "facebook": "Technology",
+    "adobe": "Technology", "oracle": "Technology", "salesforce": "Technology", "intel": "Technology",
+    "nvidia": "Technology", "apple": "Technology", "tesla": "Technology", "ibm": "Technology",
+    "netflix": "Technology", "amazon": "Technology",
+    # Manufacturing/Industrial
+    "boeing": "Manufacturing", "caterpillar": "Manufacturing", "3m": "Manufacturing",
+    "deere": "Manufacturing", "honeywell": "Manufacturing", "ford": "Manufacturing", "ge": "Manufacturing",
+    "toyota": "Manufacturing", "gm": "Manufacturing", "samsung": "Manufacturing", "siemens": "Manufacturing",
+    # Healthcare/Pharma
+    "johnson": "Healthcare", "pfizer": "Healthcare", "merck": "Healthcare",
+    "mayo": "Healthcare", "kaiser": "Healthcare",
+    # Retail/Logistics
+    "walmart": "Retail", "target": "Retail", "costco": "Retail", "fedex": "Retail",
+    "ups": "Retail", "dhl": "Retail", "maersk": "Retail", "zara": "Retail",
+    # Energy/Utilities
+    "exxon": "Energy", "exxonmobil": "Energy", "chevron": "Energy", "nextera": "Energy", "enel": "Energy",
+    # Public Sector
+    "nasa": "Public Sector", "cdc": "Public Sector", "usps": "Public Sector", "federal reserve": "Public Sector",
+    # Education/Research/Nonprofit
+    "harvard": "Education", "mit": "Education", "red cross": "Education", "world bank": "Education",
+    # Financial Services
+    "jpmorgan": "Financial Services", "bank of america": "Financial Services", "visa": "Financial Services",
+    "mastercard": "Financial Services",
+    # Consumer Goods
+    "procter": "Consumer Goods", "pepsico": "Consumer Goods", "nike": "Consumer Goods",
+    "l'oréal": "Consumer Goods", "coca-cola": "Consumer Goods", "mcdonald": "Consumer Goods",
+    "unilever": "Consumer Goods", "nestlé": "Consumer Goods", "starbucks": "Consumer Goods"
+}
+
+# Initialize normalized set
+def _init_entity_sets():
+    """Initialize normalized entity sets from STRICT_HINT_ENTITIES."""
+    global STRICT_HINT_ENTITIES_NORM
+    for entity in STRICT_HINT_ENTITIES:
+        normalized = entity.lower().strip()
+        STRICT_HINT_ENTITIES_NORM.add(normalized)
+        # Also add variants (e.g., "deere" for "Deere & Company")
+        if "&" in normalized:
+            parts = normalized.split("&")
+            for part in parts:
+                part = part.strip()
+                if part:
+                    STRICT_HINT_ENTITIES_NORM.add(part)
+
+_init_entity_sets()
 
 PLACEHOLDER_PHRASES = {
     "company x",
@@ -2387,6 +2484,7 @@ CRITICAL: Use natural openings (not "When facing…", "It's crucial…", "One ef
 Expectations:
 – Craft a cohesive mini-essay (about three paragraphs) blending reasoning, a real-world example, and a forward-looking insight.
 – The example must cite a publicly reported organization/person with a specific year and a concrete metric/action/outcome. No placeholders or hypothetical roles.
+– IMPORTANT: Do not reuse organizations used earlier in this conversation; vary organization types across examples.
 – Do not include headings before the essay.
 – After the essay, insert a blank line, then the heading "Follow-up Prompts:". Provide 3–4 bullet questions on separate lines, each starting with "- " and beginning with How/What/Why/Which/Where/Who/When.
 – Keep each question ≤120 characters. Do not output JSON or additional sections."""
@@ -2418,13 +2516,41 @@ Expectations:
     shortlist_k = CONFIG_V167B.get('SHORTLIST_K', 6)
     shortlist = norm_concepts[:shortlist_k]
 
-    # Build a soft diversity hint from recent examples (avoid immediate repeats)
+    # Build a soft diversity hint from recent entities (avoid immediate repeats)
     avoid_list = []
     try:
-        window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 5)
-        avoid_list = RECENT_EXAMPLES_LRU[-window:]
+        window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+        avoid_list = RECENT_ENTITIES_LRU[-window:]
     except Exception:
         avoid_list = []
+    
+    # Build category hint (preference on first attempt)
+    recent_categories = set(RECENT_CATEGORIES_LRU[-8:]) if RECENT_CATEGORIES_LRU else set()
+    ALL_CATEGORIES = ["Technology", "Manufacturing", "Healthcare", "Retail", "Energy", 
+                      "Public Sector", "Education", "Financial Services", "Consumer Goods"]
+    underused_categories = [c for c in ALL_CATEGORIES if c not in recent_categories]
+    
+    if underused_categories:
+        category_hint = f"If multiple options fit, prefer underused categories: {', '.join(underused_categories[:5])}"
+    else:
+        category_hint = "All categories have been used - vary organization types"
+    
+    # Format avoid_list for prominent display (BLOCK C: use display names)
+    if avoid_list:
+        display_names = [get_display_name(e) for e in avoid_list[:8]]
+        avoid_list_formatted = ", ".join(display_names)
+        diversity_critical_section = f"""
+CRITICAL: Example Selection Requirements
+- DO NOT use these recently used organizations: {avoid_list_formatted}
+- MUST select a DIFFERENT organization (name + year explicitly).
+- {category_hint}
+"""
+    else:
+        diversity_critical_section = f"""
+CRITICAL: Example Selection Requirements
+- MUST select a specific organization (name + year explicitly).
+- {category_hint}
+"""
 
     user_prompt = f"""
 Here is the query context:
@@ -2434,7 +2560,7 @@ Application field: {application_field}
 Primary domain(s): {primary_domains}
 Secondary domain(s): {secondary_domains}
 Approved Glossary Shortlist (use ONLY if clearly relevant; exact spelling/definitions): {shortlist}
-
+{diversity_critical_section}
 Generate a natural language response with:
 - Exactly 3 paragraphs in this order: (1) reasoning/trade-off, (2) one specific real-world example with concrete details (company/year/outcome), (3) strategic insight.
 - Keep the example organically integrated into the analysis (not a separate case block).
@@ -2451,10 +2577,12 @@ Notes:
  - Choose at most 2–3 items from the Approved Glossary Shortlist ONLY if they are clearly evidenced in your answer (omit if weak).
  - Do NOT output any concept list; only the explanation and follow-up questions.
  - Use a specific, verifiable company/entity and year in the example; do not use placeholders (e.g., "XYZ", "Company A").
- - Use a well-known, publicly reported example (company/organization/person + year). Avoid hypothetical or composite cases.
+ - Use a well-known, publicly reported example (company/organization/person + year). DO NOT use hypothetical or composite cases.
  - Include one anchoring fact (e.g., named product/site/market) so the example feels concrete and verifiable.
  - Do not include explicit source names or citations.
- - If multiple suitable examples exist, avoid recently used pairs: {avoid_list}
+ - Prefer diversity across organization types (technology, manufacturing, healthcare, retail, energy, public sector, education, financial services, consumer goods). When multiple suitable examples exist, choose one from a category that hasn't been recently used.
+ - Use widely recognizable organizations with publicly documented decisions. DO NOT use obscure startups or trivia-based examples unless explicitly relevant.
+ - Do not reuse the same organization within the conversation when reasonable alternatives exist.
  - If a tool naturally arises in your reasoning, name it once (only if it truly adds clarity).
 """
 
@@ -2470,15 +2598,38 @@ Notes:
             "hypothetical", "fictional"
         }
 
+        # Build strict_hint with category requirement if categories have been used
+        recent_cats = RECENT_CATEGORIES_LRU[-3:] if RECENT_CATEGORIES_LRU else []
+        if recent_cats:
+            last_category = recent_cats[-1]
+            category_requirement = f"REQUIRED: Pick an organization from a different category than '{last_category}'. "
+        else:
+            category_requirement = ""
+        
         strict_hint = (
-            "\n\nSTRICT MODE: Use a well-documented example (e.g., Tesla's 2018 tariff response, Netflix's 2015 original "
-            "content expansion, Apple's 2019 services pivot, Toyota's 2011 supply-chain recovery, IBM's 2014 cloud "
-            "shift, Starbucks' 2016 Teavana decision) that fits the "
-            "query. Name the organization/person and the year explicitly, and include a concrete metric/outcome. "
-            "Do NOT use placeholders or generic labels."
+            f"\n\nSTRICT MODE: Use a well-documented, credible real-world example that fits the query. "
+            f"{category_requirement}"
+            "Choose from diverse organization types: Technology (Microsoft's 2020 Teams expansion, Google's 2015 Alphabet restructuring, "
+            "Meta's 2021 metaverse pivot, Adobe's 2013 Creative Cloud shift, Oracle's 2016 cloud transformation, Salesforce's 2019 Tableau acquisition, "
+            "Intel's 2015 IoT strategy, NVIDIA's 2020 data center growth), Manufacturing/Industrial (Boeing's 2019 737 MAX response, "
+            "Caterpillar's 2016 cost restructuring, 3M's 2018 innovation portfolio review, Deere & Company's 2020 precision agriculture expansion, "
+            "Honeywell's 2018 spinoff strategy, Ford's 2020 EV investment, GE's 2018 power division sale), Healthcare/Pharma (Johnson & Johnson's 2021 "
+            "COVID-19 vaccine distribution, Pfizer's 2019 oncology portfolio expansion, Merck's 2018 Keytruda market expansion, Mayo Clinic's 2018 "
+            "telemedicine expansion, Kaiser Permanente's 2020 digital health initiatives), Retail/Logistics (Walmart's 2018 e-commerce strategy, "
+            "Target's 2017 store remodeling initiative, Costco's 2019 expansion strategy, FedEx's 2012 European logistics restructuring, Zara's 2015 "
+            "fast-fashion supply chain optimization), Energy/Utilities (ExxonMobil's 2020 capital expenditure cuts, Chevron's 2019 acquisition strategy, "
+            "NextEra Energy's 2018 renewable energy investments, Enel's 2019 green energy pivot), Public Sector (NASA's 2020 Artemis program launch, "
+            "CDC's 2014 Ebola response, USPS's 2012 restructuring efforts, Federal Reserve's 2008 financial crisis response), Education/Research/Nonprofit "
+            "(Harvard's 2020 online education expansion, MIT's 2016 open courseware expansion, Red Cross's 2017 disaster response optimization, World Bank's "
+            "2018 climate finance strategy), Financial Services (JPMorgan Chase's 2019 digital banking investments, Bank of America's 2018 branch optimization, "
+            "Visa's 2016 payment security initiatives, Mastercard's 2019 fintech partnerships), Consumer Goods (Procter & Gamble's 2018 brand portfolio "
+            "focus, PepsiCo's 2019 sustainability commitments, Nike's 2020 digital transformation, L'Oréal's 2018 e-commerce expansion). "
+            "Name the organization/person and the year explicitly, and include a concrete metric/outcome. Do NOT use placeholders or generic labels."
         )
 
-        for attempt in range(3):
+        # BLOCK B: Hard post-generation enforcement gate
+        max_attempts = 5  # Increased to allow enforcement retries
+        for attempt in range(max_attempts):
             this_prompt = user_prompt
             if attempt > 0:
                 this_prompt += strict_hint
@@ -2488,12 +2639,37 @@ Notes:
 
             ent, yr = _extract_entity_year(lens_txt)
             has_placeholder = any(flag in lens_txt.lower() for flag in placeholder_flags)
-            recent_window = set(RECENT_EXAMPLES_LRU[-CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 5):])
-            is_recent = (ent, yr) in recent_window if ent and yr else False
-
-            if _validate_lens_quality(lens_txt) and not has_placeholder and not is_recent:
+            ent_normalized = _normalize_entity(ent) if ent else ""
+            window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+            recent_entities = set(RECENT_ENTITIES_LRU[-window:])
+            is_blocked = ent_normalized in recent_entities if ent_normalized else False
+            
+            # ENFORCEMENT GATE 1: Extraction must succeed
+            if not ent or not yr:
+                if attempt < max_attempts - 1:
+                    this_prompt += "\n\nCRITICAL: You MUST name a widely recognizable organization AND a year explicitly."
+                    user_prompt = this_prompt  # Update for next iteration
+                    print(f"[enforcement] Extraction failed - retrying with explicit instruction (attempt {attempt+1}/{max_attempts})")
+                    continue
+                else:
+                    print(f"[enforcement] Extraction failed on final attempt - accepting best-effort")
+            
+            # ENFORCEMENT GATE 2: Entity must not be blocked
+            if is_blocked and ent:
+                if attempt < max_attempts - 1:
+                    blocked_display = ", ".join([get_display_name(e) for e in list(recent_entities)[:8]])
+                    this_prompt += f"\n\nBLOCKED: You used '{ent}' which is in the avoid list. DO NOT use: {blocked_display}. MUST choose a DIFFERENT organization and include a year."
+                    user_prompt = this_prompt  # Update for next iteration
+                    print(f"[enforcement] Blocked entity '{ent}' (normalized: {ent_normalized}) - retrying with blocking instruction (attempt {attempt+1}/{max_attempts})")
+                    continue
+                else:
+                    print(f"[enforcement] Blocked entity on final attempt - accepting best-effort")
+            
+            # Accept if quality checks pass
+            if _validate_lens_quality(lens_txt) and not has_placeholder and not is_blocked:
                 break
-            if attempt == 2:
+            
+            if attempt == max_attempts - 1:
                 print({"lens_placeholder_warning": lens_txt[:200]})
         
         if "error" in parsed_output:
@@ -2516,14 +2692,70 @@ Notes:
             strategic_lens_out = enhanced
         except Exception:
             pass
-        # Update recent examples LRU
+        
+        # FIX 2: Final enforcement check on FINAL candidate (after enhancement, before tracking/returning)
+        try:
+            ent_final, yr_final = _extract_entity_year(strategic_lens_out)
+            if ent_final:
+                ent_normalized_final = _normalize_entity(ent_final)
+                window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+                recent_entities_final = list(RECENT_ENTITIES_LRU[-window:]) if RECENT_ENTITIES_LRU else []
+                recent_entities_set = set(recent_entities_final)
+                
+                if ent_normalized_final in recent_entities_set:
+                    # Blocked entity detected on final candidate - retry with hard blocking instruction (one more time)
+                    blocked_display = ", ".join([get_display_name(e) for e in recent_entities_final[:8]])
+                    blocking_prompt = user_prompt + f"\n\nBLOCKED: You used '{ent_final}' which is in the avoid list. DO NOT use: {blocked_display}. MUST choose a DIFFERENT organization and include a year."
+                    # One more generation with blocking instruction
+                    parsed_output_retry = generate_answer_with_retry(blocking_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+                    strategic_lens_out_retry = parsed_output_retry.get("strategicThinkingLens", "")
+                    strategic_lens_out_retry = _de_mechanize_lens(strategic_lens_out_retry)
+                    # Re-run enhancement
+                    try:
+                        if CONFIG_V167B.get('ALWAYS_ENHANCE_LENS', False):
+                            enhanced_retry, triggered_retry, reverted_retry, reasons_retry = enhance_lens_if_needed(strategic_lens_out_retry, user_query, force=True)
+                        else:
+                            enhanced_retry, triggered_retry, reverted_retry, reasons_retry = enhance_lens_if_needed(strategic_lens_out_retry, user_query)
+                        if triggered_retry:
+                            print(f"Lens enhancement triggered; reasons={reasons_retry}; reverted={reverted_retry}")
+                        strategic_lens_out = enhanced_retry
+                    except Exception:
+                        strategic_lens_out = strategic_lens_out_retry
+                    # Debug log
+                    print(f"[enforcement_final] entity={ent_final} norm={ent_normalized_final} recent={recent_entities_final[:8]} blocked=True")
+                else:
+                    # Not blocked - can proceed
+                    print(f"[enforcement_final] entity={ent_final} norm={ent_normalized_final} recent={recent_entities_final[:8]} blocked=False")
+        except Exception:
+            # Continue if enforcement check fails
+            pass
+        
+        # Update recent entities, examples, and categories LRU (BLOCK D: category tracking)
         try:
             ent, yr = _extract_entity_year(strategic_lens_out)
             if ent and yr:
-                RECENT_EXAMPLES_LRU.append((ent, yr))
-                maxlen = CONFIG_V167B.get('RECENT_EXAMPLES_MAX', 20)
-                if len(RECENT_EXAMPLES_LRU) > maxlen:
-                    del RECENT_EXAMPLES_LRU[: len(RECENT_EXAMPLES_LRU) - maxlen]
+                ent_normalized = _normalize_entity(ent)
+                if ent_normalized:
+                    # Track normalized entity for avoidance checks
+                    RECENT_ENTITIES_LRU.append(ent_normalized)
+                    # Store display name mapping (BLOCK C)
+                    ENTITY_DISPLAY_MAP[ent_normalized] = ent
+                    # Also track (entity, year) for reference/debugging
+                    RECENT_EXAMPLES_LRU.append((ent, yr))
+                    # Track category (BLOCK D)
+                    category = _categorize_entity(ent)
+                    if category and category != "Unknown":
+                        RECENT_CATEGORIES_LRU.append(category)
+                    maxlen = CONFIG_V167B.get('RECENT_EXAMPLES_MAX', 25)
+                    window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+                    # Trim all lists to maxlen
+                    if len(RECENT_ENTITIES_LRU) > maxlen:
+                        del RECENT_ENTITIES_LRU[: len(RECENT_ENTITIES_LRU) - maxlen]
+                    if len(RECENT_EXAMPLES_LRU) > maxlen:
+                        del RECENT_EXAMPLES_LRU[: len(RECENT_EXAMPLES_LRU) - maxlen]
+                    if len(RECENT_CATEGORIES_LRU) > maxlen:
+                        del RECENT_CATEGORIES_LRU[: len(RECENT_CATEGORIES_LRU) - maxlen]
+                    print(f"[entity_tracking] Tracked entity: {ent} (normalized: {ent_normalized}, category: {category}), last {min(window, len(RECENT_ENTITIES_LRU))} entities: {RECENT_ENTITIES_LRU[-min(window, len(RECENT_ENTITIES_LRU)):]}")
         except Exception:
             pass
         # Sanitize follow-up prompts: concise, question-form, up to 4
@@ -2678,27 +2910,252 @@ def _contains_placeholder_example(text: str) -> bool:
     except Exception:
         return False
 
+def _normalize_entity(entity: str) -> str:
+    """Normalize entity string for consistent comparison.
+    Strips whitespace, casefolds, collapses spaces, and removes common suffixes.
+    """
+    if not entity:
+        return ""
+    normalized = entity.strip()
+    normalized = re.sub(r'\s+', ' ', normalized)  # collapse multiple spaces
+    normalized = normalized.casefold()
+    # Remove common suffixes for matching (Inc, Corp, LLC, Ltd, Company, Co)
+    normalized = re.sub(r'\s+(inc|corp|llc|ltd|company|co)\.?$', '', normalized, flags=re.IGNORECASE)
+    return normalized
+
+def _categorize_entity(entity: str) -> str:
+    """Categorize entity into one of 9 categories."""
+    if not entity:
+        return "Unknown"
+    entity_normalized = _normalize_entity(entity)
+    # First try exact match (preferred)
+    if entity_normalized in ENTITY_TO_CATEGORY:
+        return ENTITY_TO_CATEGORY[entity_normalized]
+    # Fallback to substring matching (for partial matches like "johnson" -> "Johnson & Johnson")
+    for key, category in ENTITY_TO_CATEGORY.items():
+        if key in entity_normalized or entity_normalized in key:
+            return category
+    return "Unknown"
+
+def get_display_name(normalized_entity: str) -> str:
+    """Get display name for normalized entity, preserving proper casing."""
+    return ENTITY_DISPLAY_MAP.get(normalized_entity, normalized_entity.title())
+
+def _canonicalize_entity(entity_raw: str) -> str:
+    """Canonicalize entity to full canonical name from STRICT_HINT_ENTITIES.
+    Returns canonical entity name, or original if no match found.
+    """
+    if not entity_raw:
+        return entity_raw
+    
+    # Normalize input
+    entity_normalized = _normalize_entity(entity_raw)
+    if not entity_normalized:
+        return entity_raw
+    
+    # Step 1: Check if already exact match to strict hint entity
+    for entity_name in STRICT_HINT_ENTITIES:
+        if _normalize_entity(entity_name) == entity_normalized:
+            return entity_name
+    
+    # Step 2: Check alias map
+    if entity_normalized in ALIASES_NORM:
+        return ALIASES_NORM[entity_normalized]
+    
+    # Step 3: Check if entity_normalized is a partial match (token/substring)
+    # Prefer longest match
+    candidates = []
+    for entity_name in STRICT_HINT_ENTITIES:
+        entity_name_normalized = _normalize_entity(entity_name)
+        # Check if entity_normalized is contained in entity_name_normalized
+        if entity_normalized in entity_name_normalized:
+            candidates.append((entity_name, len(entity_name)))
+    
+    if candidates:
+        # Sort by length (longest first) to prefer full names
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[0][0]
+    
+    # Step 4: Return original if no match
+    return entity_raw
+
 def _extract_entity_year(text: str) -> tuple[str, str]:
-    """Best-effort extraction of (entity, year) from lens text."""
+    """Improved extraction handling possessives, multi-word orgs, and smart quotes.
+    Extracts just the entity name, not surrounding phrases.
+    """
     entity = ""
     year = ""
+    if not text:
+        return entity, year
+    
     try:
-        m_year = re.search(r"\b(19|20)\d{2}\b", text)
+        # Normalize curly apostrophes to ASCII
+        text_normalized = text.replace(''', "'").replace(''', "'")
+        
+        # Extract year first
+        m_year = re.search(r"\b(19|20)\d{2}\b", text_normalized)
         if m_year:
             year = m_year.group(0)
-        # Try proper noun + Inc/Corp/LLC/Ltd
-        m_ent = re.search(r"\b([A-Z][A-Za-z0-9&.'-]+\s(?:Inc|Corp|LLC|Ltd))\b", text)
-        if m_ent:
-            entity = m_ent.group(1)
-        else:
-            # fallback to known brands
-            brands = ["Tesla", "Apple", "Toyota", "Samsung", "GE", "Siemens", "Ford", "GM", "Coca-Cola", "McDonald's", "Unilever", "Nestlé", "Maersk", "UPS", "DHL"]
-            for b in brands:
-                if b in text:
-                    entity = b
+        
+        # Pattern 1: Possessive form - extract just entity before 's
+        # Match: "Walmart's 2018" or "Bank of America's 2019" or "Johnson & Johnson's 2020"
+        # But NOT "Take Walmart's" or "Consider Walmart's"
+        possessive_patterns = [
+            # Direct possessive with year: "Entity's YYYY" or "Entity's in YYYY"
+            r"\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})'s\s+(?:in\s+)?(\d{4})\b",
+            # Possessive without year nearby (will use year from elsewhere)
+            r"\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})'s\b",
+        ]
+        
+        for pattern in possessive_patterns:
+            matches = list(re.finditer(pattern, text_normalized))
+            if matches:
+                # Filter out matches that start with common verbs/adjectives
+                excluded_starters = ['take', 'consider', 'think', 'look', 'see', 'view', 
+                                    'examine', 'analyze', 'review', 'study', 'check']
+                for match in matches:
+                    entity_candidate = match.group(1).strip()
+                    # Check if it starts with an excluded word
+                    first_word = entity_candidate.split()[0].lower() if entity_candidate.split() else ""
+                    if first_word in excluded_starters:
+                        continue
+                    # Check if it's a known entity or looks like one (starts with capital, has reasonable length)
+                    if len(entity_candidate.split()) <= 5 and entity_candidate[0].isupper():
+                        entity = entity_candidate
+                        if len(match.groups()) > 1 and match.group(2):
+                            year = match.group(2)
+                        break
+                if entity:
                     break
-    except Exception:
+        
+        # Pattern 2: Direct mention with year: "Walmart 2018" or "Walmart in 2018"
+        # But avoid capturing phrases like "Take Walmart 2018"
+        if not entity:
+            direct_patterns = [
+                # Entity followed by year: "Entity YYYY" or "Entity in YYYY"
+                r"(?<![A-Za-z])\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})\s+(?:in\s+)?(\d{4})\b",
+            ]
+            for pattern in direct_patterns:
+                matches = list(re.finditer(pattern, text_normalized))
+                if matches:
+                    for match in matches:
+                        entity_candidate = match.group(1).strip()
+                        first_word = entity_candidate.split()[0].lower() if entity_candidate.split() else ""
+                        excluded_starters = ['take', 'consider', 'think', 'look', 'see', 'view']
+                        if first_word not in excluded_starters and len(entity_candidate.split()) <= 5:
+                            entity = entity_candidate
+                            if len(match.groups()) > 1 and match.group(2):
+                                year = match.group(2)
+                            break
+                    if entity:
+                        break
+        
+        # Pattern 3: Proper noun + Inc/Corp/LLC/Ltd
+        if not entity:
+            m_ent = re.search(r"\b([A-Z][A-Za-z0-9&.'\s-]+\s(?:Inc|Corp|LLC|Ltd))\b", text_normalized)
+            if m_ent:
+                entity = m_ent.group(1).strip()
+        
+        # Pattern 4: Fallback to known entities from STRICT_HINT_ENTITIES (only if year already found)
+        # Search for known entities in text (case-insensitive) - but only use if year exists
+        if not entity and year:
+            text_lower = text_normalized.lower()
+            # Check against normalized entities (exact matches first)
+            for entity_name in STRICT_HINT_ENTITIES:
+                # Use word boundaries to avoid partial matches
+                pattern = r'\b' + re.escape(entity_name.lower()) + r'\b'
+                if re.search(pattern, text_lower):
+                    entity = entity_name
+                    break
+        
+        # FIX 1: Fallback for mid-paragraph mentions (scan for entities with nearby years)
+        # This runs if entity not found OR if entity found but year missing
+        if not entity or not year:
+            text_lower = text_normalized.lower()
+            candidates = []  # List of (entity_name, year, distance)
+            
+            # Find all year positions in original text (not lowercased, to preserve positions)
+            year_matches = list(re.finditer(r'\b(19|20)\d{2}\b', text_normalized))
+            year_positions = [(m.start(), m.end(), m.group(0)) for m in year_matches]
+            
+            # Scan for entities in STRICT_HINT_ENTITIES
+            for entity_name in STRICT_HINT_ENTITIES:
+                entity_normalized = entity_name.lower()
+                # Use word boundaries for matching (case-insensitive search in lowercase text)
+                pattern = r'\b' + re.escape(entity_normalized) + r'\b'
+                entity_matches = list(re.finditer(pattern, text_lower))
+                
+                for entity_match in entity_matches:
+                    entity_start, entity_end = entity_match.start(), entity_match.end()
+                    entity_center = (entity_start + entity_end) // 2
+                    
+                    # Find nearest year within ±120 chars
+                    for year_start, year_end, year_val in year_positions:
+                        year_center = (year_start + year_end) // 2
+                        distance = abs(year_center - entity_center)
+                        
+                        if distance <= 120:
+                            candidates.append((entity_name, year_val, distance))
+            
+            # Also check for multi-word entities (handle "Johnson & Johnson" -> "Johnson")
+            if not candidates:
+                for entity_name in STRICT_HINT_ENTITIES:
+                    entity_normalized = entity_name.lower()
+                    # For multi-word entities, also try matching first significant word
+                    if '&' in entity_normalized or ' ' in entity_normalized:
+                        # Extract first meaningful word (skip common words)
+                        words = entity_normalized.split()
+                        if words:
+                            first_word = words[0]
+                            if first_word not in ['the', 'a', 'an'] and len(first_word) > 2:
+                                pattern = r'\b' + re.escape(first_word) + r'\b'
+                                entity_matches = list(re.finditer(pattern, text_lower))
+                                for entity_match in entity_matches:
+                                    entity_start, entity_end = entity_match.start(), entity_match.end()
+                                    entity_center = (entity_start + entity_end) // 2
+                                    for year_start, year_end, year_val in year_positions:
+                                        year_center = (year_start + year_end) // 2
+                                        distance = abs(year_center - entity_center)
+                                        if distance <= 120:
+                                            # Use full entity name, not just first word
+                                            candidates.append((entity_name, year_val, distance))
+            
+            # Choose best candidate (prefer longest entity, then closest distance)
+            if candidates:
+                # Sort by entity length (longest first) for same distance, then by distance
+                candidates.sort(key=lambda x: (-len(x[0]), x[2]))  # Negative length for descending
+                entity, year = candidates[0][0], candidates[0][1]
+                print(f"[extract_fallback] selected entity={entity} year={year} distance={candidates[0][2]}")
+        
+        # Canonicalize entity (expand partials to full canonical names)
+        if entity:
+            entity = _canonicalize_entity(entity)
+        
+        # Clean up entity (remove trailing punctuation, normalize spaces, remove common suffixes)
+        if entity:
+            entity = re.sub(r'\s+', ' ', entity).strip()
+            entity = re.sub(r'[.,;:]+$', '', entity)
+            # Remove common trailing words that might have been captured
+            entity = re.sub(r'\s+(dilemma|move|decision|strategy|example|case|instance)\s*$', '', entity, flags=re.IGNORECASE)
+            entity = entity.strip()
+            
+            # Filter out common pronouns and non-entity words (BLOCK A: prevent pronoun extraction)
+            pronoun_blacklist = {
+                'it', 'its', 'this', 'that', 'these', 'those', 'they', 'them', 'their', 'there',
+                'here', 'where', 'when', 'what', 'which', 'who', 'why', 'how', 'he', 'she', 'him',
+                'her', 'his', 'hers', 'we', 'us', 'our', 'you', 'your', 'i', 'me', 'my', 'mine'
+            }
+            entity_lower = entity.lower().strip()
+            if entity_lower in pronoun_blacklist:
+                entity = ""  # Reject pronoun
+            # Also reject very short entities (less than 3 chars) unless they're known entities
+            if len(entity) < 3 and entity_lower not in STRICT_HINT_ENTITIES_NORM:
+                entity = ""
+            
+    except Exception as e:
+        print(f"[extraction_error] {e}")
         pass
+    
     return entity, year
 
 # ---------------- V1.6.8 Lens Enhancement (Second Call) ----------------
