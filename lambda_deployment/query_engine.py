@@ -14,7 +14,7 @@ import traceback
 import difflib
 from typing import List, Tuple, Dict, Any
 from dotenv import load_dotenv
-from openai import OpenAI
+import openai
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
@@ -76,7 +76,8 @@ def compute_relevance_score(query):
     return score, debug_info
 
 # Initialize OpenAI client
-client = OpenAI(api_key=openai_api_key)
+# Set OpenAI API key for old version
+openai.api_key = openai_api_key
 
 # Performance timing system (moved to API server route level)
 
@@ -1161,17 +1162,20 @@ def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
         return 1200
 
 def robust_api_call(client, system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
-    """Handle API calls with retries using system/user message structure"""
+    """Handle API calls with retries using old OpenAI API format"""
     tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ]
+    
+    # Combine system and user messages for old API format
+    combined_prompt = f"{system_prompt}\n\n{user_message}"
+    
     for attempt in range(max_retries):
         try:
-            response = client.chat.completions.create(
+            response = openai.ChatCompletion.create(
                 model="gpt-3.5-turbo",
-                messages=messages,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message}
+                ],
                 temperature=1.2,  # Increased for more variety
                 max_tokens=tokens_to_use
             )
@@ -1228,7 +1232,7 @@ Story Draft:
         
         # Call GPT-3.5 for merging
         response, error = robust_api_call(
-            client=client,
+            client=None,  # Not used in old API
             system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
             user_message=prompt,
             max_tokens=300
@@ -1914,7 +1918,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         
         # Make API call
         response, error = robust_api_call(
-            client=client,
+            client=None,  # Not used in old API
             system_prompt=SYSTEM_PROMPT_ANALYTICS,
             user_message=user_message,
             max_tokens=calculate_optimal_tokens(len(query), len(user_message))

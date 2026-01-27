@@ -1,0 +1,18 @@
+{
+  "title": "Decision-Making Practice Lab",
+  "mobile_title": "Decision Lab",
+  "tagline": "A GPT-powered active learning platform for deeper understanding",
+  "placeholder": "Ask a decision-making question... e.g., How should a firm negotiate under trade policy uncertainty?",
+  "default_sections": 3,
+  "sections_titles": [
+    "Strategic Thinking Lens",
+    "Follow-up Prompts",
+    "Concepts/Tools"
+  ],
+  "tooltip_rules": {
+    "single_domain_max": 3,
+    "primary_domain_max": 2,
+    "secondary_domain_max": 1,
+    "total_cap": 4
+  }
+}

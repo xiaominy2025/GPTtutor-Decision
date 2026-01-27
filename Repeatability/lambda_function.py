@@ -14,6 +14,7 @@ import traceback
 from typing import List, Tuple, Dict, Any
 import boto3
 from datetime import datetime
+from difflib import SequenceMatcher
 
 # Flask for Lambda compatibility
 from flask import Flask, request, jsonify
@@ -39,18 +40,104 @@ ALLOWED_ORIGINS = {
     "https://www.engentlabs.com"
 }
 
+# === Continuation (best-effort, in-memory) ===
+CONTINUATION_ENABLED = os.getenv("CONTINUATION_ENABLED", "false").lower() == "true"
+CONTINUATION_TTL_MINUTES = int(os.getenv("CONTINUATION_TTL_MINUTES", "90"))
+CONTINUATION_SIMILARITY_THRESHOLD = float(os.getenv("CONTINUATION_SIMILARITY_THRESHOLD", "0.96"))
+CONTINUATION_LEN_RATIO_MIN = float(os.getenv("CONTINUATION_LEN_RATIO_MIN", "0.9"))
+CONTINUATION_MAX_CAPSULE_CHARS = int(os.getenv("CONTINUATION_MAX_CAPSULE_CHARS", "900"))
+CONTINUATION_LOGGING = os.getenv("CONTINUATION_LOGGING", "false").lower() == "true"
+
+_CONTINUATION_SNAPSHOTS: Dict[str, Dict[str, Any]] = {}
+
+def _continuation_key(user_id: str, course_id: str) -> str:
+    user_part = (user_id or "default").strip()
+    course_part = (course_id or DEFAULT_COURSE).strip()
+    return f"{user_part}::{course_part}"
+
+def _normalize_prompt(text: str) -> str:
+    if not text:
+        return ""
+    s = text.strip().lower()
+    s = re.sub(r"^[\-\*\•]\s*", "", s)
+    s = re.sub(r"^\d+[\.\)]\s*", "", s)
+    s = re.sub(r"\s+", " ", s)
+    s = s.rstrip(" .,!?:;")
+    return s
+
+def _similarity(a: str, b: str) -> float:
+    if not a or not b:
+        return 0.0
+    return SequenceMatcher(None, a, b).ratio()
+
+def _match_followup(query_norm: str, followups_norm: List[str]) -> Dict[str, Any]:
+    if not query_norm or not followups_norm:
+        return {"match": False, "score": 0.0, "guards": ["empty"]}
+    for cand in followups_norm:
+        if query_norm == cand:
+            return {"match": True, "score": 1.0, "guards": []}
+    best_score = 0.0
+    best_candidate = ""
+    for cand in followups_norm:
+        score = _similarity(query_norm, cand)
+        if score > best_score:
+            best_score = score
+            best_candidate = cand
+    guards = []
+    q_len = len(query_norm)
+    c_len = len(best_candidate)
+    if max(q_len, c_len) == 0:
+        guards.append("length_zero")
+    else:
+        len_ratio = min(q_len, c_len) / max(q_len, c_len)
+        if len_ratio < CONTINUATION_LEN_RATIO_MIN:
+            guards.append("length_ratio")
+    q_first = query_norm.split()[0] if query_norm.split() else ""
+    c_first = best_candidate.split()[0] if best_candidate.split() else ""
+    if q_first and c_first and q_first != c_first:
+        guards.append("first_token")
+    is_match = best_score >= CONTINUATION_SIMILARITY_THRESHOLD and not guards
+    return {"match": is_match, "score": best_score, "guards": guards}
+
+def _get_snapshot(key: str) -> Dict[str, Any] | None:
+    snap = _CONTINUATION_SNAPSHOTS.get(key)
+    if not snap:
+        return None
+    ts = snap.get("timestamp")
+    if not ts:
+        _CONTINUATION_SNAPSHOTS.pop(key, None)
+        return None
+    age_sec = time.time() - ts
+    if age_sec > (CONTINUATION_TTL_MINUTES * 60):
+        _CONTINUATION_SNAPSHOTS.pop(key, None)
+        return None
+    return snap
+
+def _set_snapshot(key: str, snap: Dict[str, Any]) -> None:
+    _CONTINUATION_SNAPSHOTS[key] = snap
+
+def _build_lens_capsule(lens: str) -> str:
+    if not lens:
+        return ""
+    s = re.sub(r"\s+", " ", lens.strip())
+    if len(s) > CONTINUATION_MAX_CAPSULE_CHARS:
+        s = s[:CONTINUATION_MAX_CAPSULE_CHARS].rstrip()
+    return s
+
 def pick_origin(event):
     headers = event.get("headers") or {}
     origin = headers.get("origin") or headers.get("Origin")
     return origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
 
 def create_response(data, status="success", status_code=200, event=None):
-    """Standardized response wrapper for all endpoints"""
+    """Standardized response wrapper for all endpoints (Function URL adds CORS)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+
     return {
         "statusCode": status_code,
-        "headers": {
-            "Content-Type": "application/json"
-        },
+        "headers": headers,
         "body": json.dumps({
             "data": data,
             "status": status,
@@ -59,8 +146,40 @@ def create_response(data, status="success", status_code=200, event=None):
         })
     }
 
-def handle_options(event):
-    """Handle OPTIONS preflight requests with robust CORS headers"""
+def create_rejection_response(message: str, event=None):
+    """Memo-compliant rejection response (no data envelope, no CORS headers)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+    return {
+        "statusCode": 200,
+        "headers": headers,
+        "body": json.dumps({
+            "status": "rejected",
+            "message": message,
+            "version": "V1.6.6.6",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        })
+    }
+
+def create_error_response(message: str, status_code: int = 500, event=None):
+    """Memo-compliant error response (no data envelope, no CORS headers)."""
+    headers = {
+        "Content-Type": "application/json"
+    }
+    return {
+        "statusCode": status_code,
+        "headers": headers,
+        "body": json.dumps({
+            "status": "error",
+            "error": message,
+            "version": "V1.6.6.6",
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        })
+    }
+
+def get_cors_headers(event):
+    """Get CORS headers for the given event"""
     headers = event.get("headers") or {}
     origin = headers.get("origin") or headers.get("Origin")
     
@@ -68,13 +187,19 @@ def handle_options(event):
     cors_origin = origin if origin in ALLOWED_ORIGINS else "https://engentlabs.com"
     
     return {
+        "Access-Control-Allow-Origin": cors_origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        "Access-Control-Max-Age": "86400",
+        "Vary": "Origin"
+    }
+
+def handle_options(event):
+    """Handle OPTIONS (Function URL normally handles CORS automatically)."""
+    return {
         "statusCode": 200,
         "headers": {
-            "Access-Control-Allow-Origin": cors_origin,
-            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type, Authorization",
-            "Access-Control-Max-Age": "86400",
-            "Vary": "Origin"
+            "Content-Type": "application/json"
         },
         "body": ""
     }
@@ -88,58 +213,68 @@ DEFAULT_COURSE = "decision"
 
 # Note: Removed duplicate functions - now using authoritative query_engine methods
 
-def process_query_v166_fixed(query: str) -> dict:
+
+
+
+
+def process_query_v166_fixed(query: str, generation_context: str | None = None) -> dict:
     """
     V1.6.6: Fixed Query Processing - Uses authoritative query_engine.process_query_structured()
     Eliminates double work by using structured data instead of re-parsing GPT response.
     """
     try:
-        # Check if query_engine is available
         if not hasattr(query_engine, 'process_query_structured'):
             raise Exception("query_engine.process_query_structured method not available")
         
-        # V1.6.6: Use the authoritative query_engine.process_query_structured() method
-        # This eliminates the need to re-parse GPT response and ensures 100% consistency
         start_time = time.time()
         try:
-            structured_response = query_engine.process_query_structured(query)
+            structured_response = query_engine.process_query_structured(query, generation_context=generation_context)
         except Exception as qe:
             traceback.print_exc()
             raise qe
             
         processing_time = time.time() - start_time
-        
-        # Add processing time to the structured response
         structured_response["processing_time"] = processing_time
-        
-        # Check if query was rejected by relevance filter
+
+        # ✅ Normalize followUpPrompts to always be a list of strings
+        def normalize_prompts(prompts):
+            if prompts is None:
+                return []
+            if isinstance(prompts, list):
+                return [str(p).strip() for p in prompts if str(p).strip()]
+            if isinstance(prompts, str):
+                return [prompts.strip()] if prompts.strip() else []
+            return []
+
+        # Accept both camelCase and lowercase-u for safety
+        prompts = (
+            structured_response.get("followUpPrompts") or
+            structured_response.get("followupPrompts") or
+            []
+        )
+        structured_response["followUpPrompts"] = normalize_prompts(prompts)
+
         if isinstance(structured_response.get("answer", ""), str) and structured_response["answer"].startswith("⚠️ This question doesn't appear to be related to the course"):
             return {
                 "answer": structured_response["answer"],
                 "strategicThinkingLens": structured_response["answer"],
-                "followUpPrompts": "",
+                "followUpPrompts": [],
                 "conceptsToolsPractice": [],
                 "model": "relevance_filter",
-                "processing_time": processing_time
+                "processing_time": processing_time,
+                "status": "rejected"
             }
         
-        # V1.6.6: Return the authoritative structured response directly
-        # No more re-parsing of GPT response - query-engine is the source of truth
         return structured_response
         
     except Exception as e:
         traceback.print_exc()
-        
-        # Fallback response
-        fallback_answer = f"I understand you're asking about: {query}\n\nThis appears to be a decision-making question that would benefit from systematic analysis. Consider using frameworks like decision trees, SWOT analysis, or scenario planning to evaluate your options thoroughly."
         return {
-            "answer": fallback_answer,
-            "strategicThinkingLens": fallback_answer,
-            "followUpPrompts": "",
-            "conceptsToolsPractice": [],
-            "model": "fallback",
-            "processing_time": 0.0
+            "status": "error",
+            "error_details": str(e),
+            "message": "Something went wrong. Please try again."
         }
+
 
 def lambda_handler(event, context):
     """
@@ -173,7 +308,15 @@ def lambda_handler(event, context):
                 return handle_options(event)
             
             if http_method == 'GET' and path == '/health':
-                return create_response({"status": "healthy"}, event=event)
+                # Wrap in standard envelope per frontend memo
+                return create_response(
+                    {
+                        "status": "healthy",
+                        "version": "V1.6.6.6",
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                    },
+                    event=event
+                )
                 
             elif http_method == 'GET' and path == '/debug/files':
                     # Debug endpoint to check file access
@@ -207,7 +350,10 @@ def lambda_handler(event, context):
                     return create_response(debug_info, event=event)
                 
             elif http_method == 'GET' and path == '/courses':
-                return create_response({"courses": ["decision","marketing","strategy"]}, event=event)
+                return create_response({
+                    "courses": ["decision","marketing","strategy"],
+                    "default_course": DEFAULT_COURSE
+                }, event=event)
                 
             elif http_method == 'GET' and path.startswith('/api/course/'):
                 # Extract course ID from path
@@ -235,21 +381,87 @@ def lambda_handler(event, context):
                 
                 query = body['query']
                 course_id = body.get('course_id', DEFAULT_COURSE)
+                user_id = body.get('user_id', 'default')
+                if not isinstance(user_id, str):
+                    user_id = str(user_id)
+                if not isinstance(course_id, str):
+                    course_id = DEFAULT_COURSE
                 
                 try:
+                    generation_context = None
+                    if CONTINUATION_ENABLED:
+                        key = _continuation_key(user_id, course_id)
+                        snap = _get_snapshot(key)
+                        if snap and snap.get("course_id") == course_id:
+                            query_norm = _normalize_prompt(query)
+                            followups_norm = snap.get("followups_norm", [])
+                            match = _match_followup(query_norm, followups_norm)
+                            if match["match"] and snap.get("strategic_lens_capsule"):
+                                generation_context = snap["strategic_lens_capsule"]
+                            if CONTINUATION_LOGGING:
+                                age_sec = time.time() - snap.get("timestamp", time.time())
+                                print({
+                                    "continuation": True,
+                                    "match": match["match"],
+                                    "score": match["score"],
+                                    "guards": match["guards"],
+                                    "snapshot_age_sec": round(age_sec, 2),
+                                    "turn_id": snap.get("turn_id"),
+                                    "course_match": True
+                                })
+                        elif CONTINUATION_LOGGING:
+                            print({"continuation": True, "match": False, "reason": "no_snapshot"})
+
                     # Process query using fixed V166 implementation
-                    response_data = process_query_v166_fixed(query)
+                    response_data = process_query_v166_fixed(query, generation_context=generation_context)
                 except Exception as e:
                     import traceback
                     traceback.print_exc()
-                    return create_response(
-                        {"error": f"Query processing failed: {str(e)}"}, 
-                        status="error", 
+                    return create_error_response(
+                        f"Query processing failed: {str(e)}",
                         status_code=500,
                         event=event
                     )
                 
-                return create_response(response_data, event=event)
+                # Propagate top-level status per memo (success/rejected/error)
+                outer_status = "success"
+                if isinstance(response_data, dict):
+                    resp_status = response_data.get("status")
+                    if resp_status in ("rejected", "error"):
+                        outer_status = resp_status
+                if outer_status == "rejected":
+                    # Use memo-compliant rejection (no data envelope)
+                    rejection_message = response_data.get("answer") or response_data.get("message") or "This question appears to be outside the scope."
+                    return create_rejection_response(rejection_message, event=event)
+                if outer_status == "error":
+                    # Use memo-compliant error (no data envelope)
+                    error_message = response_data.get("error_details") or response_data.get("message") or "Internal server error."
+                    return create_error_response(error_message, status_code=500, event=event)
+                if CONTINUATION_ENABLED and isinstance(response_data, dict):
+                    lens = response_data.get("strategicThinkingLens") or ""
+                    followups = response_data.get("followUpPrompts") or []
+                    if isinstance(followups, str):
+                        followups = [followups] if followups.strip() else []
+                    if lens and followups:
+                        lens_capsule = _build_lens_capsule(lens)
+                        if lens_capsule:
+                            key = _continuation_key(user_id, course_id)
+                            prev = _get_snapshot(key)
+                            next_turn_id = (prev.get("turn_id", 0) + 1) if prev else 1
+                            norm_followups = [
+                                _normalize_prompt(p) for p in followups if isinstance(p, str) and p.strip()
+                            ]
+                            snap = {
+                                "strategic_lens_capsule": lens_capsule,
+                                "followups_raw": followups,
+                                "followups_norm": [p for p in norm_followups if p],
+                                "timestamp": time.time(),
+                                "turn_id": next_turn_id,
+                                "course_id": course_id,
+                                "user_id": user_id
+                            }
+                            _set_snapshot(key, snap)
+                return create_response(response_data, status=outer_status, event=event)
                 
             else:
                 # Unknown endpoint

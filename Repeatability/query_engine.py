@@ -19,6 +19,138 @@ import faiss
 # OpenAI embeddings instead of sentence-transformers for Lambda compatibility
 from pathlib import Path
 
+# --- Lightweight diversity memory (per warm container) ---
+RECENT_ENTITIES_LRU: list[str] = []  # Entity names only (normalized for avoidance)
+RECENT_EXAMPLES_LRU: list[tuple[str, str]] = []  # (entity, year) for reference/debug
+RECENT_CATEGORIES_LRU: list[str] = []  # Category names for diversity tracking
+ENTITY_DISPLAY_MAP: dict[str, str] = {}  # normalized entity -> display name (preserves casing)
+
+
+# Tunable configuration for concept–lens alignment (one-call engine)
+CONFIG_V167B = {
+    'SHORTLIST_K': 6,
+    'ENABLE_LENS_DERIVED_FOLLOWUPS': True,
+    'RECENT_EXAMPLES_MAX': 25,  # Increased to support larger avoid window
+    'RECENT_EXAMPLES_AVOID_WINDOW': 8,  # Increased from 5 to 8 entities
+    'ALWAYS_ENHANCE_LENS': True,
+    'PRIMARY_ATTEMPTS': 3,
+    'CONTENT_DENSITY_MIN': 0.45,
+}
+
+# Entities from strict_hint - single source of truth for extraction fallback
+STRICT_HINT_ENTITIES = [
+    # Technology
+    "Microsoft", "Google", "Meta", "Adobe", "Oracle", "Salesforce", "Intel", "NVIDIA",
+    # Manufacturing/Industrial
+    "Boeing", "Caterpillar", "3M", "Deere & Company", "Honeywell", "Ford", "GE",
+    # Healthcare/Pharma
+    "Johnson & Johnson", "Pfizer", "Merck", "Mayo Clinic", "Kaiser Permanente",
+    # Retail/Logistics
+    "Walmart", "Target", "Costco", "FedEx", "Zara",
+    # Energy/Utilities
+    "ExxonMobil", "Chevron", "NextEra Energy", "Enel",
+    # Public Sector
+    "NASA", "CDC", "USPS", "Federal Reserve",
+    # Education/Research/Nonprofit
+    "Harvard", "MIT", "Red Cross", "World Bank",
+    # Financial Services
+    "JPMorgan Chase", "Bank of America", "Visa", "Mastercard",
+    # Consumer Goods
+    "Procter & Gamble", "PepsiCo", "Nike", "L'Oréal"
+]
+
+# Normalized set for matching (created from STRICT_HINT_ENTITIES)
+STRICT_HINT_ENTITIES_NORM = set()
+
+# Alias map for multi-word entity canonicalization
+ALIASES_NORM = {
+    # Johnson & Johnson
+    "johnson": "Johnson & Johnson",
+    "j&j": "Johnson & Johnson",
+    "j and j": "Johnson & Johnson",
+    # Procter & Gamble
+    "procter": "Procter & Gamble",
+    "gamble": "Procter & Gamble",
+    "p&g": "Procter & Gamble",
+    "p and g": "Procter & Gamble",
+    # JPMorgan Chase
+    "jpmorgan": "JPMorgan Chase",
+    # L'Oréal
+    "loreal": "L'Oréal",
+    # Bank of America
+    "bofa": "Bank of America",
+    "boa": "Bank of America",
+}
+
+# Entity to category mapping
+ENTITY_TO_CATEGORY = {
+    # Technology
+    "microsoft": "Technology", "google": "Technology", "meta": "Technology", "facebook": "Technology",
+    "adobe": "Technology", "oracle": "Technology", "salesforce": "Technology", "intel": "Technology",
+    "nvidia": "Technology", "apple": "Technology", "tesla": "Technology", "ibm": "Technology",
+    "netflix": "Technology", "amazon": "Technology",
+    # Manufacturing/Industrial
+    "boeing": "Manufacturing", "caterpillar": "Manufacturing", "3m": "Manufacturing",
+    "deere": "Manufacturing", "honeywell": "Manufacturing", "ford": "Manufacturing", "ge": "Manufacturing",
+    "toyota": "Manufacturing", "gm": "Manufacturing", "samsung": "Manufacturing", "siemens": "Manufacturing",
+    # Healthcare/Pharma
+    "johnson": "Healthcare", "pfizer": "Healthcare", "merck": "Healthcare",
+    "mayo": "Healthcare", "kaiser": "Healthcare",
+    # Retail/Logistics
+    "walmart": "Retail", "target": "Retail", "costco": "Retail", "fedex": "Retail",
+    "ups": "Retail", "dhl": "Retail", "maersk": "Retail", "zara": "Retail",
+    # Energy/Utilities
+    "exxon": "Energy", "exxonmobil": "Energy", "chevron": "Energy", "nextera": "Energy", "enel": "Energy",
+    # Public Sector
+    "nasa": "Public Sector", "cdc": "Public Sector", "usps": "Public Sector", "federal reserve": "Public Sector",
+    # Education/Research/Nonprofit
+    "harvard": "Education", "mit": "Education", "red cross": "Education", "world bank": "Education",
+    # Financial Services
+    "jpmorgan": "Financial Services", "bank of america": "Financial Services", "visa": "Financial Services",
+    "mastercard": "Financial Services",
+    # Consumer Goods
+    "procter": "Consumer Goods", "pepsico": "Consumer Goods", "nike": "Consumer Goods",
+    "l'oréal": "Consumer Goods", "coca-cola": "Consumer Goods", "mcdonald": "Consumer Goods",
+    "unilever": "Consumer Goods", "nestlé": "Consumer Goods", "starbucks": "Consumer Goods"
+}
+
+# Initialize normalized set
+def _init_entity_sets():
+    """Initialize normalized entity sets from STRICT_HINT_ENTITIES."""
+    global STRICT_HINT_ENTITIES_NORM
+    for entity in STRICT_HINT_ENTITIES:
+        normalized = entity.lower().strip()
+        STRICT_HINT_ENTITIES_NORM.add(normalized)
+        # Also add variants (e.g., "deere" for "Deere & Company")
+        if "&" in normalized:
+            parts = normalized.split("&")
+            for part in parts:
+                part = part.strip()
+                if part:
+                    STRICT_HINT_ENTITIES_NORM.add(part)
+
+_init_entity_sets()
+
+PLACEHOLDER_PHRASES = {
+    "company x",
+    "company y",
+    "company z",
+    "company a",
+    "company b",
+    "organization x",
+    "organization y",
+    "organization z",
+    "a buyer",
+    "the buyer",
+    "a marketing professional",
+    "a marketing executive",
+    "a mid-level manager",
+    "a retail company",
+    "a car manufacturer",
+    "a car dealership",
+    "an employee",
+}
+
 def cosine_similarity(vec1, vec2):
     """
     Calculate cosine similarity between two vectors
@@ -248,7 +380,6 @@ ANALYTICAL_TOOLS = [
     ("Monte Carlo Simulation", "A statistical tool that uses random sampling to simulate thousands of potential outcomes under uncertainty."),
     ("Scenario Analysis", "A method that explores different hypothetical futures (e.g., best-case, worst-case) to support strategic decision planning."),
     ("Sensitivity Analysis", "A technique to determine how different values of an input affect a particular outcome under a given set of assumptions."),
-    ("Solver-based Simulation", "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty."),
     ("Linear Optimization", "A mathematical method for maximizing or minimizing a linear objective function, subject to linear equality and inequality constraints."),
     ("Decision Tree", "A visual tool that maps out options, chance events, and outcomes to support structured decision-making under uncertainty."),
     ("Utility Functions", "Mathematical representations of preferences used to evaluate and compare uncertain outcomes in decision analysis."),
@@ -308,7 +439,6 @@ CONCEPT_GLOSSARY = {
     "semi-quantitative forecast": {"definition": "A forecasting approach that combines qualitative judgment with quantitative data for more robust predictions", "core": False, "aliases": ['semi quantitative', 'mixed forecasting', 'qualitative quantitative']},
     "profitability analysis": {"definition": "An assessment of the ability of a project or business to generate earnings compared to its costs and expenses", "core": True, "aliases": ['profitability', 'earnings analysis', 'financial performance']},
     "prospect theory": {"definition": "Shows how people often value avoiding losses more than achieving gains", "core": True, "aliases": ['prospect', 'loss aversion', 'gain loss']},
-    "solver-based simulation": {"definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty", "core": True, "aliases": ['solver simulation', 'algorithmic optimization', 'computational optimization']},
     "confirmation bias": {"definition": "Favoring evidence that supports existing beliefs", "core": True, "aliases": ['selective evidence bias', 'favor confirming information', 'seek confirming evidence', 'ignore contradicting', 'favor existing beliefs', 'confirm beliefs', 'favor confirming']},
     "anchoring bias": {"definition": "Relying too heavily on initial information", "core": True, "aliases": ['initial value bias', 'rely on first information', 'first piece of information', 'anchor on initial', 'stick to first impression', 'initial reference point', 'first information']},
     "framing bias": {"definition": "Decisions influenced by whether information is presented positively or negatively", "core": True, "aliases": ['context framing', 'positive negative framing', 'presentation bias']},
@@ -318,7 +448,7 @@ CONCEPT_GLOSSARY = {
     "escalation of commitment": {"definition": "Continuing investment in failing endeavors", "core": True, "aliases": ['sunk cost fallacy', 'legacy project', 'continuing investment', 'failing project', 'persistent investment', 'keep investing', 'already spent', 'time investment', 'continue despite failure', 'invest more in failing', 'keep going despite problems', 'legacy']},
     "mental accounting": {"definition": "Treating money and financial resources differently based on their source or context", "core": True, "aliases": ['psychological budgeting', 'money source bias', 'financial categorization']},
     "game theory": {"definition": "Strategic analysis of competitive interactions", "core": True, "aliases": ['strategic games', 'payoff analysis', 'competitive interactions', 'strategic analysis', 'competitive strategy', 'strategic thinking', 'competitive analysis', 'strategic interactions', 'game theory']},
-    "winner's curse": {"definition": "Originating in auction theory, it’s a bias where the ‘winner’ ends up worse off by overpaying, overcommitting, or misjudging the true value.", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', 'auction theory', 'auction theory bias', "winner's curse"]},
+    "winner's curse": {"definition": "Originating in auction theory, it's a bias where the 'winner' ends up worse off by overpaying, overcommitting, or misjudging the true value.", "core": True, "aliases": ['overpaying', 'competitive bidding', 'overcommitting', 'bidding war', 'auction', 'competitive situation', 'overbid', 'competitive overpayment', 'bidding curse', 'auction curse', 'winner curse', 'auction theory', 'auction theory bias', "winner's curse"]},
     "integrative negotiation": {"definition": "Win-win bargaining through value creation", "core": True, "aliases": ['collaborative negotiation', 'win-win bargaining', 'value creation', 'mutual benefits', 'win-win solutions', 'create value', 'collaborative approach', 'mutual gains', 'win-win']},
     "distributive negotiation": {"definition": "Zero-sum bargaining where one's gain is another's loss", "core": False, "aliases": []},
     "porter's five forces": {"definition": "Framework for analyzing industry competitiveness", "core": True, "aliases": ['five forces analysis', 'competitive', 'industry', 'competitiveness', 'industry analysis', 'competitive forces', 'industry structure', 'competitive analysis', 'five forces']},
@@ -360,7 +490,6 @@ CONCEPT_DOMAINS = {
     "expected value": "technical",
     "scenario analysis": "technical",
     "scenario planning": "technical",
-    "solver-based simulation": "technical",
     "regression": "technical",
     "moving average": "technical",
     "seasonal analysis": "technical",
@@ -430,9 +559,80 @@ def clear_concept_cache():
 # Clear cache on import to ensure fresh concept selection
 clear_concept_cache() 
 
+def fuzzy_domain_match(query_lower: str, keyword: str, threshold: float = 0.85) -> bool:
+    """
+    Sophisticated fuzzy matching for domain keywords that avoids opposite meanings.
+    
+    Args:
+        query_lower: Query in lowercase
+        keyword: Keyword to match
+        threshold: Similarity threshold (default 0.85)
+    
+    Returns:
+        True if keyword matches query with safeguards against opposite meanings
+    """
+    from difflib import SequenceMatcher
+    import re
+    
+    # First check for exact word boundary match (highest priority)
+    if re.search(rf'\b{re.escape(keyword)}\b', query_lower):
+        return True
+    
+    # Define opposite meaning pairs to avoid false matches
+    opposite_pairs = {
+        'certain': ['uncertain', 'uncertainty'],
+        'uncertain': ['certain', 'certainty'],
+        'certainty': ['uncertain', 'uncertainty'],
+        'uncertainty': ['certain', 'certainty'],
+        'optimize': ['compromise', 'degrade'],
+        'compromise': ['optimize', 'maximize'],
+        'maximize': ['minimize', 'reduce'],
+        'minimize': ['maximize', 'increase'],
+        'increase': ['decrease', 'reduce'],
+        'decrease': ['increase', 'maximize'],
+        'reduce': ['increase', 'maximize'],
+        'positive': ['negative', 'adverse'],
+        'negative': ['positive', 'favorable'],
+        'favorable': ['unfavorable', 'negative'],
+        'unfavorable': ['favorable', 'positive'],
+        'stable': ['volatile', 'unstable'],
+        'volatile': ['stable', 'steady'],
+        'unstable': ['stable', 'steady'],
+        'steady': ['volatile', 'unstable'],
+        'predictable': ['unpredictable', 'volatile'],
+        'unpredictable': ['predictable', 'stable'],
+        'reliable': ['unreliable', 'unstable'],
+        'unreliable': ['reliable', 'stable']
+    }
+    
+    # Check if keyword has opposite meanings
+    if keyword in opposite_pairs:
+        opposites = opposite_pairs[keyword]
+        for word in query_lower.split():
+            if word in opposites:
+                return False  # Avoid matching if opposite word is present
+    
+    # Fuzzy match with word boundary checking
+    words = query_lower.split()
+    for word in words:
+        # Skip very short words (likely to be false matches)
+        if len(word) < 3:
+            continue
+            
+        similarity = SequenceMatcher(None, keyword, word).ratio()
+        if similarity >= threshold:
+            # Additional check: ensure the matched word is not an opposite
+            if keyword in opposite_pairs:
+                opposites = opposite_pairs[keyword]
+                if word in opposites:
+                    continue  # Skip this match, try next word
+            return True
+    
+    return False
+
 def detect_course_concept_domains(query: str) -> dict:
     """
-    Detect multiple course concept domains of a query based on keyword analysis.
+    Detect multiple course concept domains of a query based on sophisticated keyword analysis.
     Returns: Dictionary with course concept domain names as keys and confidence scores as values.
     """
     query_lower = query.lower()
@@ -458,7 +658,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'negotiation-style', 'reputation', 'credibility', 'empathy', 'feedback', 'cohesion', 'identity', 
         'rivalry', 'hostility', 'compliance', 'disagreement', 'consensus', 'coordination', 
         'organizational-change', 'leadership-choice', 'talent-strategy', 'workforce-plan', 'decision-making-process', 'decision making process', 'systematic-process', 'systematic process',
-        'systematic decision', 'decision making', 'decision-making', 'process', 'systematic'
+        'systematic decision', 'decision making', 'decision-making', 'process'
     ]
     
     behavioral_keywords_weak = [
@@ -466,23 +666,23 @@ def detect_course_concept_domains(query: str) -> dict:
         'mood', 'impulsive', 'misperception', 'misunderstanding', 'overconfidence'
     ]
     
-    # Apply weighted scoring for behavioral keywords
+    # Apply weighted scoring for behavioral keywords with sophisticated fuzzy matching
     for keyword in behavioral_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['behavioral'] += 3
     
     for keyword in behavioral_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['behavioral'] += 2
     
     for keyword in behavioral_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['behavioral'] += 1
     
     # Technical/analytical indicators - Three-tier weighted system
     technical_keywords_strong = [
         'simulation', 'forecast', 'optimization', 'algorithm', 'mathematical', 'calculate', 'data', 
-        'statistical', 'uncertainty', 'probability', 'model', 'regression', 'correlation', 'variance', 
+        'statistical', 'uncertainty', 'uncertain', 'probability', 'model', 'regression', 'correlation', 'variance', 
         'distribution', 'equation', 'analytics', 'dataset', 'outlier', 'predictive', 'clustering', 
         'classification', 'Monte Carlo', 'machine-learning', 'artificial-intelligence', 'computation', 
         'quantitative', 'sampling', 'hypothesis', 'variable', 'predictor', 'coefficient', 'diagnostic', 
@@ -492,7 +692,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'decision-model', 'utility-function', 'solver', 'constraint', 'probability-distribution', 
         'algorithmic-decision', 'decision-support-system', 'optimization-engine', 'predictive-analytics', 
         'recommender-system', 'automation', 'machine-support', 'computer-assisted', 'model-driven-decision', 
-        'analytics-engine', 'systematic-decision-making'
+        'analytics-engine', 'systematic-decision-making', 'systematic'
     ]
     
     technical_keywords_modest = [
@@ -508,11 +708,11 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for technical keywords
     for keyword in technical_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['technical'] += 3
     
     for keyword in technical_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['technical'] += 2
     
     technical_keywords_weak = [
@@ -523,7 +723,7 @@ def detect_course_concept_domains(query: str) -> dict:
     ]
     
     for keyword in technical_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['technical'] += 1
     
     # Strategic indicators - Three-tier weighted system
@@ -537,7 +737,7 @@ def detect_course_concept_domains(query: str) -> dict:
         'scaling', 'shareholder', 'stakeholder', 'profitability', 'pricing-strategy', 'supply-chain', 
         'distribution', 'partnership', 'long-term', 'investment-strategy', 'comparative-advantage', 'barrier', 
         'opportunity', 'threat', 'SWOT', 'PESTEL', 'game-theory', 'prisoner\'s-dilemma', 'Nash-equilibrium', 
-        'payoff-structure', 'cooperative-strategy', 'competitive-strategy', 'decision-making', 'decision making'
+        'payoff-structure', 'cooperative-strategy', 'competitive-strategy', 'decision-making', 'decision making', 'systematic'
     ]
     
     strategic_keywords_modest = [
@@ -557,15 +757,15 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for strategic keywords
     for keyword in strategic_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['strategic'] += 3
     
     for keyword in strategic_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['strategic'] += 2
     
     for keyword in strategic_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['strategic'] += 1
     
     # Negotiation indicators - Three-tier weighted system
@@ -592,15 +792,15 @@ def detect_course_concept_domains(query: str) -> dict:
     
     # Apply weighted scoring for negotiation keywords
     for keyword in negotiation_keywords_strong:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['negotiation'] += 3
     
     for keyword in negotiation_keywords_modest:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.85):
             course_concept_domains['negotiation'] += 2
     
     for keyword in negotiation_keywords_weak:
-        if keyword in query_lower:
+        if fuzzy_domain_match(query_lower, keyword, threshold=0.80):
             course_concept_domains['negotiation'] += 1
     
 
@@ -759,6 +959,13 @@ def get_top_ranked_concepts_DEPRECATED(query: str, top_k: int = 3, custom_glossa
                 # Tier 5: Negotiation concepts for decision making
                 elif concept_name in ['batna', 'game theory', 'integrative negotiation']:
                     keyword_boost = 0.2
+            
+            # For uncertainty/risk queries, boost Monte Carlo simulation and related tools
+            if any(word in query_lower for word in ['uncertainty', 'risk', 'tariff', 'volatile', 'unpredictable', 'probability']):
+                if concept_name == 'monte carlo simulation':
+                    keyword_boost = 0.5  # Strong boost for uncertainty queries
+                elif concept_name in ['sensitivity analysis', 'scenario analysis', 'expected value', 'decision tree']:
+                    keyword_boost = 0.3  # Moderate boost for related uncertainty tools
             
             score += keyword_boost
             
@@ -1379,6 +1586,7 @@ def select_concepts(concept_scores: List[Tuple[str, str, float]], selected_domai
                 domain_concepts = filtered_concepts_by_domain[domain]
                 if domain_concepts:
                     selected_concepts.append((domain_concepts[0][0], domain_concepts[0][1]))
+                    break  # Take first available domain
     
     # V1666.6 HARD CAP: 4 total concepts maximum
     selected_concepts = selected_concepts[:4]
@@ -1493,58 +1701,25 @@ def extract_concepts_with_fuzzy_matching(text: str, threshold: float = 0.8) -> L
     
     return found_concepts 
 
-# 1. V1.6.3 System Prompt - ThinkPal Decision Coach
-SYSTEM_PROMPT_ANALYTICS = """You are ThinkPal: Decision Coach, a structured GPT tutor that helps students think through complex decisions using strategic logic, analytical tools, and human behavior awareness.
-
-Your job is to generate thoughtful, well-structured answers to student decision-making questions using the following format:
-
----
-
-**Strategic Thinking Lens**
-
-This is the analytical core. Write **2 well-developed paragraphs** (around **120–160 words**). This section should cover **1–3 relevant domains**, include **tradeoffs**, and be approximately **50% of the answer**. Avoid overloading with bullets or headers. Do **not** use literal framework terms like "strategic mindset" or "human behavior awareness." Instead, express those ideas naturally (e.g. "thinking long-term," "anticipating stakeholder reactions," etc.). Focus on strategic thinking, analytical tools, and human behavior awareness relevant to the query.
-
----
-
-**Story in Action**
-
-Provide a short 3–4 sentence example. Must mirror the ideas in the Strategic Thinking Lens without being longer or more detailed.
-
----
-
-**Follow-up Prompts**
-
-Offer 2–4 reflective questions. These should invite deeper thinking and not repeat the above content.
-
----
-
-**Concepts/Tools**
-
-You MUST include this section with the exact concepts provided in the context in this format:
-
-Concept Name: Short definition
-Concept Name: Short definition
-
-Definitions must be on the same line as the concept name. Do not use dashes, bullets, or multiline formatting. These appear as tooltips in the UI. Do not define them elsewhere in the answer.
-
-CRITICAL: You MUST use ONLY the concepts provided in the context. Do NOT select, choose, or invent any concepts. Do NOT use any fallback concepts.
-
-If specific concepts are provided in the context (after "🚨 CRITICAL INSTRUCTIONS 🚨"), you MUST use those exact concepts and definitions.
-
-If NO concepts are provided in the context, use these core decision-making concepts with their exact definitions:
-- Decision Tree: A visual tool that maps out different options and their potential outcomes
-- Contingency Planning: Developing backup strategies to prepare for uncertainty
-- Risk Assessment: Systematic evaluation of potential threats and their impact on decision outcomes
-
-NEVER use concepts like "Stakeholder Alignment" or "Strategic Framing" unless they are explicitly provided in the context.
-
----
-
-Formatting Rules:
-- Use markdown-style headers (e.g., **Strategic Thinking Lens**) to label each section.
-- Break long answers into clear paragraphs.
-- Do not mention that you are an AI.
-- Output must sound natural, helpful, and avoid sounding like a framework summary. Your goal is to guide the student into thinking strategically — not just to label what they're doing."""
+# ============================================================================
+# LEGACY CODE CLEANUP - V1666.6 One-Call System
+# ============================================================================
+# The following legacy functions were removed during cleanup (2025-09-18):
+# - SYSTEM_PROMPT_ANALYTICS: Replaced by one-call system prompt in generate_answer_one_call
+# - calculate_optimal_tokens: Not used in one-call system
+# - robust_api_call: Replaced by generate_answer_with_retry in one-call system  
+# - merge_and_extend_with_story: Not used in one-call system
+# - context_aware_fallbacks: Not used in one-call system
+# - extract_sections_from_response: Not used in one-call system
+# - format_fallback_response: Not used in one-call system
+# - enforce_thinkpal_structure: Not used in one-call system
+# 
+# The current system uses:
+# - generate_answer_one_call: Main one-call GPT integration
+# - parse_gpt_output: Natural language to JSON parsing
+# - validate_answer: Quality validation with retry logic
+# - generate_answer_with_retry: Robust API calling with validation
+# ============================================================================
 
 def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     """Smart context truncation with sentence boundaries"""
@@ -1564,117 +1739,11 @@ def smart_context_truncation(docs: list, max_chars: int = 8000) -> str:
     
     return truncated.strip()
 
-def calculate_optimal_tokens(query_length: int, context_length: int) -> int:
-    """Calculate optimal token limit based on input size"""
-    total_input = query_length + context_length
-    if total_input > 6000:
-        return 800
-    elif total_input > 3000:
-        return 1000
-    else:
-        return 1200
+# Legacy calculate_optimal_tokens removed - not used in one-call system
 
-def robust_api_call(system_prompt: str, user_message: str, max_tokens: int = 0, max_retries: int = 3):
-    """Handle API calls with retries using system/user message structure"""
-    tokens_to_use = max_tokens if max_tokens > 0 else openai_max_tokens
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_message}
-    ]
-    for attempt in range(max_retries):
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                temperature=1.2,  # Increased for more variety
-                max_tokens=tokens_to_use
-            )
-            return response, None
-        except Exception as e:
-            if attempt < max_retries - 1:
-                time.sleep(1 * (2 ** attempt))
-            else:
-                return None, str(e)
-    return None, "Max retries exceeded"
+# Legacy robust_api_call removed - replaced by generate_answer_with_retry in one-call system
 
-def merge_and_extend_with_story(lens_text: str, story_text: str, domain_count: int) -> str:
-    """
-    Merge Strategic Thinking Lens and Story using GPT-3.5 to create a refined Lens.
-    
-    Args:
-        lens_text: Original Strategic Thinking Lens content (reasoning)
-        story_text: Original Story in Action content (example seed)
-        domain_count: Number of domains detected (for adaptive word count)
-        
-    Returns:
-        Merged Strategic Thinking Lens with integrated story
-    """
-    # Calculate target length based on domain count
-    target_length = min(150, 100 + (domain_count - 1) * 25)
-    
-    # ✅ Updated GPT-3.5 merge prompt for a cohesive strategic narrative
-    prompt = f"""
-You're an expert instructor helping professionals practice strategic decision-making.
-
-Below are two drafts:
-1. A strategic thinking explanation for the query
-2. An illustrative story or scenario aligned with that explanation
-
-Your task is to revise and merge these into a single, cohesive answer. The result will be displayed under the section: **Strategic Thinking Lens**.
-
-✅ Do NOT add section headers or markdown titles like "Strategic Reasoning" or "Concrete Example."
-✅ Do NOT include "Strategic Thinking Lens:" or any similar headers in your response
-✅ Write ONLY the narrative content without any formatting headers
-✅ Embed the story wherever it best supports the flow — beginning, middle, or end — but write as one unified narrative.
-✅ Use a clear, professional tone appropriate for professional learners.
-✅ Keep the response concise (ideally two well-developed paragraphs).
-✅ Avoid repetition or superficial elaboration.
-
-Lens Draft:
-{lens_text}
-
-Story Draft:
-{story_text}
-"""
-
-    try:
-        # GPT call starting
-        
-        # Call GPT-3.5 for merging
-        response, error = robust_api_call(
-            system_prompt="You are a skilled editor who combines analytical reasoning with practical examples. Create clear, educational content that flows naturally.",
-            user_message=prompt,
-            max_tokens=300
-        )
-        
-        # GPT call complete
-        
-        if error:
-            # GPT-3.5 merge failed - using fallback concatenation
-            merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-            return merged_lens
-        
-        # Extract merged content
-        merged_content = response.choices[0].message.content.strip()
-        
-        # ✅ Clean up redundant headers in merged_content from GPT output
-        merged_content = re.sub(
-            r'^\s*(\*\*Strategic Thinking Lens\*\*:?|Strategic Thinking Lens:?|Strategic Reasoning:|### Strategic Thinking Lens:?)[\s\n]*',
-            '',
-            merged_content.strip(),
-            flags=re.IGNORECASE
-        )
-        
-        # Log success
-        tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-        # GPT-3.5 merge successful
-        
-        return merged_content
-        
-    except Exception as e:
-        # Exception in merge_and_extend_with_story - using fallback concatenation
-        merged_lens = lens_text.strip() + "\n\nFor example, " + story_text.strip().capitalize()
-        return merged_lens
+# Legacy merge_and_extend_with_story removed - not used in one-call system
 
 def clean_concepts_tools_practice(raw_items):
     """Ensure conceptsToolsPractice is always a list of {term, definition} objects with non-empty, non-placeholder definitions."""
@@ -1943,181 +2012,7 @@ def extract_application_field(query: str) -> str:
     # 13. General Decision-Making (default)
     return "general"
 
-def context_aware_fallbacks(query: str):
-    """Generate context-aware fallback content for each ThinkPal V1.6.3 section based on the query application field."""
-    # Use course concept domain-aware logic for Strategic Thinking Lens
-    course_concept_domains = detect_course_concept_domains(query)
-    
-    # Use semantic application field detection for better accuracy
-    try:
-        # Load data lazily to get the model
-        index, metadata, documents, file_names, model, nlp = load_data_lazily()
-        application_field = extract_application_field_semantic(query, model)
-    except Exception as e:
-        # Fallback to keyword-based detection if semantic fails
-        # Semantic application field detection failed, using keyword-based
-        application_field = extract_application_field(query)
-    
-    # Determine primary course concept domain for Strategic Thinking Lens
-    if course_concept_domains:
-        primary_course_domain = max(course_concept_domains, key=course_concept_domains.get)
-    else:
-        primary_course_domain = 'general'
-    
-    # Generate Strategic Thinking Lens based on course concept domain and application field
-    strategic_lens = generate_course_domain_strategic_lens(query, primary_course_domain, application_field)
-    
-    # Use application field for Story in Action and other sections
-    if application_field == "general":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Sarah, a high school senior, compares three college offers using a weighted scoring model. She lists her priorities—academic reputation, cost, campus culture, and location. After visiting each campus and speaking with current students, she weighs the value of strong alumni networks against the appeal of lower tuition. Sarah ultimately chooses the school that best balances her career goals and financial constraints.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Decision Tree: Mapping out options and outcomes\n- Weighted Scoring Model: Comparing choices using weighted criteria"
-        }
-    if application_field == "people_talent_career":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, a software engineer, receives two job offers and creates a decision matrix to compare them systematically. He evaluates growth opportunities, compensation packages, company culture, and work-life balance. One offer provides an immediate salary boost, while the other offers mentorship programs and clear advancement paths. After consulting with mentors and considering his long-term career vision, Alex chooses the role that best aligns with his professional goals and personal values.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Weighted Scoring Model: Structured option comparison\n- Pros and Cons List: Simple evaluation of positives and negatives"
-        }
-    if application_field == "startup":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maria, an entrepreneur, evaluates two product ideas using Lean Canvas methodology. She conducts thorough market research to understand customer demand, assesses resource requirements, and analyzes potential risks for each option. One path offers quick entry into a crowded market with established demand, while the other focuses on innovative features with slower market adoption. After consulting with industry experts and considering her risk tolerance, Maria selects the option that best balances immediate feasibility with long-term growth potential.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Lean Canvas: One-page business planning tool\n- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats"
-        }
-
-    if application_field == "operations_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Lisa, an operations manager, models multiple supply chain scenarios using Monte Carlo simulation to account for demand uncertainty. She compares cost efficiency with operational flexibility, analyzing how different scenarios affect both short-term performance and long-term resilience. Her comprehensive analysis reveals that the most resilient plan balances steady operational costs with the adaptability needed to respond to demand fluctuations and supply disruptions.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Scenario Analysis: Exploring possible futures\n- Monte Carlo Simulation: Modeling uncertainty through random sampling"
-        }
-    if application_field == "financial_decision_making":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "James, a mid-career professional, weighs investing in index funds versus keeping money in a money market account. He analyzes historical returns, considers his risk tolerance, and balances immediate liquidity needs with long-term growth potential. After consulting with a financial advisor and reviewing his emergency fund, James decides on an allocation that reflects both financial stability and the opportunity cost of being too conservative.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Assessment: Evaluating potential threats\n- Expected Value: Estimating average outcomes under uncertainty"
-        }
-    if application_field == "healthcare_medical":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maya, a young professional, compares three health insurance plans using a decision matrix. She carefully weighs monthly premiums, provider network coverage, emergency care benefits, and prescription drug coverage. After researching each plan's reputation and reading customer reviews, Maya balances affordability with comprehensive coverage, ensuring both immediate health security and long-term financial stability for unexpected medical expenses.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Tolerance Profile: Measuring comfort with uncertainty"
-        }
-    if application_field == "education_learning":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Daniel debates pursuing a master's degree versus earning industry certifications. He compares tuition costs, time commitments, and potential career impact for each option. After researching salary data and consulting with professionals in his field, Daniel weighs the long-term credibility of a degree against the faster skill acquisition of certifications, ultimately choosing the option best aligned with his career goals and financial constraints.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Opportunity Cost: Value of the next-best alternative\n- Strategic Framing: Structuring the decision problem clearly"
-        }
-    if application_field == "relocation":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Emily and her partner consider relocating to a new city for career opportunities. They conduct thorough research on job markets, cost of living differences, and quality of life factors in both locations. Their scenario analysis reveals better career growth potential in the new city but significantly less family support and higher living costs. They must carefully balance immediate quality of life considerations with long-term career and financial prospects.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Scenario Planning: Preparing for multiple futures\n- Stakeholder Alignment: Balancing the interests of key people"
-        }
-    if application_field == "leadership":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Mark, a team leader, notices rising conflict between two departments over resource allocation and project priorities. He facilitates structured dialogue sessions, balances empathy with clear authority, and establishes transparent communication channels. His systematic approach not only resolves the immediate conflict but also restores trust and collaboration while strengthening the long-term team culture and preventing similar issues.",
-            'Follow-up Prompts': ["- What factors might drive this conflict?", "- How can you balance empathy with authority?"],
-            'Concepts/Tools': "- Stakeholder Alignment: Ensuring balanced interests\n- Leadership Assessment: Evaluating leadership effectiveness"
-        }
-    if application_field == "ethics":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Jordan, a nonprofit director, faces mounting pressure to take a public stance on a controversial social issue that directly impacts her organization's mission. She carefully weighs mission alignment, stakeholder trust, donor relationships, and long-term organizational reputation. After consulting with board members and legal counsel, Jordan crafts a values-driven but diplomatically balanced statement that protects the organization's integrity while maintaining credibility with all stakeholders.",
-            'Follow-up Prompts': ["- How does this align with your values?", "- What are the risks of taking a public stance?"],
-            'Concepts/Tools': "- Strategic Framing: Clarifying objectives and risks\n- Value Creation: Generating benefits that exceed costs"
-        }
-    if application_field == "business_markets":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Michael, a business analyst, evaluates strategic options using a comprehensive decision framework. He analyzes market conditions, competitive dynamics, and resource constraints to identify the optimal path forward. By weighing short-term operational efficiency against long-term strategic positioning, Michael develops a balanced approach that maximizes value creation while managing risk exposure.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- SWOT Analysis: Assessing strengths, weaknesses, opportunities, and threats\n- Decision Matrix: Structured evaluation of multiple criteria"
-        }
-    if application_field == "technology_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Carlos, a small business owner, considers adopting AI-powered customer support tools to improve efficiency and reduce response times. He carefully weighs the potential efficiency gains against employee training requirements, customer experience impacts, and implementation costs. After consulting with his team and researching similar implementations, Carlos's decision hinges on balancing the speed of technology adoption with his organization's readiness for change and ability to maintain service quality.",
-            'Follow-up Prompts': ["- What long-term benefits could technology bring?", "- What barriers might slow adoption?"],
-            'Concepts/Tools': "- Human-Computer Integration: Enhancing decisions with technology"
-        }
-    if application_field == "risk_crisis_resilience":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Lisa, a risk manager, evaluates potential threats to her organization's supply chain. She conducts a comprehensive risk assessment, identifying vulnerabilities in supplier relationships, geopolitical factors, and natural disaster scenarios. By developing contingency plans and monitoring early warning indicators, Lisa creates a resilient framework that balances risk mitigation costs with potential impact severity.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Risk Assessment Matrix: Evaluating probability and impact\n- Scenario Planning: Preparing for multiple futures"
-        }
-    if application_field == "project_management":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "David, a project manager, faces competing stakeholder demands while managing a critical software development project. He uses work breakdown structures to identify dependencies, critical path analysis to optimize timelines, and stakeholder management techniques to align expectations. By balancing scope, time, and cost constraints, David delivers the project successfully while maintaining team morale and stakeholder satisfaction.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Critical Path Analysis: Identifying project bottlenecks\n- Stakeholder Management: Balancing competing interests"
-        }
-    if application_field == "sustainability_environment":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Emma, a sustainability director, navigates the complex trade-offs between environmental responsibility and business profitability. She evaluates carbon footprint reduction initiatives, assesses stakeholder expectations, and balances short-term costs with long-term brand value. By integrating ESG considerations into strategic decision-making, Emma creates value for both shareholders and society.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Triple Bottom Line: People, Planet, Profit\n- ESG Framework: Environmental, Social, Governance criteria"
-        }
-    if application_field == "innovation":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Alex, an R&D manager, evaluates competing innovation projects with limited resources. He assesses market potential, technical feasibility, and strategic alignment for each option. By balancing breakthrough potential with implementation risk, Alex prioritizes projects that offer the best combination of innovation impact and organizational capability.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Innovation Portfolio: Balancing risk and reward\n- Stage-Gate Process: Systematic innovation evaluation"
-        }
-    if application_field == "human_capital":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Sarah, an HR director, develops a comprehensive talent strategy to address skill gaps and improve retention. She analyzes workforce demographics, identifies critical roles, and designs development programs that balance individual growth with organizational needs. By aligning human capital investments with business strategy, Sarah creates a sustainable competitive advantage.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Talent Pipeline: Building future capabilities\n- Succession Planning: Ensuring leadership continuity"
-        }
-    if application_field == "marketing":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Mike, a marketing director, evaluates customer acquisition strategies across multiple channels. He analyzes customer lifetime value, conversion rates, and brand positioning to optimize marketing spend. By balancing short-term sales targets with long-term brand building, Mike creates a sustainable competitive advantage in crowded markets.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- Customer Lifetime Value: Long-term customer worth\n- Brand Positioning: Distinctive market position"
-        }
-    if application_field == "globalization":
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Maria, a global operations director, evaluates market entry strategies for emerging economies. She analyzes political risks, currency fluctuations, and cultural differences while assessing market potential and competitive dynamics. By balancing local adaptation with global scale, Maria creates sustainable competitive advantages in diverse markets.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, application_field),
-            'Concepts/Tools': "- PESTEL Analysis: Political, Economic, Social, Technological, Environmental, Legal factors\n- Cultural Intelligence: Adapting to local contexts"
-        }
-    # General fallback - but try to infer context from the query
-    # For follow-up questions about trade-offs, objectives, etc., use strategic context
-    if any(word in query.lower() for word in ["trade-off", "trade-offs", "trade off", "trade offs", "objectives", "goals", "priorities", "options", "alternatives", "choices"]):
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "A strategic decision-maker systematically evaluates their options by creating a comprehensive framework. They identify key criteria, research alternatives thoroughly, and use analytical tools to compare trade-offs. After weighing both immediate impacts and long-term consequences, they make an informed choice that balances competing priorities and aligns with their strategic objectives.",
-            'Follow-up Prompts': generate_domain_aware_fallback_questions(query, "strategic"),
-            'Concepts/Tools': "- Strategic Framing: Structuring the decision problem clearly\n- Trade-off Analysis: Comparing competing priorities systematically"
-        }
-    else:
-        return {
-            'Strategic Thinking Lens': strategic_lens,
-            'Story in Action': "Someone facing a complex decision creates a systematic framework to evaluate their options. They list their priorities, research available alternatives, and use structured tools to compare trade-offs. After considering both immediate consequences and long-term implications, they make a well-informed choice that balances multiple competing factors and aligns with their core values.",
-            'Follow-up Prompts': ["- What are your main objectives?", "- What trade-offs exist between your options?"],
-            'Concepts/Tools': "- Decision Matrix: Comparing alternatives systematically\n- Pros and Cons List: Evaluating positives and negatives"
-        }
+# Legacy context_aware_fallbacks removed - not used in one-call system
 
 def generate_course_domain_strategic_lens(query: str, course_domain: str, application_field: str = None) -> str:
     """Generate strategic lens based on course domain and application field."""
@@ -2204,39 +2099,7 @@ def generate_domain_aware_fallback_questions(query: str, domain: str) -> list:
     
     return questions
 
-def extract_sections_from_response(answer: str) -> dict:
-    """
-    Extract individual sections from a ThinkPal response.
-    
-    Args:
-        answer: Complete ThinkPal response
-        
-    Returns:
-        Dictionary with section names as keys and content as values
-    """
-    sections = {}
-    
-    # Extract Strategic Thinking Lens
-    lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if lens_match:
-        sections['lens'] = lens_match.group(1).strip()
-    
-    # Extract Story in Action
-    story_match = re.search(r'\*\*Story in Action\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if story_match:
-        sections['story'] = story_match.group(1).strip()
-    
-    # Extract Follow-up Prompts
-    prompts_match = re.search(r'\*\*Follow-up Prompts\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if prompts_match:
-        sections['prompts'] = prompts_match.group(1).strip()
-    
-    # Extract Concepts/Tools
-    concepts_match = re.search(r'\*\*Concepts/Tools\*\*(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-    if concepts_match:
-        sections['concepts'] = concepts_match.group(1).strip()
-    
-    return sections
+# Legacy extract_sections_from_response removed - not used in one-call system
 
 def analyze_query_context(query_lower):
     """Analyze the semantic context of a query to identify decision-making scenarios."""
@@ -2348,37 +2211,93 @@ def parse_gpt_output(raw_text, application_field, model, elapsed):
         if not text:
             return {"error": "Server issue, please try again later."}
 
-        lines = [ln.strip() for ln in text.splitlines()]
-
-        # 1) Collect candidate prompts by common patterns
-        prompts = []
-        prompt_indices = []  # starting indices in the raw text to help find lens boundary
+        prompts: list[str] = []
+        prompt_indices: list[int] = []
 
         bullet_pattern = re.compile(r'^[\-•\*]\s*(.+)')
         numbered_pattern = re.compile(r'^(?:\d+\.|\d+\))\s*(.+)')
         question_line_pattern = re.compile(r'^(.+\?)$')
+        interrogatives = {"how", "what", "why", "which", "where", "who", "when"}
 
-        offset = 0
-        for ln in lines:
-            m = bullet_pattern.match(ln) or numbered_pattern.match(ln) or question_line_pattern.match(ln)
-            if m:
-                candidate = m.group(1).strip()
-                # Ensure it looks like a question; append '?' if missing
-                if not candidate.endswith('?'):
-                    candidate = candidate + '?'
-                if len(candidate) >= 5:
-                    prompts.append(candidate)
-                    # Record index position in the original text for lens boundary
-                    idx = text.find(ln, offset)
-                    if idx != -1:
-                        prompt_indices.append(idx)
-            offset += len(ln) + 1  # +1 for newline
+        label_match = re.search(r"\bfollow[-\s]?up\b[^\n]*prompts?\b[:]?", text, re.IGNORECASE)
+        if label_match:
+            lens_text_raw = text[:label_match.start()].rstrip()
+            candidate_prompt_text = text[label_match.end():].strip()
+        else:
+            last_blank = text.rfind("\n\n")
+            if last_blank != -1:
+                lens_text_raw = text[:last_blank].rstrip()
+                candidate_prompt_text = text[last_blank + 2:].strip()
+            else:
+                lens_text_raw = text
+                candidate_prompt_text = ""
 
-        # 2) If still empty, extract question-like sentences from full text
+        candidate_lines = [ln.rstrip() for ln in candidate_prompt_text.splitlines()] if candidate_prompt_text else []
+        offset_base = text.find(candidate_prompt_text) if candidate_prompt_text else len(text)
+
+        for ln in candidate_lines:
+            stripped = ln.strip()
+            if not stripped:
+                offset_base += len(ln) + 1
+                continue
+            m = bullet_pattern.match(stripped) or numbered_pattern.match(stripped) or question_line_pattern.match(stripped)
+            if not m:
+                offset_base += len(ln) + 1
+                continue
+            candidate = m.group(1).strip() if m else stripped
+            if not candidate.endswith('?') or len(candidate) < 5:
+                offset_base += len(ln) + 1
+                continue
+            first_word = candidate.split()[0].lower()
+            if first_word not in interrogatives:
+                offset_base += len(ln) + 1
+                continue
+            prompts.append(candidate)
+            idx = text.find(stripped, offset_base)
+            if idx != -1:
+                prompt_indices.append(idx)
+            offset_base += len(ln) + 1
+
+        if not prompts and candidate_prompt_text:
+            filtered = []
+            for ln in candidate_lines:
+                s = ln.strip()
+                if not (s.endswith('?') and len(s) >= 5):
+                    continue
+                first_word = s.split()[0].lower() if s.split() else ""
+                if first_word in interrogatives:
+                    filtered.append(s)
+            if len(filtered) >= 2:
+                prompts.extend(filtered)
+
+        question_pattern = re.compile(r'(?:^|[\s"“"\'\-])((?:How|What|Why|Which|Who|Where|When)[^?]*\?)', re.IGNORECASE)
+
         if not prompts:
-            # Capture sentences ending with '?'
-            q_sentences = re.findall(r'([^\n\r\?]{5,}?\?)', text)
-            prompts = [qs.strip() for qs in q_sentences if len(qs.strip()) >= 5]
+            tail_text = candidate_prompt_text or text
+            matches = question_pattern.findall(tail_text)
+            prompts = [m.strip() for m in matches if m and len(m.strip()) >= 5]
+
+        # Normalize candidates: split concatenated questions and remove prefacing narration
+        normalized = []
+        seen = set()
+        for candidate in prompts:
+            matches = question_pattern.findall(candidate)
+            if matches:
+                for q in matches:
+                    cleaned = q.strip()
+                    if cleaned and cleaned.lower() not in seen:
+                        if not cleaned.endswith('?'):
+                            cleaned += '?'
+                        normalized.append(cleaned)
+                        seen.add(cleaned.lower())
+            else:
+                cleaned = candidate.strip()
+                if cleaned and cleaned.lower() not in seen:
+                    if not cleaned.endswith('?'):
+                        cleaned += '?'
+                    normalized.append(cleaned)
+                    seen.add(cleaned.lower())
+        prompts = normalized
 
         # 3) Normalize count to 2–4 when possible
         if len(prompts) >= 5:
@@ -2399,17 +2318,9 @@ def parse_gpt_output(raw_text, application_field, model, elapsed):
         # 4) Determine strategic lens boundary (before first prompt occurrence)
         if prompt_indices:
             lens_end = min(prompt_indices)
+            strategic_lens = text[:lens_end].strip()
         else:
-            # If we have prompts but no indices (from regex over sentences), cut before last paragraph of questions
-            if prompts:
-                # Try to locate the first prompt substring
-                first_prompt = prompts[0]
-                pos = text.find(first_prompt)
-                lens_end = pos if pos != -1 else len(text)
-            else:
-                lens_end = len(text)
-
-        strategic_lens = text[:lens_end].strip()
+            strategic_lens = lens_text_raw.strip()
 
         # Safety fallback: if lens accidentally empty but we have content, take first two paragraphs
         if not strategic_lens:
@@ -2489,9 +2400,17 @@ def generate_answer_with_retry(user_prompt, base_prompt, require_behavioral=Fals
             elif attempt == 0 and should_retry:
                 # Add reinforcement for retry
                 system_prompt += """
+
 IMPORTANT: Expand further. Minimum 250 words required.
 Include a 6–8 sentence example (~100 words) woven naturally into the narrative.
-Avoid formulaic phrasing — vary your style and tone.
+
+CRITICAL: Maintain natural, conversational language. Avoid these mechanical patterns:
+- "When facing X, it's essential to Y"
+- "It is crucial to..."
+- "One effective strategy is..."
+- "Another valuable strategy is..."
+
+Write like you're talking to a friend, not a textbook. Use contractions and natural flow.
 """
                 continue  # Try retry
             else:
@@ -2547,7 +2466,8 @@ def generate_answer_one_call(user_query: str,
                              application_field: str,
                              primary_domains: List[str],
                              secondary_domains: List[str],
-                             concepts: List[Tuple[str, str]] | List[Dict[str, str]] = None
+                             concepts: List[Tuple[str, str]] | List[Dict[str, str]] = None,
+                             generation_context: str | None = None
                              ) -> Dict[str, Any]:
     """
     Generate strategic lens and follow-up prompts in ONE OpenAI call.
@@ -2558,20 +2478,17 @@ def generate_answer_one_call(user_query: str,
     # Build system prompt per specification
     system_prompt = """You are Engent Labs Decision-Making Tutor.
 
-Tone: genuine, practical, engaging, clear, and positive.  
-Write as if you are coaching a student in conversation, not giving a lecture.  
-Avoid repetitive phrasing — do not begin every answer with 'When facing...' or 'It is crucial to...'.  
-Vary your sentence structure, mix short and long sentences, and ask reflective questions.  
+Tone: genuine, practical, engaging, clear, and positive. Write as if you are coaching a colleague—no lecture voice.
 
-Structure:
-- Write 2–3 paragraphs (minimum 220 words).
-- Include one detailed, realistic example inside the narrative (6–8 sentences, ~100 words). Do not bolt it on separately — make it flow naturally.
-- End with 3–4 reflective follow-up questions, each on its own line starting with "-".
+CRITICAL: Use natural openings (not "When facing…", "It's crucial…", "One effective strategy…"). Vary sentence rhythm and keep phrasing grounded.
 
- Output requirements:
- - Generate ONLY the strategic explanation and follow-up questions. Do not output any concept list.
- - Use the provided course concepts as soft anchors ONLY if they genuinely fit the query context. Do not force them.
- - Do not output JSON. Write naturally as text."""
+Expectations:
+– Craft a cohesive mini-essay (about three paragraphs) blending reasoning, a real-world example, and a forward-looking insight.
+– The example must cite a publicly reported organization/person with a specific year and a concrete metric/action/outcome. No placeholders or hypothetical roles.
+– IMPORTANT: Do not reuse organizations used earlier in this conversation; vary organization types across examples.
+– Do not include headings before the essay.
+– After the essay, insert a blank line, then the heading "Follow-up Prompts:". Provide 3–4 bullet questions on separate lines, each starting with "- " and beginning with How/What/Why/Which/Where/Who/When.
+– Keep each question ≤120 characters. Do not output JSON or additional sections."""
 
     # Use provided concepts (extracted by the main process_query function)
     if concepts is None:
@@ -2596,6 +2513,50 @@ Structure:
         if term:
             norm_concepts.append({"term": term, "definition": definition})
 
+    # Shortlist for prompt injection (keep prompt focused)
+    shortlist_k = CONFIG_V167B.get('SHORTLIST_K', 6)
+    shortlist = norm_concepts[:shortlist_k]
+
+    # Build a soft diversity hint from recent entities (avoid immediate repeats)
+    avoid_list = []
+    try:
+        window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+        avoid_list = RECENT_ENTITIES_LRU[-window:]
+    except Exception:
+        avoid_list = []
+    
+    # Build category hint (preference on first attempt)
+    recent_categories = set(RECENT_CATEGORIES_LRU[-8:]) if RECENT_CATEGORIES_LRU else set()
+    ALL_CATEGORIES = ["Technology", "Manufacturing", "Healthcare", "Retail", "Energy", 
+                      "Public Sector", "Education", "Financial Services", "Consumer Goods"]
+    underused_categories = [c for c in ALL_CATEGORIES if c not in recent_categories]
+    
+    if underused_categories:
+        category_hint = f"If multiple options fit, prefer underused categories: {', '.join(underused_categories[:5])}"
+    else:
+        category_hint = "All categories have been used - vary organization types"
+    
+    # Format avoid_list for prominent display (BLOCK C: use display names)
+    if avoid_list:
+        display_names = [get_display_name(e) for e in avoid_list[:8]]
+        avoid_list_formatted = ", ".join(display_names)
+        diversity_critical_section = f"""
+CRITICAL: Example Selection Requirements
+- DO NOT use these recently used organizations: {avoid_list_formatted}
+- MUST select a DIFFERENT organization (name + year explicitly).
+- {category_hint}
+"""
+    else:
+        diversity_critical_section = f"""
+CRITICAL: Example Selection Requirements
+- MUST select a specific organization (name + year explicitly).
+- {category_hint}
+"""
+
+    context_block = ""
+    if generation_context:
+        context_block = f"\n\nContext capsule (previous lens): {generation_context}\n"
+
     user_prompt = f"""
 Here is the query context:
 
@@ -2603,24 +2564,118 @@ Query: {user_query}
 Application field: {application_field}
 Primary domain(s): {primary_domains}
 Secondary domain(s): {secondary_domains}
-Here are relevant course concepts (glossary-extracted): {norm_concepts}
-
+Approved Glossary Shortlist (use ONLY if clearly relevant; exact spelling/definitions): {shortlist}
+{diversity_critical_section}
 Generate a natural language response with:
-- 2-3 paragraphs, 12-15 sentences total
-- Include one detailed, realistic example (6-8 sentences, ~100 words)
-- End with 3-4 reflective follow-up questions, each on its own line starting with "-"
+- Exactly 3 paragraphs in this order: (1) reasoning/trade-off, (2) one specific real-world example with concrete details (company/year/outcome), (3) strategic insight.
+- Keep the example organically integrated into the analysis (not a separate case block).
+- End with 3–4 short, question-form follow-ups, each on its own line starting with "-". Include two generalization questions that broaden from the example back to the core concept (transferability, conditions, thresholds) and one or two questions tied to the named example (actions, trade-offs, outcomes). All follow-up prompts must come directly from this answer; no downstream logic will supplement them.
 - Include behavioral insights if relevant
 
+Opening and flow refinements (keep natural tone, do not change length):
+- Begin by tying your reasoning explicitly to the user's query context (avoid boilerplate openers).
+- In the real-world passage, include 1–2 analytical details (a specific action, a trade-off, or a measurable outcome). Do not invent facts.
+- Use at least one connective phrase to bridge ideas (e.g., "Concretely…", "This illustrates…", "As a result…").
+- Conclude with a clear takeaway or limitation (the "so what", when it might not hold, or what to watch).
+
 Notes:
-- Use the listed concepts ONLY if they genuinely strengthen clarity; do not force them.
-- Do NOT output any concept list; only the explanation and follow-up questions.
-"""
+ - Choose at most 2–3 items from the Approved Glossary Shortlist ONLY if they are clearly evidenced in your answer (omit if weak).
+ - Do NOT output any concept list; only the explanation and follow-up questions.
+ - Use a specific, verifiable company/entity and year in the example; do not use placeholders (e.g., "XYZ", "Company A").
+ - Use a well-known, publicly reported example (company/organization/person + year). DO NOT use hypothetical or composite cases.
+ - Include one anchoring fact (e.g., named product/site/market) so the example feels concrete and verifiable.
+ - Do not include explicit source names or citations.
+ - Prefer diversity across organization types (technology, manufacturing, healthcare, retail, energy, public sector, education, financial services, consumer goods). When multiple suitable examples exist, choose one from a category that hasn't been recently used.
+ - Use widely recognizable organizations with publicly documented decisions. DO NOT use obscure startups or trivia-based examples unless explicitly relevant.
+ - Do not reuse the same organization within the conversation when reasonable alternatives exist.
+ - If a tool naturally arises in your reasoning, name it once (only if it truly adds clarity).
+{context_block}"""
 
     try:
         if openai is None:
             raise RuntimeError("OpenAI SDK not available")
         
-        parsed_output = generate_answer_with_retry(user_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+        parsed_output = None
+        placeholder_flags = {
+            "company x", "company y", "company a", "company b", "acme",
+            "sample company", "example company", "a buyer", "a manager",
+            "a marketing executive", "industry leader", "organization x",
+            "hypothetical", "fictional"
+        }
+
+        # Build strict_hint with category requirement if categories have been used
+        recent_cats = RECENT_CATEGORIES_LRU[-3:] if RECENT_CATEGORIES_LRU else []
+        if recent_cats:
+            last_category = recent_cats[-1]
+            category_requirement = f"REQUIRED: Pick an organization from a different category than '{last_category}'. "
+        else:
+            category_requirement = ""
+        
+        strict_hint = (
+            f"\n\nSTRICT MODE: Use a well-documented, credible real-world example that fits the query. "
+            f"{category_requirement}"
+            "Choose from diverse organization types: Technology (Microsoft's 2020 Teams expansion, Google's 2015 Alphabet restructuring, "
+            "Meta's 2021 metaverse pivot, Adobe's 2013 Creative Cloud shift, Oracle's 2016 cloud transformation, Salesforce's 2019 Tableau acquisition, "
+            "Intel's 2015 IoT strategy, NVIDIA's 2020 data center growth), Manufacturing/Industrial (Boeing's 2019 737 MAX response, "
+            "Caterpillar's 2016 cost restructuring, 3M's 2018 innovation portfolio review, Deere & Company's 2020 precision agriculture expansion, "
+            "Honeywell's 2018 spinoff strategy, Ford's 2020 EV investment, GE's 2018 power division sale), Healthcare/Pharma (Johnson & Johnson's 2021 "
+            "COVID-19 vaccine distribution, Pfizer's 2019 oncology portfolio expansion, Merck's 2018 Keytruda market expansion, Mayo Clinic's 2018 "
+            "telemedicine expansion, Kaiser Permanente's 2020 digital health initiatives), Retail/Logistics (Walmart's 2018 e-commerce strategy, "
+            "Target's 2017 store remodeling initiative, Costco's 2019 expansion strategy, FedEx's 2012 European logistics restructuring, Zara's 2015 "
+            "fast-fashion supply chain optimization), Energy/Utilities (ExxonMobil's 2020 capital expenditure cuts, Chevron's 2019 acquisition strategy, "
+            "NextEra Energy's 2018 renewable energy investments, Enel's 2019 green energy pivot), Public Sector (NASA's 2020 Artemis program launch, "
+            "CDC's 2014 Ebola response, USPS's 2012 restructuring efforts, Federal Reserve's 2008 financial crisis response), Education/Research/Nonprofit "
+            "(Harvard's 2020 online education expansion, MIT's 2016 open courseware expansion, Red Cross's 2017 disaster response optimization, World Bank's "
+            "2018 climate finance strategy), Financial Services (JPMorgan Chase's 2019 digital banking investments, Bank of America's 2018 branch optimization, "
+            "Visa's 2016 payment security initiatives, Mastercard's 2019 fintech partnerships), Consumer Goods (Procter & Gamble's 2018 brand portfolio "
+            "focus, PepsiCo's 2019 sustainability commitments, Nike's 2020 digital transformation, L'Oréal's 2018 e-commerce expansion). "
+            "Name the organization/person and the year explicitly, and include a concrete metric/outcome. Do NOT use placeholders or generic labels."
+        )
+
+        # BLOCK B: Hard post-generation enforcement gate
+        max_attempts = 5  # Increased to allow enforcement retries
+        for attempt in range(max_attempts):
+            this_prompt = user_prompt
+            if attempt > 0:
+                this_prompt += strict_hint
+
+            parsed_output = generate_answer_with_retry(this_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+            lens_txt = parsed_output.get("strategicThinkingLens", "") if isinstance(parsed_output, dict) else ""
+
+            ent, yr = _extract_entity_year(lens_txt)
+            has_placeholder = any(flag in lens_txt.lower() for flag in placeholder_flags)
+            ent_normalized = _normalize_entity(ent) if ent else ""
+            window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+            recent_entities = set(RECENT_ENTITIES_LRU[-window:])
+            is_blocked = ent_normalized in recent_entities if ent_normalized else False
+            
+            # ENFORCEMENT GATE 1: Extraction must succeed
+            if not ent or not yr:
+                if attempt < max_attempts - 1:
+                    this_prompt += "\n\nCRITICAL: You MUST name a widely recognizable organization AND a year explicitly."
+                    user_prompt = this_prompt  # Update for next iteration
+                    print(f"[enforcement] Extraction failed - retrying with explicit instruction (attempt {attempt+1}/{max_attempts})")
+                    continue
+                else:
+                    print(f"[enforcement] Extraction failed on final attempt - accepting best-effort")
+            
+            # ENFORCEMENT GATE 2: Entity must not be blocked
+            if is_blocked and ent:
+                if attempt < max_attempts - 1:
+                    blocked_display = ", ".join([get_display_name(e) for e in list(recent_entities)[:8]])
+                    this_prompt += f"\n\nBLOCKED: You used '{ent}' which is in the avoid list. DO NOT use: {blocked_display}. MUST choose a DIFFERENT organization and include a year."
+                    user_prompt = this_prompt  # Update for next iteration
+                    print(f"[enforcement] Blocked entity '{ent}' (normalized: {ent_normalized}) - retrying with blocking instruction (attempt {attempt+1}/{max_attempts})")
+                    continue
+                else:
+                    print(f"[enforcement] Blocked entity on final attempt - accepting best-effort")
+            
+            # Accept if quality checks pass
+            if _validate_lens_quality(lens_txt) and not has_placeholder and not is_blocked:
+                break
+            
+            if attempt == max_attempts - 1:
+                print({"lens_placeholder_warning": lens_txt[:200]})
         
         if "error" in parsed_output:
             # Return best-effort parsed output if present
@@ -2629,9 +2684,96 @@ Notes:
             return parsed_output
 
         processing_time = round(time.time() - start_time, 2)
+        strategic_lens_out = parsed_output.get("strategicThinkingLens", "")
+        strategic_lens_out = _de_mechanize_lens(strategic_lens_out)
+        # V1.6.8: Conditional Lens enhancement (editor pass)
+        try:
+            if CONFIG_V167B.get('ALWAYS_ENHANCE_LENS', False):
+                enhanced, triggered, reverted, reasons = enhance_lens_if_needed(strategic_lens_out, user_query, force=True)
+            else:
+                enhanced, triggered, reverted, reasons = enhance_lens_if_needed(strategic_lens_out, user_query)
+            if triggered:
+                print(f"Lens enhancement triggered; reasons={reasons}; reverted={reverted}")
+            strategic_lens_out = enhanced
+        except Exception:
+            pass
+        
+        # FIX 2: Final enforcement check on FINAL candidate (after enhancement, before tracking/returning)
+        try:
+            ent_final, yr_final = _extract_entity_year(strategic_lens_out)
+            if ent_final:
+                ent_normalized_final = _normalize_entity(ent_final)
+                window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+                recent_entities_final = list(RECENT_ENTITIES_LRU[-window:]) if RECENT_ENTITIES_LRU else []
+                recent_entities_set = set(recent_entities_final)
+                
+                if ent_normalized_final in recent_entities_set:
+                    # Blocked entity detected on final candidate - retry with hard blocking instruction (one more time)
+                    blocked_display = ", ".join([get_display_name(e) for e in recent_entities_final[:8]])
+                    blocking_prompt = user_prompt + f"\n\nBLOCKED: You used '{ent_final}' which is in the avoid list. DO NOT use: {blocked_display}. MUST choose a DIFFERENT organization and include a year."
+                    # One more generation with blocking instruction
+                    parsed_output_retry = generate_answer_with_retry(blocking_prompt, system_prompt, require_behavioral, norm_concepts, application_field, start_time)
+                    strategic_lens_out_retry = parsed_output_retry.get("strategicThinkingLens", "")
+                    strategic_lens_out_retry = _de_mechanize_lens(strategic_lens_out_retry)
+                    # Re-run enhancement
+                    try:
+                        if CONFIG_V167B.get('ALWAYS_ENHANCE_LENS', False):
+                            enhanced_retry, triggered_retry, reverted_retry, reasons_retry = enhance_lens_if_needed(strategic_lens_out_retry, user_query, force=True)
+                        else:
+                            enhanced_retry, triggered_retry, reverted_retry, reasons_retry = enhance_lens_if_needed(strategic_lens_out_retry, user_query)
+                        if triggered_retry:
+                            print(f"Lens enhancement triggered; reasons={reasons_retry}; reverted={reverted_retry}")
+                        strategic_lens_out = enhanced_retry
+                    except Exception:
+                        strategic_lens_out = strategic_lens_out_retry
+                    # Debug log
+                    print(f"[enforcement_final] entity={ent_final} norm={ent_normalized_final} recent={recent_entities_final[:8]} blocked=True")
+                else:
+                    # Not blocked - can proceed
+                    print(f"[enforcement_final] entity={ent_final} norm={ent_normalized_final} recent={recent_entities_final[:8]} blocked=False")
+        except Exception:
+            # Continue if enforcement check fails
+            pass
+        
+        # Update recent entities, examples, and categories LRU (BLOCK D: category tracking)
+        try:
+            ent, yr = _extract_entity_year(strategic_lens_out)
+            if ent and yr:
+                ent_normalized = _normalize_entity(ent)
+                if ent_normalized:
+                    # Track normalized entity for avoidance checks
+                    RECENT_ENTITIES_LRU.append(ent_normalized)
+                    # Store display name mapping (BLOCK C)
+                    ENTITY_DISPLAY_MAP[ent_normalized] = ent
+                    # Also track (entity, year) for reference/debugging
+                    RECENT_EXAMPLES_LRU.append((ent, yr))
+                    # Track category (BLOCK D)
+                    category = _categorize_entity(ent)
+                    if category and category != "Unknown":
+                        RECENT_CATEGORIES_LRU.append(category)
+                    maxlen = CONFIG_V167B.get('RECENT_EXAMPLES_MAX', 25)
+                    window = CONFIG_V167B.get('RECENT_EXAMPLES_AVOID_WINDOW', 8)
+                    # Trim all lists to maxlen
+                    if len(RECENT_ENTITIES_LRU) > maxlen:
+                        del RECENT_ENTITIES_LRU[: len(RECENT_ENTITIES_LRU) - maxlen]
+                    if len(RECENT_EXAMPLES_LRU) > maxlen:
+                        del RECENT_EXAMPLES_LRU[: len(RECENT_EXAMPLES_LRU) - maxlen]
+                    if len(RECENT_CATEGORIES_LRU) > maxlen:
+                        del RECENT_CATEGORIES_LRU[: len(RECENT_CATEGORIES_LRU) - maxlen]
+                    print(f"[entity_tracking] Tracked entity: {ent} (normalized: {ent_normalized}, category: {category}), last {min(window, len(RECENT_ENTITIES_LRU))} entities: {RECENT_ENTITIES_LRU[-min(window, len(RECENT_ENTITIES_LRU)):]}")
+        except Exception:
+            pass
+        # Sanitize follow-up prompts: concise, question-form, up to 4
+        raw_fu = parsed_output.get("followUpPrompts", [])
+        followups_out = _sanitize_followups(raw_fu, example_hint="")
+        if len(followups_out) < 3:
+            print(f"[followups] supplementing prompts for query='{user_query[:80]}'")
+            followups_out = _supplement_followups(followups_out)
+        else:
+            followups_out = followups_out[:4]
         return {
-            "strategicThinkingLens": parsed_output.get("strategicThinkingLens", ""),
-            "followUpPrompts": parsed_output.get("followUpPrompts", []),
+            "strategicThinkingLens": strategic_lens_out,
+            "followUpPrompts": followups_out,
             "conceptsToolsPractice": norm_concepts,  # glossary-only
             "applicationField": application_field,
             "model": "gpt-3.5-turbo",
@@ -2667,7 +2809,515 @@ def run_query_once(query: str) -> str:
     except Exception as e:
         return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
 
-def process_query(query: str, course_config: dict = None) -> str:
+def _de_mechanize_lens(text: str) -> str:
+    """Remove mechanical subtitles and labels, soften stock phrases.
+    - Remove 'Strategic Insight:'/'Insight:' and 'Reflective follow-up questions:' lines
+    - Replace common stock phrases with more natural alternatives
+    """
+    try:
+        # Remove common subtitle labels at paragraph starts
+        text = re.sub(r"(^|\n\n)\s*(Strategic\s+Insight|Insight|Key\s+Insight)\s*:\s*", r"\1", text, flags=re.IGNORECASE)
+        # Remove any explicit label preceding follow-ups if leaked into lens
+        text = re.sub(r"\n\s*Reflective follow-up questions:\s*\n?", "\n\n", text, flags=re.IGNORECASE)
+        # Soften stock phrases (non-destructive replacements)
+        replacements = {
+            "it's crucial to": "you can",
+            "it is crucial to": "you can",
+            "one effective strategy is": "one approach is",
+            "another valuable strategy is": "another approach is",
+            "in such instances": "in these situations",
+        }
+        for k, v in replacements.items():
+            text = re.sub(rf"\b{re.escape(k)}\b", v, text, flags=re.IGNORECASE)
+        return text
+    except Exception:
+        return text
+
+def _sanitize_followups(followups: list, example_hint: str = "") -> list:
+    """Normalize follow-ups to short, question-form items.
+    - Target max ~140 chars; avoid mid-word truncation by cutting at the last space/punctuation before the limit
+    - Prefer the first question-sentence if present; otherwise trim a single concise question ending with '?'
+    - Drop blanks/duplicates and cap at 4 items
+    """
+    cleaned = []
+    seen = set()
+    for item in followups or []:
+        if not isinstance(item, str):
+            continue
+        s = item.strip()
+        if not s:
+            continue
+        # Take up to the first question mark if present
+        qm_idx = s.find('?')
+        if qm_idx != -1:
+            s = s[:qm_idx+1]
+        # Trim excessive length gently to ~140 chars without cutting mid-word
+        MAX_LEN = 140
+        if len(s) > MAX_LEN:
+            candidate = s[:MAX_LEN]
+            # Prefer to cut at punctuation or space
+            cut_points = [candidate.rfind(ch) for ch in ['?', '.', '!', ';', ':', '—', '-', ',',' ']]
+            cut_at = max(cp for cp in cut_points)
+            if cut_at > 0:
+                s = candidate[:cut_at].rstrip()
+            else:
+                s = candidate.rstrip()
+        # Ensure ends with a question mark
+        if not s.endswith('?'):
+            s = s.rstrip('.').rstrip() + '?'
+        key = s.lower()
+        if key in seen:
+            continue
+        if s:
+            s = s[0].upper() + s[1:]
+        seen.add(key)
+        cleaned.append(s)
+        if len(cleaned) >= 4:
+            break
+    return cleaned
+
+def _supplement_followups(followups: list[str]) -> list[str]:
+    templates = [
+        "How would you apply this reasoning in your own context?",
+        "What conditions might change whether this approach works?",
+        "Which metrics or signals would you monitor to gauge success?",
+        "Where else could this insight deliver value if adapted?"
+    ]
+    idx = 0
+    while len(followups) < 3 and idx < len(templates):
+        followups.append(templates[idx])
+        idx += 1
+    return followups[:4]
+
+def _validate_lens_quality(text: str) -> bool:
+    """Lightweight validator for Lens quality: typically 2-3 paragraphs, includes a named entity, a year, and a numeric element."""
+    try:
+        paras = [p.strip() for p in (text or '').split('\n\n') if p.strip()]
+        # Prefer readability: about 3 paragraphs (allow 1–4)
+        if not (1 <= len(paras) <= 4):
+            return False
+        lens_lower = text.lower()
+        # Year pattern
+        has_year = re.search(r"\b(19|20)\d{2}\b", text) is not None
+        # Numeric element (generic number anywhere)
+        has_number = re.search(r"\d", text) is not None
+        # Company/entity heuristic (proper noun + Inc/Corp/Ltd or known brands)
+        has_company = bool(re.search(r"\b([A-Z][a-z]+\s(?:Inc|Corp|LLC|Ltd))\b", text)) or any(b in text for b in ["Tesla", "Apple", "Toyota", "Samsung", "GE", "Siemens", "Ford", "GM"])
+        return has_year and has_number and has_company
+    except Exception:
+        return False
+
+
+def _contains_placeholder_example(text: str) -> bool:
+    try:
+        lowered = (text or "").lower()
+        return any(phrase in lowered for phrase in PLACEHOLDER_PHRASES)
+    except Exception:
+        return False
+
+def _normalize_entity(entity: str) -> str:
+    """Normalize entity string for consistent comparison.
+    Strips whitespace, casefolds, collapses spaces, and removes common suffixes.
+    """
+    if not entity:
+        return ""
+    normalized = entity.strip()
+    normalized = re.sub(r'\s+', ' ', normalized)  # collapse multiple spaces
+    normalized = normalized.casefold()
+    # Remove common suffixes for matching (Inc, Corp, LLC, Ltd, Company, Co)
+    normalized = re.sub(r'\s+(inc|corp|llc|ltd|company|co)\.?$', '', normalized, flags=re.IGNORECASE)
+    return normalized
+
+def _categorize_entity(entity: str) -> str:
+    """Categorize entity into one of 9 categories."""
+    if not entity:
+        return "Unknown"
+    entity_normalized = _normalize_entity(entity)
+    # First try exact match (preferred)
+    if entity_normalized in ENTITY_TO_CATEGORY:
+        return ENTITY_TO_CATEGORY[entity_normalized]
+    # Fallback to substring matching (for partial matches like "johnson" -> "Johnson & Johnson")
+    for key, category in ENTITY_TO_CATEGORY.items():
+        if key in entity_normalized or entity_normalized in key:
+            return category
+    return "Unknown"
+
+def get_display_name(normalized_entity: str) -> str:
+    """Get display name for normalized entity, preserving proper casing."""
+    return ENTITY_DISPLAY_MAP.get(normalized_entity, normalized_entity.title())
+
+def _canonicalize_entity(entity_raw: str) -> str:
+    """Canonicalize entity to full canonical name from STRICT_HINT_ENTITIES.
+    Returns canonical entity name, or original if no match found.
+    """
+    if not entity_raw:
+        return entity_raw
+    
+    # Normalize input
+    entity_normalized = _normalize_entity(entity_raw)
+    if not entity_normalized:
+        return entity_raw
+    
+    # Step 1: Check if already exact match to strict hint entity
+    for entity_name in STRICT_HINT_ENTITIES:
+        if _normalize_entity(entity_name) == entity_normalized:
+            return entity_name
+    
+    # Step 2: Check alias map
+    if entity_normalized in ALIASES_NORM:
+        return ALIASES_NORM[entity_normalized]
+    
+    # Step 3: Check if entity_normalized is a partial match (token/substring)
+    # Prefer longest match
+    candidates = []
+    for entity_name in STRICT_HINT_ENTITIES:
+        entity_name_normalized = _normalize_entity(entity_name)
+        # Check if entity_normalized is contained in entity_name_normalized
+        if entity_normalized in entity_name_normalized:
+            candidates.append((entity_name, len(entity_name)))
+    
+    if candidates:
+        # Sort by length (longest first) to prefer full names
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        return candidates[0][0]
+    
+    # Step 4: Return original if no match
+    return entity_raw
+
+def _extract_entity_year(text: str) -> tuple[str, str]:
+    """Improved extraction handling possessives, multi-word orgs, and smart quotes.
+    Extracts just the entity name, not surrounding phrases.
+    """
+    entity = ""
+    year = ""
+    if not text:
+        return entity, year
+    
+    try:
+        # Normalize curly apostrophes to ASCII
+        text_normalized = text.replace(''', "'").replace(''', "'")
+        
+        # Extract year first
+        m_year = re.search(r"\b(19|20)\d{2}\b", text_normalized)
+        if m_year:
+            year = m_year.group(0)
+        
+        # Pattern 1: Possessive form - extract just entity before 's
+        # Match: "Walmart's 2018" or "Bank of America's 2019" or "Johnson & Johnson's 2020"
+        # But NOT "Take Walmart's" or "Consider Walmart's"
+        possessive_patterns = [
+            # Direct possessive with year: "Entity's YYYY" or "Entity's in YYYY"
+            r"\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})'s\s+(?:in\s+)?(\d{4})\b",
+            # Possessive without year nearby (will use year from elsewhere)
+            r"\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})'s\b",
+        ]
+        
+        for pattern in possessive_patterns:
+            matches = list(re.finditer(pattern, text_normalized))
+            if matches:
+                # Filter out matches that start with common verbs/adjectives
+                excluded_starters = ['take', 'consider', 'think', 'look', 'see', 'view', 
+                                    'examine', 'analyze', 'review', 'study', 'check']
+                for match in matches:
+                    entity_candidate = match.group(1).strip()
+                    # Check if it starts with an excluded word
+                    first_word = entity_candidate.split()[0].lower() if entity_candidate.split() else ""
+                    if first_word in excluded_starters:
+                        continue
+                    # Check if it's a known entity or looks like one (starts with capital, has reasonable length)
+                    if len(entity_candidate.split()) <= 5 and entity_candidate[0].isupper():
+                        entity = entity_candidate
+                        if len(match.groups()) > 1 and match.group(2):
+                            year = match.group(2)
+                        break
+                if entity:
+                    break
+        
+        # Pattern 2: Direct mention with year: "Walmart 2018" or "Walmart in 2018"
+        # But avoid capturing phrases like "Take Walmart 2018"
+        if not entity:
+            direct_patterns = [
+                # Entity followed by year: "Entity YYYY" or "Entity in YYYY"
+                r"(?<![A-Za-z])\b([A-Z][A-Za-z0-9&.']+(?:\s+[A-Z][A-Za-z0-9&.']+){0,4})\s+(?:in\s+)?(\d{4})\b",
+            ]
+            for pattern in direct_patterns:
+                matches = list(re.finditer(pattern, text_normalized))
+                if matches:
+                    for match in matches:
+                        entity_candidate = match.group(1).strip()
+                        first_word = entity_candidate.split()[0].lower() if entity_candidate.split() else ""
+                        excluded_starters = ['take', 'consider', 'think', 'look', 'see', 'view']
+                        if first_word not in excluded_starters and len(entity_candidate.split()) <= 5:
+                            entity = entity_candidate
+                            if len(match.groups()) > 1 and match.group(2):
+                                year = match.group(2)
+                            break
+                    if entity:
+                        break
+        
+        # Pattern 3: Proper noun + Inc/Corp/LLC/Ltd
+        if not entity:
+            m_ent = re.search(r"\b([A-Z][A-Za-z0-9&.'\s-]+\s(?:Inc|Corp|LLC|Ltd))\b", text_normalized)
+            if m_ent:
+                entity = m_ent.group(1).strip()
+        
+        # Pattern 4: Fallback to known entities from STRICT_HINT_ENTITIES (only if year already found)
+        # Search for known entities in text (case-insensitive) - but only use if year exists
+        if not entity and year:
+            text_lower = text_normalized.lower()
+            # Check against normalized entities (exact matches first)
+            for entity_name in STRICT_HINT_ENTITIES:
+                # Use word boundaries to avoid partial matches
+                pattern = r'\b' + re.escape(entity_name.lower()) + r'\b'
+                if re.search(pattern, text_lower):
+                    entity = entity_name
+                    break
+        
+        # FIX 1: Fallback for mid-paragraph mentions (scan for entities with nearby years)
+        # This runs if entity not found OR if entity found but year missing
+        if not entity or not year:
+            text_lower = text_normalized.lower()
+            candidates = []  # List of (entity_name, year, distance)
+            
+            # Find all year positions in original text (not lowercased, to preserve positions)
+            year_matches = list(re.finditer(r'\b(19|20)\d{2}\b', text_normalized))
+            year_positions = [(m.start(), m.end(), m.group(0)) for m in year_matches]
+            
+            # Scan for entities in STRICT_HINT_ENTITIES
+            for entity_name in STRICT_HINT_ENTITIES:
+                entity_normalized = entity_name.lower()
+                # Use word boundaries for matching (case-insensitive search in lowercase text)
+                pattern = r'\b' + re.escape(entity_normalized) + r'\b'
+                entity_matches = list(re.finditer(pattern, text_lower))
+                
+                for entity_match in entity_matches:
+                    entity_start, entity_end = entity_match.start(), entity_match.end()
+                    entity_center = (entity_start + entity_end) // 2
+                    
+                    # Find nearest year within ±120 chars
+                    for year_start, year_end, year_val in year_positions:
+                        year_center = (year_start + year_end) // 2
+                        distance = abs(year_center - entity_center)
+                        
+                        if distance <= 120:
+                            candidates.append((entity_name, year_val, distance))
+            
+            # Also check for multi-word entities (handle "Johnson & Johnson" -> "Johnson")
+            if not candidates:
+                for entity_name in STRICT_HINT_ENTITIES:
+                    entity_normalized = entity_name.lower()
+                    # For multi-word entities, also try matching first significant word
+                    if '&' in entity_normalized or ' ' in entity_normalized:
+                        # Extract first meaningful word (skip common words)
+                        words = entity_normalized.split()
+                        if words:
+                            first_word = words[0]
+                            if first_word not in ['the', 'a', 'an'] and len(first_word) > 2:
+                                pattern = r'\b' + re.escape(first_word) + r'\b'
+                                entity_matches = list(re.finditer(pattern, text_lower))
+                                for entity_match in entity_matches:
+                                    entity_start, entity_end = entity_match.start(), entity_match.end()
+                                    entity_center = (entity_start + entity_end) // 2
+                                    for year_start, year_end, year_val in year_positions:
+                                        year_center = (year_start + year_end) // 2
+                                        distance = abs(year_center - entity_center)
+                                        if distance <= 120:
+                                            # Use full entity name, not just first word
+                                            candidates.append((entity_name, year_val, distance))
+            
+            # Choose best candidate (prefer longest entity, then closest distance)
+            if candidates:
+                # Sort by entity length (longest first) for same distance, then by distance
+                candidates.sort(key=lambda x: (-len(x[0]), x[2]))  # Negative length for descending
+                entity, year = candidates[0][0], candidates[0][1]
+                print(f"[extract_fallback] selected entity={entity} year={year} distance={candidates[0][2]}")
+        
+        # Canonicalize entity (expand partials to full canonical names)
+        if entity:
+            entity = _canonicalize_entity(entity)
+        
+        # Clean up entity (remove trailing punctuation, normalize spaces, remove common suffixes)
+        if entity:
+            entity = re.sub(r'\s+', ' ', entity).strip()
+            entity = re.sub(r'[.,;:]+$', '', entity)
+            # Remove common trailing words that might have been captured
+            entity = re.sub(r'\s+(dilemma|move|decision|strategy|example|case|instance)\s*$', '', entity, flags=re.IGNORECASE)
+            entity = entity.strip()
+            
+            # Filter out common pronouns and non-entity words (BLOCK A: prevent pronoun extraction)
+            pronoun_blacklist = {
+                'it', 'its', 'this', 'that', 'these', 'those', 'they', 'them', 'their', 'there',
+                'here', 'where', 'when', 'what', 'which', 'who', 'why', 'how', 'he', 'she', 'him',
+                'her', 'his', 'hers', 'we', 'us', 'our', 'you', 'your', 'i', 'me', 'my', 'mine'
+            }
+            entity_lower = entity.lower().strip()
+            if entity_lower in pronoun_blacklist:
+                entity = ""  # Reject pronoun
+            # Also reject very short entities (less than 3 chars) unless they're known entities
+            if len(entity) < 3 and entity_lower not in STRICT_HINT_ENTITIES_NORM:
+                entity = ""
+            
+    except Exception as e:
+        print(f"[extraction_error] {e}")
+        pass
+    
+    return entity, year
+
+# ---------------- V1.6.8 Lens Enhancement (Second Call) ----------------
+
+LENS_TRANSITION_TOKENS = [
+    "concretely", "this illustrates", "stepping back", "as a result",
+    "in practice", "in turn", "against that backdrop", "building on this",
+    "looking ahead", "over time", "ultimately", "going forward", "in doing so"
+]
+
+LENS_INSIGHT_TOKENS = [
+    "so ", "therefore", "shows how", "reveals why", "lesson",
+    "what to watch", "implication", "in practice", "looking ahead",
+    "going forward", "one caution"
+]
+
+def _has_transition(text: str) -> bool:
+    tl = text.lower()
+    return any(tok in tl for tok in LENS_TRANSITION_TOKENS)
+
+def _has_closing_insight(text: str) -> bool:
+    tail = (text or "")[-600:].lower()
+    return any(tok in tail for tok in LENS_INSIGHT_TOKENS)
+
+def _is_generic_opening(text: str, query: str) -> bool:
+    try:
+        first = (text or "").strip().split("\n\n", 1)[0]
+        opener = first[:220].lower()
+        generic_patterns = ["when facing", "when it comes", "it's important to", "it's crucial to", "one effective", "in such instances"]
+        if any(p in opener for p in generic_patterns):
+            # Allow pass if query terms appear in opener
+            qt = query.lower().split()
+            if not any(qw in opener for qw in qt[:5]):
+                return True
+        return False
+    except Exception:
+        return False
+
+def _is_shallow_example(text: str) -> bool:
+    # Missing any hint of action/trade-off/outcome terms
+    tl = text.lower()
+    analytic = ["localiz", "dual", "postpon", "trade-off", "constraint", "cost", "lead time", "outcome", "shift", "diversif"]
+    return not any(tok in tl for tok in analytic)
+
+def _needs_enhancement(lens_text: str, query: str) -> list:
+    reasons = []
+    if _is_generic_opening(lens_text, query):
+        reasons.append("generic_opening")
+    if _is_shallow_example(lens_text):
+        reasons.append("shallow_example")
+    if not _has_transition(lens_text):
+        reasons.append("choppy_transition")
+    if not _has_closing_insight(lens_text):
+        reasons.append("missing_insight")
+    words = len((lens_text or "").split())
+    if words < 170:
+        reasons.append("too_short")
+    return reasons
+
+def _validate_enhanced_lens(text: str) -> bool:
+    if not text or len(text.strip()) < 60:
+        return False
+    # Entity/year and numeric element should remain
+    ent, yr = _extract_entity_year(text)
+    if not (ent and yr):
+        return False
+    if re.search(r"\d", text) is None:
+        return False
+    # Transitions and closure
+    if not _has_transition(text):
+        return False
+    if not _has_closing_insight(text):
+        return False
+    # Paragraphs: allow 2–4; reject bullets/labels
+    paras = [p for p in text.split("\n\n") if p.strip()]
+    if not (1 <= len(paras) <= 5):
+        return False
+    if re.search(r"^\s*[-*] ", text, flags=re.MULTILINE):
+        return False
+    if re.search(r"^\s*#+\s", text, flags=re.MULTILINE):
+        return False
+    if "Reflective" in text:
+        return False
+    return True
+
+def enhance_lens_if_needed(lens_text: str, query: str, force: bool = False) -> tuple[str, bool, bool, list]:
+    """Return (final_lens, triggered, reverted, reasons). Never raises."""
+    try:
+        reasons = _needs_enhancement(lens_text, query) if not force else ["forced"]
+        if not reasons and not force:
+            return lens_text, False, False, []
+        # Build editor prompts
+        system_prompt = (
+            "You are an editor improving clarity, pacing, and depth while preserving every idea, fact, entity, year, and metric. "
+            "Rewrite the lens as a short Harvard Business Review–style commentary: open with a confident situational hook, weave the example into the analysis, vary sentence rhythm, and finish with a forward-looking note. "
+            "Do not add citations or remove facts. Return only the rewritten Lens as plain text."
+        )
+        base_user_prompt = (
+            "Polish this Strategic Thinking Lens into a fluent mini-essay that sounds like advice shared among colleagues. "
+            "Preserve every fact and example, but feel free to reorder or rephrase sentences for flow. "
+            "Aim for a grounded, conversational voice with smooth transitions, and finish with a forward-looking takeaway that ties the example back to practical implications. "
+            "Return only the Lens as continuous prose (no labels, bullets, or citations).\n\n"
+            f"Query: {query}\n\nLens:\n{lens_text}"
+        )
+
+        banned_tokens = ["for example", "concretely", "it's", "it is"]
+
+        def _content_loss(candidate_text: str, original_text: str) -> bool:
+            ent_orig, yr_orig = _extract_entity_year(original_text)
+            ent_new, yr_new = _extract_entity_year(candidate_text)
+            if ent_orig and ent_new and ent_orig != ent_new:
+                return True
+            if yr_orig and yr_new and yr_orig != yr_new:
+                return True
+            if yr_orig and not yr_new:
+                return True
+            if ent_orig and not ent_new:
+                return True
+            return False
+
+        retry_reasons: list[str] = []
+        best_candidate = lens_text
+
+        for style_pass in range(2):
+            user_prompt = base_user_prompt
+            if style_pass == 1:
+                user_prompt += "\n\nAdjustment: Aim for an even more fluid tone and keep every factual detail intact."
+
+            enhanced = generate_answer_with_retry(user_prompt, system_prompt, False, [], "decision", time.time())
+            candidate = enhanced.get("strategicThinkingLens", "") if isinstance(enhanced, dict) else (enhanced if isinstance(enhanced, str) else "")
+
+            if candidate:
+                best_candidate = candidate
+
+            if _content_loss(candidate, lens_text):
+                retry_reasons.append("content_loss")
+                continue
+
+            if len(candidate.split()) < max(1, int(0.8 * len(lens_text.split()))):
+                retry_reasons.append("short_output")
+
+            if not _validate_enhanced_lens(candidate):
+                retry_reasons.append("style_check")
+
+            lowered = candidate.lower()
+            repeats = {tok: lowered.count(tok) for tok in banned_tokens if lowered.count(tok) > 1}
+            if repeats:
+                print({"style_warning": repeats})
+
+            return candidate, True, False, reasons or ["forced"]
+
+        print({"editor_retry_reasons": retry_reasons})
+        return best_candidate, True, False, reasons or ["forced"]
+    except Exception:
+        return lens_text, False, False, []
+
+def process_query(query: str, course_config: dict = None, generation_context: str | None = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
     
@@ -2719,7 +3369,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Load course glossary directly
         with open('courses/decision/glossary.json', 'r', encoding='utf-8') as f:
             glossary_to_use = json.load(f)
-
+        
         # Build normalized phrase index: concept names + aliases → canonical concept
         def _normalize_text(s: str) -> str:
             return re.sub(r"\s+", " ", s.lower().replace('-', ' ').replace('_', ' ')).strip()
@@ -2852,6 +3502,17 @@ def process_query(query: str, course_config: dict = None) -> str:
             context_boost = 0.0
             query_lower = query.lower()
             
+            # For uncertainty queries, boost uncertainty-related tools with consistent scoring
+            # Use fuzzy matching for uncertainty-related keywords
+            uncertainty_keywords = ['uncertainty', 'uncertain', 'volatile', 'unpredictable', 'probability', 'probabilistic', 'unpredict', 'unpredicting']
+            has_uncertainty = any(word in query_lower for word in uncertainty_keywords)
+            
+            if has_uncertainty:
+                if concept_name in ['monte carlo simulation', 'decision tree', 'scenario analysis']:
+                    context_boost = 0.25  # Equal boost for primary uncertainty tools
+                elif concept_name in ['sensitivity analysis', 'expected value', 'utility functions']:
+                    context_boost = 0.2  # Moderate boost for secondary uncertainty tools
+            
             # Boost concepts related to evaluation/decision-making when query mentions evaluation
             if 'evaluation' in query_lower or 'evaluate' in query_lower:
                 if concept_name in ['value creation', 'cost-benefit analysis', 'expected value']:
@@ -2933,7 +3594,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         # Check if we need fallback concepts (should be disabled)
         if len(concepts) < 2:
             pass  # Fallback is disabled
-
+        
         # Prepare domains for one-call generation
         domain_items = sorted(selected_domains.items(), key=lambda x: x[1], reverse=True)
         primary_domains_list = [domain_items[0][0]] if domain_items else ["general"]
@@ -2945,7 +3606,8 @@ def process_query(query: str, course_config: dict = None) -> str:
             application_field=application_field,
             primary_domains=primary_domains_list,
             secondary_domains=secondary_domains_list,
-            concepts=concepts
+            concepts=concepts,
+            generation_context=generation_context
         )
 
         # If one-call returned an error-like structure, map accordingly
@@ -2970,7 +3632,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         traceback.print_exc()
         return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
 
-def process_query_structured(query: str, course_config: dict = None) -> dict:
+def process_query_structured(query: str, course_config: dict = None, generation_context: str | None = None) -> dict:
     """
     V1.6.6: Process query and return structured data for Lambda function.
     Eliminates need for Lambda to re-parse GPT response.
@@ -2993,36 +3655,33 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
             application_field = "general"  # Safe default
         
         # Get the full answer and authoritative concepts from process_query
-        process_result = process_query(query, course_config)
+        process_result_str = process_query(query, course_config, generation_context=generation_context)
         
-        # Extract the answer and concepts from the result
-        answer = process_result["answer"]
-        concepts = process_result["concepts"]
-        selected_domains = process_result["selected_domains"]
-        primary_domain = process_result["primary_domain"]
+        # Parse the JSON string returned by process_query
+        try:
+            process_result = json.loads(process_result_str)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Failed to parse process_query result: {e}")
+        
+        # Extract the structured data from process_query result
+        # process_query returns: {"strategicLens": "...", "followupPrompts": [...], "conceptsToolsPractice": [...]}
+        strategic_lens = process_result.get("strategicLens", "")
+        followup_prompts = process_result.get("followupPrompts", [])
+        concepts_tools_practice = process_result.get("conceptsToolsPractice", [])
+        
+        # For backward compatibility, create answer from strategicLens
+        answer = strategic_lens
         
         
         # Extract structured data that Lambda function needs
-        # 1. Strategic Thinking Lens
-        strategic_thinking_lens = ""
-        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-        if lens_match:
-            strategic_thinking_lens = lens_match.group(1).strip()
+        # 1. Strategic Thinking Lens (already extracted above)
+        strategic_thinking_lens = strategic_lens
         
-        # 2. Follow-up Prompts
-        follow_up_prompts = ""
-        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*\s*\n(.*?)(?=\*\*|\Z)', answer, re.DOTALL | re.IGNORECASE)
-        if prompts_match:
-            follow_up_prompts = prompts_match.group(1).strip()
+        # 2. Follow-up Prompts (already extracted above)
+        # follow_up_prompts is already set from process_result.get("followupPrompts", [])
         
-        # 3. Concepts/Tools - ALWAYS use authoritative concepts from query-engine (IGNORE GPT output)
-        concepts_tools_practice = []
-        # Use the authoritative concepts from process_query, not from GPT parsing
-        for concept_name, definition in concepts:
-            concepts_tools_practice.append({
-                "term": concept_name,
-                "definition": definition
-            })
+        # 3. Concepts/Tools (already extracted above)
+        # concepts_tools_practice is already set from process_result.get("conceptsToolsPractice", [])
         
         # Application field already extracted from process_query
         
@@ -3033,101 +3692,35 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
         return {
             "answer": answer,
             "strategicThinkingLens": strategic_thinking_lens,
-            "followUpPrompts": follow_up_prompts,
+            "followUpPrompts": followup_prompts,
             "conceptsToolsPractice": concepts_tools_practice,
             "applicationField": application_field,
             "model": "gpt-3.5-turbo"
         }
         
     except Exception as e:
-        # Error in process_query_structured - returning fallback response
+        # Error in process_query_structured - returning fallback response with error details
+        import traceback
+        error_details = str(e)
+        traceback_str = traceback.format_exc()
+        
+        # Log the error for debugging
+        print(f"ERROR in process_query_structured: {error_details}")
+        print(f"Traceback: {traceback_str}")
+        
         return {
-            "answer": "I apologize, but I encountered an error processing your query. Please try again.",
+            "answer": f"I apologize, but I encountered an error processing your query: {error_details}. Please try again.",
             "strategicThinkingLens": "",
-            "followUpPrompts": "",
+            "followUpPrompts": [],
             "conceptsToolsPractice": [],
             "applicationField": "general",
-            "model": "error"
+            "model": "error",
+            "error_details": error_details
         }
 
-def enforce_thinkpal_structure(answer: str, query: str = "") -> str:
-    """Ensure the answer follows ThinkPal structure with all required sections."""
-    
-    # Check if answer has at least 1 of the 4 required sections (very lenient)
-    sections_found = 0
-    if re.search(r'\*\*Strategic Thinking Lens\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Story in Action\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Follow-up Prompts\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    if re.search(r'\*\*Concepts/Tools\*\*', answer, re.IGNORECASE):
-        sections_found += 1
-    
-    # If GPT generated at least 1 section, keep the answer and just add missing sections
-    if sections_found >= 1:
-        # Extract existing sections from GPT's response
-        existing_sections = {}
-        
-        # Extract Strategic Thinking Lens
-        lens_match = re.search(r'\*\*Strategic Thinking Lens\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if lens_match:
-            existing_sections['Strategic Thinking Lens'] = lens_match.group(0).replace('**Strategic Thinking Lens**', '').strip()
-        
-        # Extract Story in Action
-        story_match = re.search(r'\*\*Story in Action\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if story_match:
-            existing_sections['Story in Action'] = story_match.group(0).replace('**Story in Action**', '').strip()
-        
-        # Extract Follow-up Prompts
-        prompts_match = re.search(r'\*\*Follow-up Prompts\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if prompts_match:
-            existing_sections['Follow-up Prompts'] = prompts_match.group(0).replace('**Follow-up Prompts**', '').strip()
-        
-        # Extract Concepts/Tools
-        concepts_match = re.search(r'\*\*Concepts/Tools\*\*.*?(?=\*\*|$)', answer, re.DOTALL | re.IGNORECASE)
-        if concepts_match:
-            existing_sections['Concepts/Tools'] = concepts_match.group(0).replace('**Concepts/Tools**', '').strip()
-        
-        # Generate fallback content only for missing sections
-        fallback_content = context_aware_fallbacks(query)
-        
-        # Use GPT's sections when available, fallback only for missing ones
-        final_content = {}
-        final_content['Strategic Thinking Lens'] = existing_sections.get('Strategic Thinking Lens', fallback_content['Strategic Thinking Lens'])
-        final_content['Story in Action'] = existing_sections.get('Story in Action', fallback_content['Story in Action'])
-        final_content['Follow-up Prompts'] = existing_sections.get('Follow-up Prompts', fallback_content['Follow-up Prompts'])
-        final_content['Concepts/Tools'] = existing_sections.get('Concepts/Tools', fallback_content['Concepts/Tools'])
-        
-        return format_fallback_response(final_content)
-    
-    # Only use complete fallback if GPT generated 0 sections (complete failure)
-    # GPT generated 0 sections, using complete fallback
-    fallback_content = context_aware_fallbacks(query)
-    return format_fallback_response(fallback_content)
+# Legacy enforce_thinkpal_structure removed - not used in one-call system
 
-def format_fallback_response(fallback_content: dict) -> str:
-    """Format fallback content into proper ThinkPal structure."""
-    sections = []
-    
-    if 'Strategic Thinking Lens' in fallback_content:
-        sections.append(f"**Strategic Thinking Lens**\n\n{fallback_content['Strategic Thinking Lens']}")
-    
-    if 'Story in Action' in fallback_content:
-        sections.append(f"**Story in Action**\n\n{fallback_content['Story in Action']}")
-    
-    if 'Follow-up Prompts' in fallback_content:
-        prompts = fallback_content['Follow-up Prompts']
-        if isinstance(prompts, list):
-            prompts_text = '\n'.join(prompts)
-        else:
-            prompts_text = prompts
-        sections.append(f"**Follow-up Prompts**\n\n{prompts_text}")
-    
-    if 'Concepts/Tools' in fallback_content:
-        sections.append(f"**Concepts/Tools**\n\n{fallback_content['Concepts/Tools']}")
-    
-    return '\n\n'.join(sections)
+# Legacy format_fallback_response removed - not used in one-call system
 
 def detect_domain_semantic(query: str) -> dict:
     """
@@ -3924,3 +4517,63 @@ if __name__ == "__main__":
             
     except KeyboardInterrupt:
         pass 
+
+def _title_case_term(term: str) -> str:
+    try:
+        return term.title()
+    except Exception:
+        return term
+
+def _reorder_and_titlecase_concepts(lens_text: str, concepts: list) -> list:
+    """Move lens-mentioned terms to front (substring match), preserve others, title-case terms for display."""
+    try:
+        lens_paras = [p.strip() for p in (lens_text or '').split('\n\n') if p.strip()]
+        lens_core = '\n'.join(lens_paras[:2]).lower()
+        mentioned, unmentioned = [], []
+        for item in concepts or []:
+            if not isinstance(item, dict):
+                continue
+            term = (item.get('term') or '')
+            definition = item.get('definition')
+            display_term = _title_case_term(term)
+            new_item = {"term": display_term, "definition": definition}
+            if term and term.lower() in lens_core:
+                mentioned.append(new_item)
+            else:
+                unmentioned.append(new_item)
+        return mentioned + unmentioned
+    except Exception:
+        out = []
+        for item in concepts or []:
+            if isinstance(item, dict):
+                out.append({"term": _title_case_term(item.get('term') or ''), "definition": item.get('definition')})
+        return out
+
+_DENSITY_STOPWORDS = {
+    "the", "a", "an", "and", "or", "but", "if", "then", "than", "so", "because",
+    "with", "without", "to", "for", "of", "in", "on", "at", "by", "from", "as",
+    "is", "are", "was", "were", "be", "been", "being", "that", "this", "these",
+    "those", "it", "its", "it's", "into", "about", "over", "under", "while", "when",
+    "where", "who", "whom", "which", "what", "why", "how", "also", "can", "may",
+    "might", "should", "would", "could", "will", "shall", "do", "does", "did", "have",
+    "has", "had", "your", "their", "our", "we", "you", "let", "let's"
+}
+
+
+def _content_density_ratio(text: str) -> float:
+    """Approximate information density via content-word ratio."""
+    tokens = re.findall(r"[A-Za-z0-9']+", text)
+    if not tokens:
+        return 0.0
+    content_tokens = 0
+    for tok in tokens:
+        lower = tok.lower()
+        if lower.isdigit():
+            content_tokens += 1
+            continue
+        if len(lower) <= 2:
+            continue
+        if lower in _DENSITY_STOPWORDS:
+            continue
+        content_tokens += 1
+    return content_tokens / len(tokens)

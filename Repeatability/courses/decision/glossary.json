@@ -269,15 +269,6 @@
       "gain loss"
     ]
   },
-  "solver-based simulation": {
-    "definition": "A computational approach that uses algorithms to find optimal or feasible solutions under constraints and uncertainty",
-    "core": true,
-    "aliases": [
-      "solver simulation",
-      "algorithmic optimization",
-      "computational optimization"
-    ]
-  },
   "confirmation bias": {
     "definition": "Favoring evidence that supports existing beliefs",
     "core": true,

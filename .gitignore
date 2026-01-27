@@ -21,19 +21,12 @@ wheels/
 *.egg
 MANIFEST
 
-# Virtual Environment
+# Virtual environments
 venv/
 env/
 ENV/
 env.bak/
 venv.bak/
-
-# Environment Variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
 
 # IDE
 .vscode/
@@ -51,98 +44,41 @@ venv.bak/
 ehthumbs.db
 Thumbs.db
 
-# Logs
-*.log
-logs/
-log/
+# AWS
+.aws/
+*.pem
 
-# Data files
+# Cursor extensions
+.cursor/
+
+# System files
+AppData/
+Documents/
+Desktop/
+Downloads/
+Pictures/
+Videos/
+Music/
+
+# Project specific
 *.faiss
-metadata.json
 vector_index.faiss
-*.pkl
-*.pickle
-
-# Temporary files
+*.log
 *.tmp
-*.temp
-temp/
-tmp/
 
-# Test coverage
-.coverage
-htmlcov/
-.tox/
-.pytest_cache/
-.mypy_cache/
+# Archive folders
+archieve/
+archive_*/
+legacy*/
+*_legacy/
+*_archive/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# PEP 582
-__pypackages__/
-
-# Celery
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# OpenAI API keys (security)
-openai_api_key.txt
-api_keys.txt
-
-# Backup files
-*.bak
-*.backup
-*_backup.py
-*_old.py
-
-# Performance test results
-performance_results.json
-test_results.json
-
-# Debug files
-debug_*.py
+# Test files
 test_*.py
-*_debug.py
 *_test.py
-
-# Documentation builds
-docs/_build/
-docs/build/
-
-# Node modules (if any frontend components)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Local configuration
-config.local.py
-settings.local.py 
+tests/
