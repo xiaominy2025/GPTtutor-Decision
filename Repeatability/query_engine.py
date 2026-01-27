@@ -2466,7 +2466,8 @@ def generate_answer_one_call(user_query: str,
                              application_field: str,
                              primary_domains: List[str],
                              secondary_domains: List[str],
-                             concepts: List[Tuple[str, str]] | List[Dict[str, str]] = None
+                             concepts: List[Tuple[str, str]] | List[Dict[str, str]] = None,
+                             generation_context: str | None = None
                              ) -> Dict[str, Any]:
     """
     Generate strategic lens and follow-up prompts in ONE OpenAI call.
@@ -2552,6 +2553,10 @@ CRITICAL: Example Selection Requirements
 - {category_hint}
 """
 
+    context_block = ""
+    if generation_context:
+        context_block = f"\n\nContext capsule (previous lens): {generation_context}\n"
+
     user_prompt = f"""
 Here is the query context:
 
@@ -2584,7 +2589,7 @@ Notes:
  - Use widely recognizable organizations with publicly documented decisions. DO NOT use obscure startups or trivia-based examples unless explicitly relevant.
  - Do not reuse the same organization within the conversation when reasonable alternatives exist.
  - If a tool naturally arises in your reasoning, name it once (only if it truly adds clarity).
-"""
+{context_block}"""
 
     try:
         if openai is None:
@@ -2885,7 +2890,7 @@ def _supplement_followups(followups: list[str]) -> list[str]:
     return followups[:4]
 
 def _validate_lens_quality(text: str) -> bool:
-    """Lightweight validator for Lens quality: typically 2–3 paragraphs, includes a named entity, a year, and a numeric element."""
+    """Lightweight validator for Lens quality: typically 2-3 paragraphs, includes a named entity, a year, and a numeric element."""
     try:
         paras = [p.strip() for p in (text or '').split('\n\n') if p.strip()]
         # Prefer readability: about 3 paragraphs (allow 1–4)
@@ -3312,7 +3317,7 @@ def enhance_lens_if_needed(lens_text: str, query: str, force: bool = False) -> t
     except Exception:
         return lens_text, False, False, []
 
-def process_query(query: str, course_config: dict = None) -> str:
+def process_query(query: str, course_config: dict = None, generation_context: str | None = None) -> str:
     """
     Main query processing function - generates structured ThinkPal responses.
     
@@ -3601,7 +3606,8 @@ def process_query(query: str, course_config: dict = None) -> str:
             application_field=application_field,
             primary_domains=primary_domains_list,
             secondary_domains=secondary_domains_list,
-            concepts=concepts
+            concepts=concepts,
+            generation_context=generation_context
         )
 
         # If one-call returned an error-like structure, map accordingly
@@ -3626,7 +3632,7 @@ def process_query(query: str, course_config: dict = None) -> str:
         traceback.print_exc()
         return json.dumps({"error": "Server issue, please try again later."}, ensure_ascii=False)
 
-def process_query_structured(query: str, course_config: dict = None) -> dict:
+def process_query_structured(query: str, course_config: dict = None, generation_context: str | None = None) -> dict:
     """
     V1.6.6: Process query and return structured data for Lambda function.
     Eliminates need for Lambda to re-parse GPT response.
@@ -3649,7 +3655,7 @@ def process_query_structured(query: str, course_config: dict = None) -> dict:
             application_field = "general"  # Safe default
         
         # Get the full answer and authoritative concepts from process_query
-        process_result_str = process_query(query, course_config)
+        process_result_str = process_query(query, course_config, generation_context=generation_context)
         
         # Parse the JSON string returned by process_query
         try:
